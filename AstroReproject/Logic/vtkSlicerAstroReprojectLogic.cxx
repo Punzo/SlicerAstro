@@ -720,6 +720,233 @@ std::vector<vtkMRMLAstroVolumeNode*> vtkSlicerAstroReprojectLogic::GetInputVolum
 }
 
 //----------------------------------------------------------------------------
+namespace
+{
+std::string JoinList(const std::vector<std::string>& items)
+{
+  std::string text;
+  for (std::size_t index = 0; index < items.size(); index++)
+    {
+    text += (index ? ";" : "") + items[index];
+    }
+  return text;
+}
+
+/// The input IDs of the parameters with their noises and primary beams (one
+/// entry per input)
+void GetInputLists(vtkMRMLAstroReprojectParametersNode* pnode, std::vector<std::string>& ids,
+                   std::vector<std::string>& noises, std::vector<std::string>& beams)
+{
+  ids = SplitList(pnode->GetInputVolumeNodeIDs());
+  if (ids.empty() && pnode->GetInputVolumeNodeID() && *pnode->GetInputVolumeNodeID())
+    {
+    ids.push_back(pnode->GetInputVolumeNodeID());
+    }
+  noises = SplitList(pnode->GetInputNoises());
+  beams = SplitList(pnode->GetPrimaryBeamVolumeNodeIDs());
+  noises.resize(ids.size());
+  beams.resize(ids.size());
+}
+
+void SetInputLists(vtkMRMLAstroReprojectParametersNode* pnode, const std::vector<std::string>& ids,
+                   const std::vector<std::string>& noises, const std::vector<std::string>& beams)
+{
+  const int wasModifying = pnode->StartModify();
+  pnode->SetInputVolumeNodeIDs(JoinList(ids).c_str());
+  pnode->SetInputVolumeNodeID(ids.empty() ? nullptr : ids[0].c_str());
+  pnode->SetInputNoises(JoinList(noises).c_str());
+  pnode->SetPrimaryBeamVolumeNodeIDs(JoinList(beams).c_str());
+  pnode->EndModify(wasModifying);
+}
+} // end of anonymous namespace
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroReprojectLogic::AddInputVolume(vtkMRMLAstroReprojectParametersNode* pnode, const char* volumeID)
+{
+  if (!pnode || !volumeID || !*volumeID)
+    {
+    return false;
+    }
+  std::vector<std::string> ids, noises, beams;
+  GetInputLists(pnode, ids, noises, beams);
+  if (std::find(ids.begin(), ids.end(), std::string(volumeID)) != ids.end())
+    {
+    return false;
+    }
+  ids.push_back(volumeID);
+  noises.push_back("");
+  beams.push_back("");
+  SetInputLists(pnode, ids, noises, beams);
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroReprojectLogic::RemoveInputVolume(vtkMRMLAstroReprojectParametersNode* pnode, const char* volumeID)
+{
+  if (!pnode || !volumeID)
+    {
+    return false;
+    }
+  std::vector<std::string> ids, noises, beams;
+  GetInputLists(pnode, ids, noises, beams);
+  std::vector<std::string>::iterator found = std::find(ids.begin(), ids.end(), std::string(volumeID));
+  if (found == ids.end())
+    {
+    return false;
+    }
+  const std::size_t index = static_cast<std::size_t>(found - ids.begin());
+  ids.erase(ids.begin() + index);
+  noises.erase(noises.begin() + index);
+  beams.erase(beams.begin() + index);
+  SetInputLists(pnode, ids, noises, beams);
+  return true;
+}
+
+//----------------------------------------------------------------------------
+void vtkSlicerAstroReprojectLogic::SetSingleInputVolume(vtkMRMLAstroReprojectParametersNode* pnode,
+                                                        const char* volumeID)
+{
+  if (!pnode)
+    {
+    return;
+    }
+  std::vector<std::string> ids, noises, beams;
+  if (volumeID && *volumeID)
+    {
+    ids.push_back(volumeID);
+    noises.push_back("");
+    beams.push_back("");
+    }
+  SetInputLists(pnode, ids, noises, beams);
+}
+
+//----------------------------------------------------------------------------
+void vtkSlicerAstroReprojectLogic::SetFirstInputVolume(vtkMRMLAstroReprojectParametersNode* pnode,
+                                                       const char* volumeID)
+{
+  if (!pnode)
+    {
+    return;
+    }
+  std::vector<std::string> ids, noises, beams;
+  GetInputLists(pnode, ids, noises, beams);
+  if (!volumeID || !*volumeID)
+    {
+    if (!ids.empty())
+      {
+      ids.erase(ids.begin());
+      noises.erase(noises.begin());
+      beams.erase(beams.begin());
+      }
+    SetInputLists(pnode, ids, noises, beams);
+    return;
+    }
+  std::string noise, beam;
+  std::vector<std::string>::iterator found = std::find(ids.begin(), ids.end(), std::string(volumeID));
+  if (found != ids.end())
+    {
+    // already an input: moved to the front with its noise and primary beam
+    const std::size_t index = static_cast<std::size_t>(found - ids.begin());
+    noise = noises[index];
+    beam = beams[index];
+    ids.erase(ids.begin() + index);
+    noises.erase(noises.begin() + index);
+    beams.erase(beams.begin() + index);
+    ids.insert(ids.begin(), volumeID);
+    noises.insert(noises.begin(), noise);
+    beams.insert(beams.begin(), beam);
+    }
+  else if (ids.empty())
+    {
+    ids.push_back(volumeID);
+    noises.push_back("");
+    beams.push_back("");
+    }
+  else
+    {
+    ids[0] = volumeID;
+    noises[0] = "";
+    beams[0] = "";
+    }
+  SetInputLists(pnode, ids, noises, beams);
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroReprojectLogic::SetInputNoise(vtkMRMLAstroReprojectParametersNode* pnode, int index, double noise)
+{
+  if (!pnode)
+    {
+    return false;
+    }
+  std::vector<std::string> ids, noises, beams;
+  GetInputLists(pnode, ids, noises, beams);
+  if (index < 0 || index >= static_cast<int>(ids.size()))
+    {
+    return false;
+    }
+  std::ostringstream value;
+  value.precision(10);
+  if (noise > 0.)
+    {
+    value << noise;
+    }
+  noises[index] = value.str();
+  SetInputLists(pnode, ids, noises, beams);
+  return true;
+}
+
+//----------------------------------------------------------------------------
+double vtkSlicerAstroReprojectLogic::GetInputNoise(vtkMRMLAstroReprojectParametersNode* pnode, int index)
+{
+  if (!pnode)
+    {
+    return 0.;
+    }
+  std::vector<std::string> ids, noises, beams;
+  GetInputLists(pnode, ids, noises, beams);
+  if (index < 0 || index >= static_cast<int>(ids.size()) || noises[index].empty())
+    {
+    return 0.;
+    }
+  return std::atof(noises[index].c_str());
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroReprojectLogic::SetInputPrimaryBeam(vtkMRMLAstroReprojectParametersNode* pnode, int index,
+                                                       const char* volumeID)
+{
+  if (!pnode)
+    {
+    return false;
+    }
+  std::vector<std::string> ids, noises, beams;
+  GetInputLists(pnode, ids, noises, beams);
+  if (index < 0 || index >= static_cast<int>(ids.size()))
+    {
+    return false;
+    }
+  beams[index] = volumeID ? volumeID : "";
+  SetInputLists(pnode, ids, noises, beams);
+  return true;
+}
+
+//----------------------------------------------------------------------------
+std::string vtkSlicerAstroReprojectLogic::GetInputPrimaryBeam(vtkMRMLAstroReprojectParametersNode* pnode, int index)
+{
+  if (!pnode)
+    {
+    return std::string();
+    }
+  std::vector<std::string> ids, noises, beams;
+  GetInputLists(pnode, ids, noises, beams);
+  if (index < 0 || index >= static_cast<int>(ids.size()))
+    {
+    return std::string();
+    }
+  return beams[index];
+}
+
+//----------------------------------------------------------------------------
 wcsprm* vtkSlicerAstroReprojectLogic::ComputeOutputGrid(vtkMRMLAstroReprojectParametersNode* pnode, int dimensions[3],
                                                         std::string& error)
 {
@@ -1255,9 +1482,21 @@ bool vtkSlicerAstroReprojectLogic::StartReproject(vtkMRMLAstroReprojectParameter
       vtkMRMLAstroVolumeNode* firstVolume = volumes[0];
       vtkMRMLAstroVolumeNode* existing = vtkMRMLAstroVolumeNode::SafeDownCast(
         pnode->GetOutputVolumeNodeID() ? scene->GetNodeByID(pnode->GetOutputVolumeNodeID()) : nullptr);
-      if (existing && std::find(volumes.begin(), volumes.end(), existing) != volumes.end())
+      // the previous output is replaced only if it was made from the same
+      // inputs (other inputs: a new volume)
+      std::string inputIDs;
+      for (vtkMRMLAstroVolumeNode* volume : volumes)
+        {
+        inputIDs += (inputIDs.empty() ? "" : ";") + std::string(volume->GetID());
+        }
+      if (existing && (std::find(volumes.begin(), volumes.end(), existing) != volumes.end() ||
+                       !existing->GetAttribute(GetReprojectInputsAttributeName()) ||
+                       inputIDs != existing->GetAttribute(GetReprojectInputsAttributeName())))
         {
         existing = nullptr;
+        pnode->SetWeightVolumeNodeID("");
+        pnode->SetSensitivityVolumeNodeID("");
+        pnode->SetSaultVolumeNodeID("");
         }
       std::string name = existing ? existing->GetName() :
         std::string(firstVolume->GetName()) + (volumes.size() > 1 ? "_Mosaic" : "_Reprojected");
@@ -1291,6 +1530,7 @@ bool vtkSlicerAstroReprojectLogic::StartReproject(vtkMRMLAstroReprojectParameter
           }
         vtkMRMLNode* noPreset = nullptr;
         volume->SetPresetNode(noPreset);
+        volume->SetAttribute(GetReprojectInputsAttributeName(), inputIDs.c_str());
         std::string volumeError;
         if (!SetOutputVolume(volume, image, outputWCS.get(), unit, outputs.Beam, volumeError))
           {

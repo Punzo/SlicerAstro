@@ -116,7 +116,7 @@ class AstroReprojectTestTest(ScriptedLoadableModuleTest):
                      self.test_FluxConservation, self.test_ResampleFactors, self.test_SpectralAxes,
                      self.test_SpectralFrames, self.test_VelocityMatching, self.test_SpectralOverlap,
                      self.test_Mosaic, self.test_CommonBeam, self.test_TargetBeam, self.test_ManualGrid,
-                     self.test_Widget):
+                     self.test_InputsAndOutputs, self.test_Widget):
             self.setUp()
             test()
 
@@ -653,4 +653,81 @@ class AstroReprojectTestTest(ScriptedLoadableModuleTest):
         self.assertAlmostEqual(pnode.GetPixelSizeX(), 7.2, places=5)
         for item in range(combo.count):
             self.assertTrue(combo.itemData(item, qt.Qt.ToolTipRole), f"tooltip of option {item}")
+
+        # segmented choices with their explanation; no output or parameters selectors
+        resolution = slicer.util.findChild(widget, "ResolutionModeButton")
+        resolutionText = slicer.util.findChild(widget, "ResolutionModeButtonExplanation")
+        keepText = resolutionText.text
+        resolution.setCurrentIndex(P.ResolutionTarget)
+        slicer.app.processEvents()
+        self.assertEqual(pnode.GetResolutionMode(), P.ResolutionTarget)
+        self.assertNotEqual(resolutionText.text, keepText)
+        pnode.SetResolutionMode(P.ResolutionKeep)
+        self.assertEqual(len(slicer.util.findChildren(widget, className="qMRMLNodeComboBox")), 0)
+
+        # inputs: a second input (mosaic) gets a row with a remove button and
+        # the noise per input; the result card shows the output
+        other = self.volume("widget2", (1, 32, 32), celestialCards(crval=(180.05, 30.), crpix=(16.5, 16.5)), model)
+        # (loading made it the active volume, followed by a single input)
+        selectionNode.SetActiveVolumeID(node.GetID())
+        slicer.app.processEvents()
+        self.assertEqual(pnode.GetInputVolumeNodeIDs(), node.GetID())
+        widget.addInputVolume(other)
+        slicer.app.processEvents()
+        self.assertEqual(pnode.GetInputVolumeNodeIDs(), node.GetID() + ";" + other.GetID())
+        self.assertIsNotNone(slicer.util.findChild(widget, "ExtraInput1"))
+        self.assertIsNotNone(slicer.util.findChild(widget, "InputNoiseField1"))
+        self.assertEqual(slicer.util.findChild(widget, "ApplyButton").text, "Make the mosaic")
+        widget.removeInputVolume(other.GetID())
+        slicer.app.processEvents()
+        self.assertEqual(pnode.GetInputVolumeNodeIDs(), node.GetID())
+        self.assertTrue(slicer.util.findChild(widget, "ResultCard").visible)
+        self.delayDisplay("Test passed")
+
+    def test_InputsAndOutputs(self):
+        """Inputs of the parameters node with their noise and primary beam kept
+        aligned (logic), and the output replaced only by a reprojection of the
+        same inputs."""
+        self.delayDisplay("Inputs and outputs")
+        model = gaussianSource(180., 30., 0.03)
+        a = self.volume("inputA", (1, 16, 16), celestialCards(crpix=(8.5, 8.5)), model)
+        b = self.volume("inputB", (1, 16, 16), celestialCards(crpix=(8.5, 8.5)), model)
+        c = self.volume("inputC", (1, 16, 16), celestialCards(crpix=(8.5, 8.5)), model)
+        pnode = slicer.vtkMRMLAstroReprojectParametersNode()
+        logic = self.logic
+        logic.SetSingleInputVolume(pnode, a.GetID())
+        self.assertTrue(logic.AddInputVolume(pnode, b.GetID()))
+        self.assertFalse(logic.AddInputVolume(pnode, b.GetID()))
+        self.assertTrue(logic.AddInputVolume(pnode, c.GetID()))
+        self.assertTrue(logic.SetInputNoise(pnode, 1, 0.25))
+        self.assertTrue(logic.SetInputPrimaryBeam(pnode, 2, a.GetID()))
+        self.assertEqual(pnode.GetInputNoises(), ";0.25;")
+        self.assertTrue(logic.RemoveInputVolume(pnode, a.GetID()))
+        self.assertEqual(pnode.GetInputVolumeNodeIDs(), b.GetID() + ";" + c.GetID())
+        self.assertEqual(pnode.GetInputVolumeNodeID(), b.GetID())
+        self.assertAlmostEqual(logic.GetInputNoise(pnode, 0), 0.25)
+        self.assertEqual(logic.GetInputPrimaryBeam(pnode, 1), a.GetID())
+        # the first input: an input moved to the front with its noise and beam
+        logic.SetFirstInputVolume(pnode, c.GetID())
+        self.assertEqual(pnode.GetInputVolumeNodeIDs(), c.GetID() + ";" + b.GetID())
+        self.assertEqual(logic.GetInputPrimaryBeam(pnode, 0), a.GetID())
+        self.assertAlmostEqual(logic.GetInputNoise(pnode, 1), 0.25)
+        # a new volume replaces the first input
+        logic.SetFirstInputVolume(pnode, a.GetID())
+        self.assertEqual(pnode.GetInputVolumeNodeIDs(), a.GetID() + ";" + b.GetID())
+        self.assertEqual(logic.GetInputPrimaryBeam(pnode, 0), "")
+
+        # the output of the same input is replaced, other inputs get new data
+        logic.SetSingleInputVolume(pnode, a.GetID())
+        pnode.SetSpatialGridMode(pnode.SpatialInput)
+        first = self.reproject(pnode)
+        firstName = first.GetName()
+        self.assertEqual(first.GetAttribute(logic.GetReprojectInputsAttributeName()), a.GetID())
+        second = self.reproject(pnode)
+        self.assertEqual(second.GetName(), firstName)
+        self.assertIsNone(slicer.mrmlScene.GetNodeByID(first.GetID()))
+        logic.SetSingleInputVolume(pnode, b.GetID())
+        third = self.reproject(pnode)
+        self.assertIsNotNone(slicer.mrmlScene.GetNodeByID(second.GetID()))
+        self.assertNotEqual(third.GetID(), second.GetID())
         self.delayDisplay("Test passed")

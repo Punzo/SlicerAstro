@@ -101,6 +101,28 @@ public:
   /// angle in degrees); false if an input has no beam
   bool GetCommonBeam(vtkMRMLAstroReprojectParametersNode* pnode, double beam[3]);
 
+  /// Attribute of the output volumes: the IDs of their inputs (';'). The
+  /// output of the parameters node is replaced by the next reprojection only
+  /// if it has the same inputs.
+  static const char* GetReprojectInputsAttributeName() { return "SlicerAstro.ReprojectInputs"; }
+
+  /// Inputs of the parameters node (InputVolumeNodeIDs), with their noise
+  /// (InputNoises) and primary beam volume (PrimaryBeamVolumeNodeIDs) kept
+  /// aligned: add an input at the end (false if already an input), remove
+  /// one, or make volumeID the only input (nullptr: none)
+  bool AddInputVolume(vtkMRMLAstroReprojectParametersNode* pnode, const char* volumeID);
+  bool RemoveInputVolume(vtkMRMLAstroReprojectParametersNode* pnode, const char* volumeID);
+  void SetSingleInputVolume(vtkMRMLAstroReprojectParametersNode* pnode, const char* volumeID);
+  /// The first input (the data reprojected, the grid of "the input"); the
+  /// other inputs are kept (nullptr: the first input removed)
+  void SetFirstInputVolume(vtkMRMLAstroReprojectParametersNode* pnode, const char* volumeID);
+  /// Noise (data units; 0: the noise of the data) and primary beam volume
+  /// (empty: none) of the input at index
+  bool SetInputNoise(vtkMRMLAstroReprojectParametersNode* pnode, int index, double noise);
+  double GetInputNoise(vtkMRMLAstroReprojectParametersNode* pnode, int index);
+  bool SetInputPrimaryBeam(vtkMRMLAstroReprojectParametersNode* pnode, int index, const char* volumeID);
+  std::string GetInputPrimaryBeam(vtkMRMLAstroReprojectParametersNode* pnode, int index);
+
   /// Input volumes of the parameters node
   std::vector<vtkMRMLAstroVolumeNode*> GetInputVolumes(vtkMRMLAstroReprojectParametersNode* pnode);
 

@@ -91,8 +91,28 @@ class ProductStep(PipelineStep):
             if node.IsA("vtkMRMLAstroVolumeNode"):
                 if Astro.attribute(node, "DATAMODEL", "") in self.datamodels:
                     return True
-                if self.cubeProduct and Astro.dimensions(node) >= 3:
+                if (self.cubeProduct and Astro.dimensions(node) >= 3 and
+                        not node.GetAttribute(REPROJECT_INPUTS_ATTRIBUTE)):
                     return True
+        return False
+
+
+REPROJECT_INPUTS_ATTRIBUTE = "SlicerAstro.ReprojectInputs"
+
+
+class ReprojectStep(PipelineStep):
+    """Images and cubes; done when data reprojected from the dataset exist."""
+
+    def isAvailable(self, volume):
+        return volume is not None and Astro.dimensions(volume) >= 2
+
+    def isDone(self, volume):
+        if volume is None:
+            return False
+        for node in slicer.util.getNodesByClass("vtkMRMLAstroVolumeNode"):
+            inputs = node.GetAttribute(REPROJECT_INPUTS_ATTRIBUTE)
+            if inputs and volume.GetID() in inputs.split(";"):
+                return True
         return False
 
 
@@ -104,7 +124,7 @@ STEPS = [
     ProductStep("Profiles", "module-profiles", "AstroProfiles"),
     ProductStep("PV slice", "module-pv-slice", "AstroPVSlice"),
     ProductStep("PV diagram", "module-pv-diagram", "AstroPVDiagram", datamodels=("PVDIAGRAM",)),
-    PipelineStep("Reproject", "module-reproject", "AstroReproject"),
+    ReprojectStep("Reproject", "module-reproject", "AstroReproject"),
 ]
 
 STEP_TOOLTIPS = {
