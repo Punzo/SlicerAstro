@@ -38,9 +38,102 @@
 #include "vtkOpenGLState.h"
 #include "vtk_glad.h"
 #include "vtkVersionMacros.h"
+#include "vtkRenderingOpenGLConfigure.h"
+
+#if defined(VTK_OPENGL_HAS_EGL) && defined(__has_include)
+#if __has_include(<vtkglad/include/glad/egl.h>)
+#include "vtkEGLRenderWindow.h"
+#include <vtkglad/include/glad/egl.h>
+#define SLICERASTRO_OPENGL_FILTERS_EGL
+#endif
+#endif
+
+#include <cstdlib>
+#if defined(SLICERASTRO_OPENGL_FILTERS_EGL)
+#include <dlfcn.h>
+#endif
 
 namespace
 {
+//----------------------------------------------------------------------------
+/// A new offscreen render window with its own OpenGL context.
+///
+/// vtkRenderWindow::New() first probes GLX. With Qt on Wayland (and
+/// XWayland with the NVIDIA driver, Xvfb) glXMakeCurrent of the probe fails
+/// with BadAccess (ignored by SlicerAstro's X error handler), but VTK still
+/// considers the window initialized because the OpenGL functions answer:
+/// they answer from the context that is current, i.e. the one of a view of
+/// the application. The filters would then run in the context of that view
+/// and leave it in a state its cache does not know ("Error in cache state
+/// for GL_ACTIVE_TEXTURE"). EGL gives an offscreen context of its own on
+/// Linux, without X; VTK's default is used if EGL is not available, or if
+/// the backend is chosen with VTK_DEFAULT_OPENGL_WINDOW.
+#if defined(SLICERASTRO_OPENGL_FILTERS_EGL)
+/// Whether a GLX context is current in this thread (the application draws
+/// with GLX, e.g. Qt on X11 or Xvfb): an EGL context can then not be made
+/// current in the same thread (EGL_BAD_ACCESS).
+bool IsGLXContextCurrent()
+{
+  const char* libraries[2] = {"libGLX.so.0", "libGL.so.1"};
+  for (int i = 0; i < 2; i++)
+    {
+    // only a library already loaded by the application
+    void* library = dlopen(libraries[i], RTLD_LAZY | RTLD_NOLOAD);
+    if (!library)
+      {
+      continue;
+      }
+    typedef void* (*GetCurrentContextFunction)();
+    GetCurrentContextFunction getCurrentContext =
+      reinterpret_cast<GetCurrentContextFunction>(dlsym(library, "glXGetCurrentContext"));
+    const bool current = getCurrentContext && getCurrentContext() != nullptr;
+    dlclose(library);
+    if (current)
+      {
+      return true;
+      }
+    }
+  return false;
+}
+#endif
+
+vtkRenderWindow* NewFilterRenderWindow()
+{
+#if defined(SLICERASTRO_OPENGL_FILTERS_EGL)
+  static const bool eglLoaded = gladLoaderLoadEGL(EGL_NO_DISPLAY) != 0;
+  if (eglLoaded && !std::getenv("VTK_DEFAULT_OPENGL_WINDOW") && !IsGLXContextCurrent())
+    {
+    // eglGetCurrentContext (EGL 1.4) is loaded by glad only once an EGL
+    // display is open (the first EGL window): before, no EGL context is current
+    const EGLContext previous = glad_eglGetCurrentContext ? eglGetCurrentContext() : EGL_NO_CONTEXT;
+    vtkEGLRenderWindow* window = vtkEGLRenderWindow::New();
+    window->SetOffScreenRendering(true);
+    window->Initialize();
+    // initialized with its own context (and not with the previous one)
+    const EGLContext context = glad_eglGetCurrentContext ? eglGetCurrentContext() : EGL_NO_CONTEXT;
+    if (window->GetInitialized() && context != EGL_NO_CONTEXT && context != previous)
+      {
+      return window;
+      }
+    window->Delete();
+    }
+#endif
+  vtkRenderWindow* window = vtkRenderWindow::New();
+  window->SetOffScreenRendering(true);
+  return window;
+}
+
+//----------------------------------------------------------------------------
+/// The cached OpenGL state of a render window read again from its context
+void ResynchronizeState(vtkRenderWindow* window)
+{
+  vtkOpenGLRenderWindow* glWindow = vtkOpenGLRenderWindow::SafeDownCast(window);
+  if (glWindow && glWindow->GetState())
+    {
+    glWindow->GetState()->Reset();
+    }
+}
+
 //----------------------------------------------------------------------------
 /// Releases the OpenGL context of a render window when the scope ends
 struct ReleaseContextOnExit
@@ -93,8 +186,7 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
   // make sure it is initialized
   if (!this->RenderWindow)
     {
-    this->SetRenderWindow(vtkRenderWindow::New());
-    this->RenderWindow->SetOffScreenRendering(true);
+    this->SetRenderWindow(NewFilterRenderWindow());
     this->RenderWindow->UnRegister(this);
     }
   this->RenderWindow->Initialize();
@@ -103,6 +195,10 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
   // that the views of the application do not render with it
   this->RenderWindow->MakeCurrent();
   const ReleaseContextOnExit releaseContext(this->RenderWindow);
+  // the state cache of VTK from the actual state of this context (another
+  // context may have been current in between: "Error in cache state for
+  // GL_ACTIVE_TEXTURE" warnings otherwise)
+  ResynchronizeState(this->RenderWindow);
 
   // Is it a 2D or 3D image
   int dims[3];
@@ -240,8 +336,7 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
   // make sure RenderWindow is initialized
   if (!this->RenderWindow)
     {
-    this->SetRenderWindow(vtkRenderWindow::New());
-    this->RenderWindow->SetOffScreenRendering(true);
+    this->SetRenderWindow(NewFilterRenderWindow());
     this->RenderWindow->UnRegister(this);
     }
   this->RenderWindow->Initialize();
@@ -250,6 +345,10 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
   // that the views of the application do not render with it
   this->RenderWindow->MakeCurrent();
   const ReleaseContextOnExit releaseContext(this->RenderWindow);
+  // the state cache of VTK from the actual state of this context (another
+  // context may have been current in between: "Error in cache state for
+  // GL_ACTIVE_TEXTURE" warnings otherwise)
+  ResynchronizeState(this->RenderWindow);
 
   // Is it a 2D or 3D image
   int dims[3];
@@ -456,8 +555,7 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
   // make sure it is initialized
   if (!this->RenderWindow)
     {
-    this->SetRenderWindow(vtkRenderWindow::New());
-    this->RenderWindow->SetOffScreenRendering(true);
+    this->SetRenderWindow(NewFilterRenderWindow());
     this->RenderWindow->UnRegister(this);
     }
   this->RenderWindow->Initialize();
@@ -466,6 +564,10 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
   // that the views of the application do not render with it
   this->RenderWindow->MakeCurrent();
   const ReleaseContextOnExit releaseContext(this->RenderWindow);
+  // the state cache of VTK from the actual state of this context (another
+  // context may have been current in between: "Error in cache state for
+  // GL_ACTIVE_TEXTURE" warnings otherwise)
+  ResynchronizeState(this->RenderWindow);
 
   // Is it a 2D or 3D image
   int dims[3];

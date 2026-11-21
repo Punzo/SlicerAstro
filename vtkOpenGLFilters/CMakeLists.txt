@@ -45,6 +45,7 @@ set(lib_name ${PROJECT_NAME})
 SET (vtkOpenGLFilters_LIBS ${vtkOpenGLFilters_LIBS}
   ${VTK_LIBRARIES}
   ${OPENGL_LIBRARIES}
+  ${CMAKE_DL_LIBS}
   )
 
 INCLUDE_DIRECTORIES( ${vtkOpenGLFilters_INCLUDE_DIRS} )
