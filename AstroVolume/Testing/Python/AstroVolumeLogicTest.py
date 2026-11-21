@@ -412,6 +412,11 @@ class AstroVolumeLogicTestTest(ScriptedLoadableModuleTest):
         values = data[np.isfinite(data)].astype(np.float64)
         loadedWindow = (np.quantile(values[values < 0], 0.005), np.quantile(values[values > 0], 0.995))
         displayNode = volume.GetDisplayNode()
+        # the colours of SlicerAstro whatever the way of loading (here Slicer's
+        # volume loader): Observatory; Doppler for a velocity field
+        self.assertEqual(displayNode.GetColorNode().GetName(), "Observatory")
+        velocityField = self.loadCube("display_mom1", data[:1], extraCards=[("DATAMODEL", "FIRSTMOMENTMAP")])
+        self.assertEqual(velocityField.GetDisplayNode().GetColorNode().GetName(), "Doppler")
         self.assertAlmostEqual(displayNode.GetWindow(), loadedWindow[1] - loadedWindow[0], places=5)
         self.assertAlmostEqual(displayNode.GetLevel(), (loadedWindow[1] + loadedWindow[0]) / 2, places=5)
         centres, counts = vtk.vtkDoubleArray(), vtk.vtkDoubleArray()

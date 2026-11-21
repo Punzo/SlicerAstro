@@ -226,7 +226,7 @@ private:
 class qSlicerAstroThemePrivate
 {
 public:
-  QString Mode{"system"};
+  QString Mode{"dark"};
   bool AppliedToApplication{false};
   bool ApplyingToApplication{false};
   bool FontsRegistered{false};
@@ -367,7 +367,8 @@ qSlicerAstroTheme::qSlicerAstroTheme(QObject* parent)
 {
   Q_D(qSlicerAstroTheme);
   QSettings settings;
-  const QString mode = settings.value(SettingsKey, QString("system")).toString();
+  // dark ("Observatory") by default
+  const QString mode = settings.value(SettingsKey, QString("dark")).toString();
   if (mode == "dark" || mode == "light" || mode == "system")
     {
     d->Mode = mode;

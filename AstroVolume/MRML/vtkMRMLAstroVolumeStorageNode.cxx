@@ -472,6 +472,21 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
       int disabledModify = disNode->StartModify();
       disNode->SetWindowLevel(window, level);
       disNode->SetThreshold(min, max);
+      // the colours of SlicerAstro (singletons of the AstroVolume logic):
+      // Observatory, Doppler for velocity fields, Ember for dispersions;
+      // set while reading, so that every way of loading has them (Slicer's
+      // volume loader sets its grey only to a display without colours)
+      const char* colorID = disNode->GetColorNodeID();
+      if (this->GetScene() && (!colorID || !strcmp(colorID, "vtkMRMLColorTableNodeGrey")))
+        {
+        const char* datamodel = volNode->GetAttribute("SlicerAstro.DATAMODEL");
+        const std::string table = datamodel && !strcmp(datamodel, "FIRSTMOMENTMAP") ? "Doppler" :
+          (datamodel && !strcmp(datamodel, "SECONDMOMENTMAP") ? "Ember" : "Observatory");
+        // (Slicer reads into a scene of its own and moves the nodes to the
+        // main one, which has the tables: the reference is resolved there)
+        const std::string tableID = "vtkMRMLColorTableNodeSlicerAstro." + table;
+        disNode->SetAndObserveColorNodeID(tableID.c_str());
+        }
       disNode->EndModify(disabledModify);
       }
     }
