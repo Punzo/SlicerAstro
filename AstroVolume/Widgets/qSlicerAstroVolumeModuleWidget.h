@@ -103,25 +103,6 @@ public slots:
                                const char* volumeNodeTwoID,
                                const char* volumeNodeThreeID);
 
-  /// Set quantitative layout (used by modeling module)
-  void setQuantitative3DView(const char* volumeNodeOneID,
-                             const char* volumeNodeTwoID,
-                             const char* volumeNodeThreeID,
-                             double ContourLevel,
-                             double PVPhiMajor,
-                             double PVPhiMinor,
-                             double RAS[3]);
-
-  /// Update quantitative layout (used by modeling module)
-  void updateQuantitative3DView(const char* volumeNodeOneID,
-                                const char* volumeNodeTwoID,
-                                double ContourLevel,
-                                double PVPhiMajor,
-                                double PVPhiMinor,
-                                double yellowRAS[3],
-                                double greenRAS[3],
-                                bool overrideSegments = false);
-
   /// Questions and messages to the user (e.g. reprojection issues and their
   /// fixes): also in the application log. In testing mode no dialog is
   /// shown and the answer to a question is Yes.
@@ -129,13 +110,6 @@ public slots:
   static void informUser(QWidget* parent, QMessageBox::Icon icon, const QString& title,
                          const QString& message);
 
-
-  /// IDs of the segments of the contours of the Modeling module (segmentation
-  /// "AstroModelingContoursSeg"): data and model at the contour level, and
-  /// region of the model
-  static const char* modelingDataContoursSegmentID();
-  static const char* modelingModelContoursSegmentID();
-  static const char* modelingModelMaskSegmentID();
 
   /// The active volume of the panel (and of the views)
   void setMRMLVolumeNode(vtkMRMLNode* node);
@@ -160,17 +134,6 @@ protected:
   /// PrepareVolumeRendering): used by the comparison views
   void prepareVolumeRendering(vtkMRMLAstroVolumeNode* volume);
 
-  /// Contours of the Modeling module: create or recompute in place the
-  /// segment segmentID (voxels of volume in [lower, upper]), named name
-  bool updateModelingContourSegment(const char* segmentID, const std::string& name,
-                                    const double color[3], vtkMRMLAstroVolumeNode* volume,
-                                    double lower, double upper);
-  /// Remove the segments of the contours of the Modeling module that are
-  /// not the data contours, the model contours or the region of the model
-  void removeObsoleteModelingContourSegments();
-
-  /// Contours of the Modeling module (owned by the scene)
-  vtkWeakPointer<vtkMRMLSegmentationNode> contoursSegNodeModeling;
 
 private:
   Q_DECLARE_PRIVATE(qSlicerAstroVolumeModuleWidget);

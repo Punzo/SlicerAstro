@@ -25,18 +25,28 @@
 
 #include "qSlicerAstroModelingModuleExport.h"
 
+// CTK includes
+#include <ctkVTKObject.h>
+
 class qSlicerAstroModelingModuleWidgetPrivate;
-class vtkMRMLAstroVolumeNode;
-class vtkCollection;
+class qSlicerAstroRingPlot;
 class vtkMRMLAstroModelingParametersNode;
 class vtkMRMLNode;
-class vtkStringArray;
+class vtkObject;
 
 /// \ingroup SlicerAstro_QtModules_AstroModeling
+/// Modeling panel (3DBarolo): setup of the tilted-ring model of the data
+/// cube (mask, mode, beam, rings, geometry and kinematics with the free
+/// parameters of the fit, advanced options), operations (estimate, create,
+/// fit, model of the edited rings) running in the background with progress,
+/// cancel and log, and the results (plot and table of the rings, contours,
+/// PV slices along the axes with the rotation curve, model and residual
+/// cubes). The behaviour is in vtkSlicerAstroModelingLogic.
 class Q_SLICERASTRO_QTMODULES_ASTROMODELING_EXPORT qSlicerAstroModelingModuleWidget :
   public qSlicerAbstractModuleWidget
 {
   Q_OBJECT
+  QVTK_OBJECT
 
 public:
 
@@ -49,195 +59,52 @@ public:
 
   /// Get vtkMRMLAstroModelingParametersNode
   Q_INVOKABLE vtkMRMLAstroModelingParametersNode* mrmlAstroModelingParametersNode()const;
+  /// Output of the operations of 3DBarolo shown in the log
+  Q_INVOKABLE QString outputLog() const;
+  Q_INVOKABLE qSlicerAstroRingPlot* ringPlot() const;
+  /// The column of the rings table shown in the plot (e.g. "VRot")
+  Q_INVOKABLE QString ringParameter() const;
 
 public slots:
-
-  /// Slots to clean the initial parameters of the model.
-  void onCleanInitialParameters();
-
-  /// Slots to estimate the initial parameters of the model.
-  void onEstimateInitialParameters();
-
-  /// Slots to create a model from initial parameters.
-  void onCreate();
-
-  /// Slots to fit the data.
-  void onFit();
-  /// Plot of the selected columns of the rings table, with their titles
-  void onPlotSelection();
-
-  /// Slots to run the computations.
-  /// It creates the output volume and calls the logic
-  void onApply();
-
-  /// Slots to recalculate the model from parameters in table.
-  void onCalculateAndVisualize();
-
-  /// Slots to visualize the model at different intensity level.
-  void onVisualize();
-  void onShowModelToggled(bool show);
-  void onShowModelMaskToggled(bool show);
-  void applyModelingSegmentVisibility();
-  void updateModelingButtons();
+  /// The data cube of the model
+  void setInputVolume(vtkMRMLNode* node);
+  /// Operations of 3DBarolo (in the background; one at a time)
+  void estimate();
+  void createModel();
+  void fit();
+  /// The model of the rings of the table (e.g. edited rings)
+  void updateModelFromTable();
+  void cancelOperation();
+  /// The ring parameter shown in the plot (a column of the rings table)
+  void setRingParameter(const QString& column);
+  /// The plot of the rings in a plot view of the layout
+  void openPlotView();
+  /// The results in the views (3D, PV slices, contours)
+  void showResults();
+  /// Save the rings table as CSV; returns true on success (fileName empty:
+  /// asks for it)
+  bool exportTable(const QString& fileName = QString());
 
 protected:
-  /// Visibility of a segment of the contours of the module (model contours
-  /// in 2D and 3D, region of the model in 3D)
-  void setModelingSegmentVisibility(const char* segmentID, bool show);
-  bool isModelingSegmentVisible(const char* segmentID);
-
-  /// Set the beam of the Fitting Parameters section in the input volume
-  /// (BMAJ, BMIN, BPA). Returns false if the beam is not set.
-  bool applyBeamToInputVolume(vtkMRMLAstroVolumeNode* inputVolume);
-
   QScopedPointer<qSlicerAstroModelingModuleWidgetPrivate> d_ptr;
 
-  /// Initialization of the qvtk connections between MRML nodes
   virtual void setMRMLScene(vtkMRMLScene*);
 
-  /// Initialization of MRML nodes
-  void initializeNodes(bool forceNew = false);
-
-  /// Initialization of MRML fiducial markups nodes
-  void initializeFiducialNodes(bool forceNew = false);
-
-  /// Initialization of MRML parameter node
-  void initializeParameterNode(bool forceNew = false);
-
-  /// Initialization of MRML plot nodes
-  void initializePlotNodes(bool forceNew = false);
-
-  /// Initialization of MRML segmentation nodes
-  void initializeSegmentations(bool forceNew = false);
-
-  /// Initialization of MRML table node
-  void initializeTableNode(bool forceNew = false);
-
-  /// Set the segment selected in the segments table as the input mask
-  /// (segmentation and segment IDs in the MRML parameter node of the module)
-  bool setMaskSegmentFromSelection();
-
-  /// Initialization of module widgets
-  virtual void setup();
-
 protected slots:
-
-  /// Set the MRML input node
-  void onInputVolumeChanged(vtkMRMLNode* mrmlNode);
-
-  /// Set the MRML table node
-  void onTableNodeChanged(vtkMRMLNode* mrmlNode);
-
-  /// Set the MRML output node
-  void onOutputVolumeChanged(vtkMRMLNode* mrmlNode);
-
-  /// Set the MRML residual node
-  void onResidualVolumeChanged(vtkMRMLNode* mrmlNode);
-
-  /// Set the MRML segmentation editor node
-  void onSegmentEditorNodeModified(vtkObject* sender);
-  /// Beam of the Fitting Parameters section from the FITS header (or
-  /// estimated from the noise)
-  void updateBeamFromVolume(vtkMRMLAstroVolumeNode* volumeNode);
-  /// Mask selector: the Segment Editor and the table use the selected mask
-  void onMaskSegmentationChanged(vtkMRMLNode* node);
-  /// Masks only in the selector (not the contours); by default the mask of the input volume
-  void updateMaskSelector();
-
-  /// Update widget GUI from MRML parameter node
-  void onMRMLAstroModelingParametersNodeModified();
-
-  /// Update widget GUI from MRML slice node
-  void onMRMLSliceNodeModified(vtkObject* sender);
-
-  /// Update widget GUI from MRML table node
-  void onMRMLTableNodeModified();
-
-  /// Update widget GUI from fiducial markups selection
-  void onPlotSelectionChanged(vtkStringArray* mrmlPlotDataIDs,
-                              vtkCollection* selectionCol);
-
-  /// Set the MRML parameter node
   void setMRMLAstroModelingParametersNode(vtkMRMLNode*);
-
-  void onMRMLSceneEndImportEvent();
-  void onMRMLSceneEndRestoreEvent();
-  void onMRMLSceneEndBatchProcessEvent();
-  void onMRMLSceneEndCloseEvent();
-  void onMRMLSceneStartCloseEvent();
-  void onMRMLSceneNodeAboutToBeRemoved(vtkObject* sender, vtkObject* node);
-  /// The velocity definition of the input restored after an operation
-  void restoreInputVelocityDefinition();
-  void onMRMLSceneStartImportEvent();
-
-  void centerPVOffset();
-  void onADRIFTCorrectionChanged(bool toggled);
-  void onCloudsColumnDensityChanged(double value);
-  void onColumnDensityChanged(double value);
-  void onContourLevelChanged(double value);
-  void onDistanceChanged(double value);
-  void onFittingFunctionChanged(int value);
-  void onGreenSliceRotated(double value);
-  void onInclinationChanged(double value);
-  void onInclinationErrorChanged(double value);
-  void onInclinationFitChanged(bool flag);
-  void onLayerTypeChanged(int value);
-  void onMaskActiveToggled(bool active);
-  void onModeChanged();
-  void onMRMLGreenSliceRotated();
-  void onMRMLYellowSliceRotated();
-  void onNormalizeNoneChanged(bool toggled);
-  void onNormalizeLocalChanged(bool toggled);
-  void onNormalizeAzimChanged(bool toggled);
-  void onNumberOfCloundsChanged(double value);
-  void onNumberOfRingsChanged(double value);
-  void onPositionAngleChanged(double value);
-  void onPositionAngleErrorChanged(double value);
-  void onPositionAngleFitChanged(bool flag);
-  void onRadSepChanged(double value);
-  void onRadialVelocityChanged(double value);
-  void onRadialVelocityFitChanged(bool flag);
-  void onRotationVelocityChanged(double value);
-  void onRotationVelocityFitChanged(bool flag);
-  void onScaleHeightChanged(double value);
-  void onScaleHeightFitChanged(bool flag);
-  void onSystemicVelocityChanged(double value);
-  void onSystemicVelocityFitChanged(bool flag);
-  void onTolleranceChanged(double value);
-  void onVelocityDispersionChanged(double value);
-  void onVelocityDispersionFitChanged(bool flag);
-  void onVerticalVelocityChanged(double value);
-  void onVerticalRotationalGradientChanged(double value);
-  void onVerticalRotationalGradientHeightChanged(double value);
-  void onWeightingFunctionChanged(int flag);
-  void onXCenterChanged(double value);
-  void onXCenterFitChanged(bool flag);
-  void onYCenterChanged(double value);
-  void onYCenterFitChanged(bool flag);
-  void onYellowSliceRotated(double value);
-
-  void onMRMLSelectionNodeModified(vtkObject* sender);
-  void onMRMLSelectionNodeReferenceAdded(vtkObject* sender);
-  void onMRMLSelectionNodeReferenceRemoved(vtkObject* sender);
-
-  void onComputationStarted();
-  void onComputationCancelled();
-  void onComputationFinished();
-  void onWorkFinished();
-  void updateProgress(int value);
-  /// Progress of the worker thread (copy of the parameters) in the parameter node
-  void updateWorkerProgress();
-  /// Visualization of the model computed from the table (after the worker)
-  void finishCalculateAndVisualize(bool success);
-  /// 3DBarolo parameters of the Advanced section -> parameter node
-  void onBBaroloParameterChanged();
-  /// parameter node -> 3DBarolo parameters of the Advanced section
-  void updateBBaroloParameterWidgets();
-  /// Initial parameters rows (Manual mode only)
-  void setInitialParametersVisible(bool visible);
-  /// Advanced section: shown in Manual mode only; its source search without
-  /// input mask only
-  void updateAdvancedVisibility();
+  void onParametersNodeModified();
+  void onOperationFinished();
+  void onProgressTimeout();
+  void onTableModified();
+  void onSliceNodeModified();
+  void onMaskModified();
+  void onSelectionNodeModified();
+  void onEndCloseEvent();
+  void onEndImportEvent();
+  void onModeChanged(int mode);
+  void onRegionChanged(int region);
+  void onMaskSegmentSelectionChanged();
+  void onBeamEdited();
 
 private:
   Q_DECLARE_PRIVATE(qSlicerAstroModelingModuleWidget);

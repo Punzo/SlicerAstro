@@ -74,7 +74,8 @@ def number(value):
 class AstroSceneTestTest(ScriptedLoadableModuleTest):
     def setUp(self):
         slicer.mrmlScene.Clear(0)
-        self.directory = os.path.join(slicer.app.temporaryPath, "AstroSceneTest")
+        # one folder per test method: the methods run in parallel (CTest)
+        self.directory = os.path.join(slicer.app.temporaryPath, "AstroSceneTest", self._testMethodName)
         if os.path.isdir(self.directory):
             shutil.rmtree(self.directory)
         os.makedirs(self.directory)
@@ -108,25 +109,20 @@ class AstroSceneTestTest(ScriptedLoadableModuleTest):
         slicer.app.processEvents()
 
     def runModeling(self, parametersNode, start, timeout=1500):
-        """3DBarolo operation in the worker thread (see AstroModelingSelfTest.runOperation)."""
-        parametersNode.SetStatus(0)
+        """3DBarolo operation in the background (see AstroModelingSelfTest.runOperation)."""
+        logic = slicer.modules.astromodeling.logic()
         begin = time.time()
         start()
-        self.assertNotEqual(parametersNode.GetStatus(), 0, "the operation did not start")
-        while parametersNode.GetStatus() not in (0, 100) and time.time() < begin + timeout:
-            slicer.app.processEvents()
-            time.sleep(0.05)
-        self.assertIn(parametersNode.GetStatus(), (0, 100), "the operation did not end")
-        for _ in range(10):
-            slicer.app.processEvents()
-            time.sleep(0.05)
+        self.assertTrue(logic.IsOperationRunning(), "the operation did not start: " + logic.GetLastError())
+        self.waitForModeling(timeout)
+        self.assertFalse(logic.IsOperationRunning(), "the operation did not end")
+        self.assertEqual(logic.GetLastOperationResult(), 1)
 
     def waitForModeling(self, timeout=600):
-        """A loaded scene with a model: the Modeling module computes it again
-        from the table (worker thread); wait for its end."""
-        parametersNode = slicer.mrmlScene.GetFirstNodeByClass("vtkMRMLAstroModelingParametersNode")
+        """Wait for the end of an operation of the Modeling module."""
+        logic = slicer.modules.astromodeling.logic()
         begin = time.time()
-        while parametersNode and parametersNode.GetStatus() not in (0, 100) and time.time() < begin + timeout:
+        while logic.IsOperationRunning() and time.time() < begin + timeout:
             slicer.app.processEvents()
             time.sleep(0.05)
         for _ in range(10):
@@ -254,7 +250,7 @@ class AstroSceneTestTest(ScriptedLoadableModuleTest):
                             ("Inclination", 62.), ("PositionAngle", 124.), ("ScaleHeight", 0.),
                             ("ColumnDensity", 1.), ("Distance", 3.2)):
             getattr(modeling, "Set" + name)(value)
-        self.runModeling(modeling, modelingWidget.onCreate)
+        self.runModeling(modeling, modelingWidget.createModel)
         self.track(slicer.mrmlScene.GetNodeByID(modeling.GetOutputVolumeNodeID()), modeling.GetParamsTableNode())
 
     #

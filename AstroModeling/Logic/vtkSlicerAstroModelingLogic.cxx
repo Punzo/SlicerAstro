@@ -3099,3 +3099,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTableInternal(vtkMRMLAstroModeli
 
   return 1;
 }
+
+//----------------------------------------------------------------------------
+// Operations of the module and display of the results
+#include "vtkSlicerAstroModelingLogicResults.txx"

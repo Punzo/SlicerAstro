@@ -20,6 +20,7 @@ set(${KIT}_SRCS
 set(${KIT}_TARGET_LIBRARIES
   vtkSlicerAstroVolumeModuleMRML
   vtkSlicerAstroVolumeModuleLogic
+  vtkSlicerSegmentationsModuleLogic
   ${BBAROLO_LIBRARIES}
   )
 

@@ -23,7 +23,8 @@ class AstroModelingSelfTest(ScriptedLoadableModule):
         self.parent.helpText = """
 Self test of the AstroModeling module: 3DBarolo estimates the initial
 parameters of the HALOGAS-DR1 HI cube of NGC 2403, compared with the values of
-Fraternali et al. (2002).
+Fraternali et al. (2002); models, fits, cancel, masks, beams, results (rings,
+contours, PV slices with the rotation curve) and scenes.
 """
         self.parent.hidden = True
 
@@ -50,7 +51,8 @@ class AstroModelingSelfTestTest(ScriptedLoadableModuleTest):
 
     def runTest(self):
         for test in (self.test_EstimateInitialParameters, self.test_CreateFitAndUpdate,
-                     self.test_CancelFit, self.test_DoublePrecision, self.test_Mask, self.test_BeamStatus):
+                     self.test_CancelFit, self.test_DoublePrecision, self.test_Mask, self.test_BeamStatus,
+                     self.test_PVSlicesAfterSceneReload):
             self.setUp()
             test()
 
@@ -59,7 +61,7 @@ class AstroModelingSelfTestTest(ScriptedLoadableModuleTest):
     #
 
     def openModule(self):
-        """NGC 2403 in the AstroModeling module; parameters estimated by 3DBarolo."""
+        """NGC 2403 in the AstroModeling module."""
         import AstroSampleData
         volumeNode = AstroSampleData.AstroSampleDataLogic().downloadSample("NGC2403")
         self.assertIsNotNone(volumeNode)
@@ -68,31 +70,28 @@ class AstroModelingSelfTestTest(ScriptedLoadableModuleTest):
         mainWindow.moduleSelector().selectModule("AstroVolume")
         mainWindow.moduleSelector().selectModule("AstroModeling")
         widget = slicer.modules.astromodeling.widgetRepresentation()
-        parametersNode = slicer.mrmlScene.GetFirstNodeByClass("vtkMRMLAstroModelingParametersNode")
-        parametersNode.SetInputVolumeNodeID(volumeNode.GetID())
+        parametersNode = widget.mrmlAstroModelingParametersNode()
+        self.assertEqual(parametersNode.GetInputVolumeNodeID(), volumeNode.GetID())
         return volumeNode, widget, parametersNode
 
-    def runOperation(self, parametersNode, start, cancelAfter=None, timeout=300):
-        """Run a 3DBarolo operation of the widget (worker thread) and wait
-        for its end; returns the seconds it took. The widget sets the status
-        to 1 when it starts the worker, to 100 when the worker ends and back
-        to 0 (idle) once the results are applied, both within one event: the
-        end is a return to 0 or 100 after the start."""
-        parametersNode.SetStatus(0)
+    def runOperation(self, start, cancelAfter=None, timeout=900):
+        """Start a 3DBarolo operation of the panel (in the background) and
+        wait for its end; returns the seconds it took."""
+        logic = slicer.modules.astromodeling.logic()
         begin = time.time()
         start()
-        self.assertNotEqual(parametersNode.GetStatus(), 0, "the operation did not start")
+        self.assertTrue(logic.IsOperationRunning(), "the operation did not start: " + logic.GetLastError())
         cancelled = False
-        while parametersNode.GetStatus() not in (0, 100) and time.time() < begin + timeout:
+        while logic.IsOperationRunning() and time.time() < begin + timeout:
             if cancelAfter is not None and not cancelled and time.time() > begin + cancelAfter:
-                slicer.util.findChild(slicer.modules.astromodeling.widgetRepresentation(), "CancelPushButton").click()
+                slicer.modules.astromodeling.widgetRepresentation().cancelOperation()
                 cancelled = True
             slicer.app.processEvents()
             time.sleep(0.05)
-        self.assertIn(parametersNode.GetStatus(), (0, 100), "the operation did not end")
+        self.assertFalse(logic.IsOperationRunning(), "the operation did not end")
         for _ in range(10):
             slicer.app.processEvents()
-            time.sleep(0.05)
+            time.sleep(0.02)
         return time.time() - begin
 
     def ringColumn(self, parametersNode, name):
@@ -103,8 +102,32 @@ class AstroModelingSelfTestTest(ScriptedLoadableModuleTest):
 
     def estimate(self, widget, parametersNode):
         parametersNode.SetSystemicVelocity(-1.)
-        self.runOperation(parametersNode, widget.onEstimateInitialParameters)
+        self.runOperation(widget.estimate)
+        self.assertEqual(slicer.modules.astromodeling.logic().GetLastOperationResult(), 1)
         self.assertLess(abs(parametersNode.GetSystemicVelocity() - 133.), 3.)
+        # the estimated parameters are shown to be edited
+        self.assertEqual(parametersNode.GetMode(), "Manual")
+
+    def manualRings(self, parametersNode, rings=4):
+        """Initial rings of NGC 2403 (Fraternali et al. 2002), geometry fixed."""
+        parametersNode.SetMode("Manual")
+        for name, value in (("NumberOfRings", rings), ("RadSep", 120.), ("XCenter", 163.4), ("YCenter", 117.4),
+                            ("SystemicVelocity", 133.), ("RotationVelocity", 120.), ("VelocityDispersion", 10.),
+                            ("Inclination", 62.), ("PositionAngle", 124.), ("ScaleHeight", 0.),
+                            ("ColumnDensity", 1.), ("Distance", 3.2)):
+            getattr(parametersNode, "Set" + name)(value)
+        parametersNode.SetInclinationFit(False)
+        parametersNode.SetPositionAngleFit(False)
+
+    def markerPositions(self, major):
+        points = slicer.modules.astromodeling.logic().GetRingMarkers(major)
+        self.assertIsNotNone(points)
+        positions = []
+        for index in range(points.GetNumberOfControlPoints()):
+            position = [0.0, 0.0, 0.0]
+            points.GetNthControlPointPosition(index, position)
+            positions.append(position + [float(points.GetNthControlPointVisibility(index))])
+        return np.array(positions)
 
     #
     # tests
@@ -112,17 +135,18 @@ class AstroModelingSelfTestTest(ScriptedLoadableModuleTest):
 
     def test_CreateFitAndUpdate(self):
         """Model from the estimated parameters, a short fit of the rotation
-        and dispersion, and a model recomputed from an edited ring table."""
+        and dispersion, the results (rings plot and table, PV slices with the
+        rotation curve, contours), and a model recomputed from an edited ring
+        table."""
         volumeNode, widget, parametersNode = self.openModule()
         beam = [volumeNode.GetAttribute("SlicerAstro." + key) for key in ("BMAJ", "BMIN", "BPA")]
         self.estimate(widget, parametersNode)
-        # the beam of the header keeps its precision (the spin boxes show 2
+        # the beam of the header keeps its precision (the fields show 2
         # decimals): BMAJ = 29.6644" for NGC 2403, not 29.66"
         self.assertEqual([volumeNode.GetAttribute("SlicerAstro." + key) for key in ("BMAJ", "BMIN", "BPA")], beam)
 
         # few rings and two free parameters: a short fit (Manual: the values
         # of the parameters node, not a new estimate)
-        parametersNode.SetMode("Manual")
         parametersNode.SetNumberOfRings(4)
         parametersNode.SetRadSep(120.)
         for name in ("Inclination", "PositionAngle", "SystemicVelocity", "XCenter", "YCenter",
@@ -131,6 +155,9 @@ class AstroModelingSelfTestTest(ScriptedLoadableModuleTest):
         parametersNode.SetRotationVelocityFit(True)
         parametersNode.SetVelocityDispersionFit(True)
         parametersNode.SetTwoStage(False)
+        # the free toggles of the panel follow the parameters
+        self.assertTrue(slicer.util.findChild(widget, "RotationVelocityFree").checked)
+        self.assertFalse(slicer.util.findChild(widget, "InclinationFree").checked)
 
         initialNames = ("XCenter", "YCenter", "SystemicVelocity", "RotationVelocity", "VelocityDispersion",
                         "Inclination", "PositionAngle", "ColumnDensity")
@@ -140,20 +167,25 @@ class AstroModelingSelfTestTest(ScriptedLoadableModuleTest):
         # tilted-ring fit (the rings can differ from the values of the user)
         parametersNode.SetInclinationFit(True)
         parametersNode.SetPositionAngleFit(True)
-        self.runOperation(parametersNode, widget.onCreate)
+        self.runOperation(widget.createModel)
         # Manual mode: Create keeps the values of the user (the next fit
         # starts from them, as upstream 3DBarolo with the same parameters)
         self.assertEqual([getattr(parametersNode, "Get" + name)() for name in initialNames], initialValues)
         parametersNode.SetInclinationFit(False)
         parametersNode.SetPositionAngleFit(False)
-        self.runOperation(parametersNode, widget.onCreate)
+        self.runOperation(widget.createModel)
         modelNode = slicer.mrmlScene.GetNodeByID(parametersNode.GetOutputVolumeNodeID())
         self.assertIsNotNone(modelNode)
+        self.assertEqual(modelNode.GetAttribute("SlicerAstro.DATAMODEL"), "MODEL")
         model = voxelArray(modelNode)
         self.assertEqual(model.shape, voxelArray(volumeNode).shape)
         self.assertGreater(np.nansum(model), 0.)
+        # one model and one residual cube: the previous ones are replaced
+        models = [node for node in slicer.util.getNodesByClass("vtkMRMLAstroVolumeNode")
+                  if "_model_" in node.GetName()]
+        self.assertEqual(len(models), 1)
 
-        self.runOperation(parametersNode, widget.onFit)
+        self.runOperation(widget.fit)
         self.assertTrue(parametersNode.GetFitSuccess())
         rotation = self.ringColumn(parametersNode, "VRot")
         dispersion = self.ringColumn(parametersNode, "VDisp")
@@ -166,80 +198,110 @@ class AstroModelingSelfTestTest(ScriptedLoadableModuleTest):
         residualNode = slicer.mrmlScene.GetNodeByID(parametersNode.GetResidualVolumeNodeID() or "")
         self.assertIsNotNone(residualNode)
 
-        # plot of selected columns of the rings table: its own chart, the
-        # titles of the columns (not those of the rotation curve plot)
-        tableView = slicer.util.findChild(widget, "TableView")
-        table = tableView.mrmlTableNode()
-        names = [table.GetTable().GetColumnName(index) for index in range(table.GetNumberOfColumns())]
-        selectionModel = tableView.selectionModel()
-        selectionModel.clearSelection()
-        for name in ("Radii", "Inc"):
-            index = tableView.model().index(0, names.index(name))
-            selectionModel.select(index, qt.QItemSelectionModel.Select | qt.QItemSelectionModel.Columns)
-        widget.onPlotSelection()
-        chart = slicer.util.getFirstNodeByClassByName("vtkMRMLPlotChartNode", "ModelingSelectionChart")
+        # results: the panel shows them
+        results = slicer.util.findChild(widget, "Results")
+        self.assertTrue(results.visible)
+        self.assertIn("3DBarolo", widget.outputLog())
+        # the rings plot: the selected parameter of the table
+        self.assertEqual(widget.ringParameter(), "VRot")
+        np.testing.assert_allclose(np.array(widget.ringPlot().values()), rotation)
+        widget.setRingParameter("VDisp")
+        np.testing.assert_allclose(np.array(widget.ringPlot().values()), dispersion)
+        widget.openPlotView()
+        chart = slicer.util.getFirstNodeByClassByName("vtkMRMLPlotChartNode", "ModelingRingsChart")
         self.assertIsNotNone(chart)
-        self.assertEqual(chart.GetXAxisTitle(), "%s (%s)" % (table.GetColumnTitle("Radii") or "Radii",
-                                                             table.GetColumnUnitLabel("Radii")))
-        self.assertTrue(chart.GetYAxisTitle().startswith(table.GetColumnTitle("Inc") or "Inc"), chart.GetYAxisTitle())
-        # several columns: only their common unit on the y axis
-        for name in ("Inc", "Phi"):
-            index = tableView.model().index(0, names.index(name))
-            selectionModel.select(index, qt.QItemSelectionModel.Select | qt.QItemSelectionModel.Columns)
-        widget.onPlotSelection()
-        self.assertEqual(chart.GetYAxisTitle(), table.GetColumnUnitLabel("Inc"))
+        self.assertEqual(chart.GetXAxisTitle(), "Radius (arcsec)")
+        self.assertTrue(chart.GetYAxisTitle().startswith("Dispersion velocity"), chart.GetYAxisTitle())
+        widget.setRingParameter("VRot")
+        # the contours of the results: data, model, region of the model
+        contours = slicer.util.getFirstNodeByName("AstroModelingContoursSeg")
+        self.assertEqual(contours.GetSegmentation().GetNumberOfSegments(), 3)
+        modelContours = slicer.util.findChild(widget, "ModelContoursButton")
+        self.assertTrue(modelContours.checked)
+        modelContours.click()
+        self.assertFalse(contours.GetDisplayNode().GetSegmentVisibility("ModelingModelContours"))
+        modelContours.click()
+        # the PV slices along the axes, with two points per ring crossing them
+        yellow = slicer.mrmlScene.GetNodeByID("vtkMRMLSliceNodeYellow")
+        self.assertEqual(yellow.GetOrientation(), "PVMajor")
+        self.assertEqual(slicer.mrmlScene.GetNodeByID("vtkMRMLSliceNodeGreen").GetOrientation(), "PVMinor")
+        major = self.markerPositions(True)
+        self.assertEqual(len(major), 8)
+        self.assertEqual(int(major[:, 3].sum()), 8)
+        # absolute orientation: a rotation of the major axis slice and back
+        before = [yellow.GetSliceToRAS().GetElement(i, j) for i in range(4) for j in range(4)]
+        majorOffset = slicer.util.findChild(widget, "MajorOffsetField")
+        majorOffset.value = 20.
+        majorOffset.editingFinished()
+        self.assertEqual(parametersNode.GetYellowRotValue(), 20.)
+        rotated = [yellow.GetSliceToRAS().GetElement(i, j) for i in range(4) for j in range(4)]
+        self.assertGreater(np.max(np.abs(np.array(rotated) - np.array(before))), 0.1)
+        majorOffset.value = 0.
+        majorOffset.editingFinished()
+        np.testing.assert_allclose([yellow.GetSliceToRAS().GetElement(i, j) for i in range(4) for j in range(4)],
+                                   before, atol=1e-9)
+        np.testing.assert_allclose(self.markerPositions(True), major, atol=1e-6)
+        # the table as CSV
+        import csv
+        import os
+        path = os.path.join(slicer.app.temporaryPath, "NGC2403_rings.csv")
+        self.assertTrue(widget.exportTable(path))
+        with open(path) as stream:
+            rows = list(csv.reader(stream))
+        self.assertEqual(len(rows), 5)
+        self.assertTrue(rows[0][1].startswith("VRot"))
+        self.assertAlmostEqual(float(rows[1][1]), rotation[0], places=4)
 
         # the model recomputed from the rings of the table (not edited) is the
         # fitted model: same rings, same units (e.g. densities in 1E20 cm^-2)
         fitted = voxelArray(slicer.mrmlScene.GetNodeByID(parametersNode.GetOutputVolumeNodeID())).copy()
-        self.runOperation(parametersNode, widget.onCalculateAndVisualize)
+        self.runOperation(widget.updateModelFromTable)
         recomputed = voxelArray(slicer.mrmlScene.GetNodeByID(parametersNode.GetOutputVolumeNodeID()))
         peak = np.nanmax(np.abs(fitted))
         self.assertLess(np.nanmax(np.abs(np.nan_to_num(recomputed) - np.nan_to_num(fitted))), 1e-3 * peak)
         np.testing.assert_allclose(self.ringColumn(parametersNode, "Dens"), 1., rtol=1e-6)
 
         # edit the rings and recompute the model from the table
-        before = voxelArray(
-            slicer.mrmlScene.GetNodeByID(parametersNode.GetOutputVolumeNodeID())).copy()
+        before = voxelArray(slicer.mrmlScene.GetNodeByID(parametersNode.GetOutputVolumeNodeID())).copy()
         column = parametersNode.GetParamsTableNode().GetTable().GetColumnByName("VRot")
         for row in range(column.GetNumberOfTuples()):
             column.SetValue(row, column.GetValue(row) * 0.5)
         parametersNode.GetParamsTableNode().GetTable().Modified()
-        self.runOperation(parametersNode, widget.onCalculateAndVisualize)
+        parametersNode.GetParamsTableNode().Modified()
+        self.runOperation(widget.updateModelFromTable)
         after = voxelArray(slicer.mrmlScene.GetNodeByID(parametersNode.GetOutputVolumeNodeID()))
         self.assertEqual(after.shape, before.shape)
         self.assertFalse(np.allclose(np.nan_to_num(after), np.nan_to_num(before)),
                          "the model did not change with the rotation velocities")
+        # the plot follows the edited table
+        np.testing.assert_allclose(np.array(widget.ringPlot().values()), rotation * 0.5)
 
     def test_CancelFit(self):
         """A fit is cancelled within seconds and leaves the module usable."""
         volumeNode, widget, parametersNode = self.openModule()
-        self.estimate(widget, parametersNode)
-        parametersNode.SetMode("Manual")
-        parametersNode.SetNumberOfRings(10)
+        self.manualRings(parametersNode, 10)
         parametersNode.SetTwoStage(True)
-        seconds = self.runOperation(parametersNode, widget.onFit, cancelAfter=3., timeout=600)
+        seconds = self.runOperation(widget.fit, cancelAfter=3.)
+        self.assertEqual(slicer.modules.astromodeling.logic().GetLastOperationResult(), -1)
         self.assertFalse(parametersNode.GetFitSuccess())
+        # no model left behind
+        self.assertIsNone(parametersNode.GetOutputVolumeNodeID())
         print("fit cancelled after %.1f s" % seconds)
         # the module runs again after a cancel
         parametersNode.SetNumberOfRings(2)
-        self.runOperation(parametersNode, widget.onCreate)
+        self.runOperation(widget.createModel)
+        self.assertEqual(slicer.modules.astromodeling.logic().GetLastOperationResult(), 1)
 
     def test_DoublePrecision(self):
-        """64-bit cube (BITPIX -64): estimate, model and model from the table;
-        the model equals the one of the 32-bit cube."""
+        """64-bit cube (BITPIX -64): model and model from the table; the model
+        equals the one of the 32-bit cube."""
         from AstroVolumeLogicTest import doublePrecisionCopy
 
         floatNode, widget, parametersNode = self.openModule()
         volumeNode = doublePrecisionCopy(floatNode, "NGC2403_double")
-        parametersNode.SetInputVolumeNodeID(volumeNode.GetID())
-        self.estimate(widget, parametersNode)
-        parametersNode.SetMode("Manual")
-        parametersNode.SetNumberOfRings(4)
-        parametersNode.SetRadSep(120.)
-        parametersNode.SetInclinationFit(False)
-        parametersNode.SetPositionAngleFit(False)
-        self.runOperation(parametersNode, widget.onCreate)
+        widget.setInputVolume(volumeNode)
+        self.manualRings(parametersNode)
+        self.runOperation(widget.createModel)
         modelNode = slicer.mrmlScene.GetNodeByID(parametersNode.GetOutputVolumeNodeID())
         self.assertIsNotNone(modelNode)
         self.assertEqual(modelNode.GetImageData().GetScalarType(), vtk.VTK_DOUBLE)
@@ -248,20 +310,20 @@ class AstroModelingSelfTestTest(ScriptedLoadableModuleTest):
         self.assertGreater(peak, 0.)
 
         # model from the (not edited) ring table
-        self.runOperation(parametersNode, widget.onCalculateAndVisualize)
+        self.runOperation(widget.updateModelFromTable)
         recomputed = voxelArray(slicer.mrmlScene.GetNodeByID(parametersNode.GetOutputVolumeNodeID()))
         self.assertLess(np.nanmax(np.abs(np.nan_to_num(recomputed) - np.nan_to_num(doubleModel))), 1e-3 * peak)
 
         # same parameters on the 32-bit cube
-        parametersNode.SetInputVolumeNodeID(floatNode.GetID())
-        self.runOperation(parametersNode, widget.onCreate)
+        widget.setInputVolume(floatNode)
+        self.runOperation(widget.createModel)
         floatModel = voxelArray(slicer.mrmlScene.GetNodeByID(parametersNode.GetOutputVolumeNodeID()))
         self.assertEqual(floatModel.shape, doubleModel.shape)
         self.assertLess(np.nanmax(np.abs(np.nan_to_num(floatModel) - np.nan_to_num(doubleModel))), 1e-3 * peak)
 
     def test_Mask(self):
         """Estimate, model and model from the table with an input mask: the
-        segment is read directly (no label map volume)."""
+        segment of the mask of the cube is read directly (no label map)."""
         import scipy.ndimage
 
         volumeNode, widget, parametersNode = self.openModule()
@@ -277,20 +339,18 @@ class AstroModelingSelfTestTest(ScriptedLoadableModuleTest):
         slicer.util.updateSegmentBinaryLabelmapFromArray(galaxy.astype(np.uint8), segmentationNode, galaxyID,
                                                          volumeNode)
 
-        slicer.util.findChild(widget, "MaskCheckBox").setChecked(True)
+        slicer.util.findChild(widget, "RegionButton").setCurrentIndex(1)
         self.assertTrue(parametersNode.GetMaskActive())
-        slicer.app.processEvents()
-
-        self.estimate(widget, parametersNode)
         self.assertEqual(parametersNode.GetMaskSegmentationNodeID(), segmentationNode.GetID())
         self.assertEqual(parametersNode.GetMaskSegmentID(), galaxyID)
+        slicer.app.processEvents()
+        self.assertFalse(slicer.util.findChild(widget, "SearchGroup").visible)
 
-        parametersNode.SetMode("Manual")
-        parametersNode.SetNumberOfRings(4)
-        parametersNode.SetRadSep(120.)
-        parametersNode.SetInclinationFit(False)
-        parametersNode.SetPositionAngleFit(False)
-        self.runOperation(parametersNode, widget.onCreate)
+        self.estimate(widget, parametersNode)
+        self.assertEqual(parametersNode.GetMaskSegmentID(), galaxyID)
+
+        self.manualRings(parametersNode)
+        self.runOperation(widget.createModel)
         modelNode = slicer.mrmlScene.GetNodeByID(parametersNode.GetOutputVolumeNodeID())
         self.assertIsNotNone(modelNode)
         model = voxelArray(modelNode).astype(np.float64).copy()
@@ -298,71 +358,79 @@ class AstroModelingSelfTestTest(ScriptedLoadableModuleTest):
         self.assertGreater(peak, 0.)
 
         # model from the (not edited) ring table, with the same mask
-        self.runOperation(parametersNode, widget.onCalculateAndVisualize)
+        self.runOperation(widget.updateModelFromTable)
         recomputed = voxelArray(slicer.mrmlScene.GetNodeByID(parametersNode.GetOutputVolumeNodeID()))
         self.assertLess(np.nanmax(np.abs(np.nan_to_num(recomputed) - np.nan_to_num(model))), 1e-3 * peak)
         self.assertEqual(slicer.mrmlScene.GetNumberOfNodesByClass("vtkMRMLLabelMapVolumeNode"), 0)
-        slicer.util.findChild(widget, "MaskCheckBox").setChecked(False)
+        slicer.util.findChild(widget, "RegionButton").setCurrentIndex(0)
+        self.assertFalse(parametersNode.GetMaskActive())
 
     def test_BeamStatus(self):
         """The origin of the beam is shown: from the header, or estimated
-        (highlighted: the user must check it)."""
+        (the user must check it); the estimated beam is used and saved."""
         volumeNode, widget, parametersNode = self.openModule()
         status = slicer.util.findChild(widget, "BeamStatusLabel")
-        self.assertIn("from the FITS header", status.text)
-        self.assertEqual(status.styleSheet, "")
+        self.assertIn("FITS header", status.text)
         # a copy without beam in the header: estimated, and said so
         copy = slicer.modules.astrovolume.logic().CloneAstroVolume(
             slicer.mrmlScene, volumeNode, None, "_nobeam", "NGC2403_nobeam")
         for key in ("BMAJ", "BMIN", "BPA"):
             copy.SetAttribute("SlicerAstro." + key, "UNDEFINED")
-        parametersNode.SetInputVolumeNodeID(copy.GetID())
+        widget.setInputVolume(copy)
         slicer.app.processEvents()
         self.assertIn("ESTIMATED", status.text)
-        self.assertIn("color", status.styleSheet)
-        self.assertGreater(slicer.util.findChild(widget, "BeamMajorSpinBox").value, 0.)
-        self.assertIn("has no beam", slicer.util.findChild(widget, "OutputLogTextEdit").toPlainText())
+        self.assertGreater(slicer.util.findChild(widget, "BeamMajorField").value, 0.)
+        # a model of the copy: the estimated beam becomes the beam of the data
+        self.manualRings(parametersNode, 2)
+        self.runOperation(widget.createModel)
+        self.assertGreater(float(copy.GetAttribute("SlicerAstro.BMAJ")), 0.)
+        self.assertIn("estimated from the noise", widget.outputLog())
+
+    def test_PVSlicesAfterSceneReload(self):
+        """A scene with a model saved and loaded again: the same PV slices
+        along the axes and the same points of the rotation curve."""
+        import os
+
+        volumeNode, widget, parametersNode = self.openModule()
+        self.manualRings(parametersNode)
+        self.runOperation(widget.createModel)
+        major = self.markerPositions(True)
+        minor = self.markerPositions(False)
+        yellow = slicer.mrmlScene.GetNodeByID("vtkMRMLSliceNodeYellow")
+        orientation = [yellow.GetSliceToRAS().GetElement(i, j) for i in range(3) for j in range(4)]
+        path = os.path.join(slicer.app.temporaryPath, "AstroModelingSelfTest.mrb")
+        self.assertTrue(slicer.util.saveScene(path))
+        # another module, the scene closed, then loaded again
+        slicer.util.mainWindow().moduleSelector().selectModule("AstroVolume")
+        slicer.mrmlScene.Clear(0)
+        slicer.util.loadScene(path)
+        slicer.util.mainWindow().moduleSelector().selectModule("AstroModeling")
+        for _ in range(10):
+            slicer.app.processEvents()
+        parametersNode = widget.mrmlAstroModelingParametersNode()
+        self.assertGreater(parametersNode.GetParamsTableNode().GetNumberOfRows(), 0)
+        yellow = slicer.mrmlScene.GetNodeByID("vtkMRMLSliceNodeYellow")
+        self.assertEqual(yellow.GetOrientation(), "PVMajor")
+        # (the centre is saved in single precision)
+        np.testing.assert_allclose([yellow.GetSliceToRAS().GetElement(i, j) for i in range(3) for j in range(4)],
+                                   orientation, atol=1e-4)
+        np.testing.assert_allclose(self.markerPositions(True), major, atol=1e-4)
+        np.testing.assert_allclose(self.markerPositions(False), minor, atol=1e-4)
 
     def test_EstimateInitialParameters(self):
-        """Only the estimate of the initial parameters is tested: it is fast,
-        while the fit takes minutes (it runs in a worker thread)."""
-        import AstroSampleData
-
+        """The estimate of the initial parameters (fast, while the fit takes
+        minutes)."""
         self.delayDisplay("Estimating the initial parameters of NGC 2403")
-        volumeNode = AstroSampleData.AstroSampleDataLogic().downloadSample("NGC2403")
-        self.assertIsNotNone(volumeNode)
-
-        selectionNode = slicer.app.applicationLogic().GetSelectionNode()
-        selectionNode.SetActiveVolumeID(volumeNode.GetID())
-        mainWindow = slicer.util.mainWindow()
-        mainWindow.moduleSelector().selectModule("AstroVolume")
-        mainWindow.moduleSelector().selectModule("AstroModeling")
-        widget = slicer.modules.astromodeling.widgetRepresentation()
-        parametersNode = slicer.mrmlScene.GetFirstNodeByClass("vtkMRMLAstroModelingParametersNode")
-        self.assertIsNotNone(parametersNode)
-        parametersNode.SetInputVolumeNodeID(volumeNode.GetID())
-        # not estimated yet (the estimate sets it)
-        parametersNode.SetSystemicVelocity(-1.)
-
+        volumeNode, widget, parametersNode = self.openModule()
         parametersNode.SetNumberOfRings(20)
-        parametersNode.SetStatus(0)
-        widget.onEstimateInitialParameters()
-
-        # the estimate runs in a worker thread: wait until it ends (status 100,
-        # also on errors). Debug, coverage and sanitizer builds are many times
-        # slower than Release, so the safety limit is generous.
-        timeout = time.time() + 900
-        while (parametersNode.GetSystemicVelocity() < 0 and parametersNode.GetStatus() != 100
-               and time.time() < timeout):
-            slicer.app.processEvents()
-            time.sleep(0.1)
-
+        self.estimate(widget, parametersNode)
         # NGC 2403 (Fraternali et al. 2002): systemic velocity 133 km/s,
         # inclination 60-63 degrees, position angle 124 degrees
-        self.assertLess(abs(parametersNode.GetSystemicVelocity() - 133.), 3.)
         self.assertGreater(parametersNode.GetNumberOfRings(), 0)
         self.assertGreater(parametersNode.GetInclination(), 40.)
         self.assertLess(parametersNode.GetInclination(), 80.)
         self.assertLess(abs(parametersNode.GetPositionAngle() - 124.), 20.)
         self.assertGreater(parametersNode.GetRotationVelocity(), 0.)
+        # the estimate does not leave a model behind
+        self.assertIsNone(parametersNode.GetOutputVolumeNodeID())
         self.delayDisplay("Test passed")

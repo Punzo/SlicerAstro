@@ -22,8 +22,21 @@
 
 // Slicer includes
 #include "vtkSlicerModuleLogic.h"
+
+// MRML includes
+#include <vtkMRMLAstroModelingParametersNode.h>
+#include <vtkMRMLTableNode.h>
+
+// VTK includes
+#include <vtkCommand.h>
+#include <vtkSmartPointer.h>
+#include <vtkWeakPointer.h>
 class vtkImageData;
 class vtkMRMLAstroVolumeNode;
+class vtkMRMLMarkupsFiducialNode;
+class vtkMRMLPlotChartNode;
+class vtkMRMLSegmentationNode;
+class vtkMRMLSliceNode;
 class vtkMRMLTableNode;
 class vtkMRMLVolumeNode;
 class vtkSlicerAstroVolumeLogic;
@@ -109,6 +122,103 @@ public:
   /// Clean all the pointers of the instantiated calsses of 3DBarolo
   void cleanPointers();
 
+  /// \name Operations of the module (estimate, create, fit, model of the table)
+  /// Behaviour of the Modeling panel, usable from scripts.
+  //@{
+  enum
+    {
+    /// invoked (GUI thread) when an operation started by StartOperation ends
+    OperationFinishedEvent = vtkCommand::UserEvent + 7301
+    };
+
+  /// Start an operation of 3DBarolo on the cube of the parameters node:
+  /// vtkMRMLAstroModelingParametersNode::ESTIMATE, CREATE, FIT or UPDATE (the
+  /// model of the rings of the parameters table). Prepares it in the calling
+  /// (GUI) thread: checks (GetLastError()), beam, model and residual cubes
+  /// ("<cube>_model_N", "<cube>_maskedByModel_N", replacing the previous
+  /// ones of the module), mask (SelectMaskSegment), optical velocities. The
+  /// work runs in the background (AstroVolume StartInBackground) on private
+  /// copies of the parameters and of the table, and FinishOperation applies
+  /// the results in the GUI thread (parameters, table, results display,
+  /// OperationFinishedEvent). synchronous: returns when done (scripts).
+  /// Returns false if the operation could not start.
+  bool StartOperation(vtkMRMLAstroModelingParametersNode* pnode, int operation, bool synchronous = false);
+  /// True while an operation started by StartOperation runs
+  bool IsOperationRunning() const { return this->OperationRunning; }
+  /// Cancel the running operation (the fit stops at the next iteration)
+  void CancelOperation();
+  /// Result of the last operation: 1 done, 0 failed, -1 cancelled
+  int GetLastOperationResult() const { return this->LastOperationResult; }
+  /// Why the last StartOperation (or other call) failed ("" if it did not)
+  const char* GetLastError() const { return this->LastError.c_str(); }
+  /// Progress of the running operation (status of the private parameters,
+  /// 0-100)
+  int GetOperationProgress();
+
+  /// The mask of the fit: a segment of the mask of the cube (the segment of
+  /// the parameters node if it is in the mask, otherwise its first one).
+  /// False (GetLastError()) if the mask has no segments.
+  bool SelectMaskSegment(vtkMRMLAstroModelingParametersNode* pnode);
+
+  /// The table of the parameters of the rings of the parameters node
+  /// (columns Radii, VRot, VRad, Inc, Phi, VSys, VDisp, Dens, Z0, XPos,
+  /// YPos with titles and units): the referenced one, the last
+  /// "ModelingParamsTable" of the scene, or a new one (forceNew: always new)
+  vtkMRMLTableNode* EnsureParamsTable(vtkMRMLAstroModelingParametersNode* pnode, bool forceNew = false);
+
+  /// Reset the parameters of the rings and of the fit to the automatic
+  /// values of 3DBarolo (Automatic mode)
+  static void ResetFitParameters(vtkMRMLAstroModelingParametersNode* pnode);
+
+  /// Centre (mean X/YPos of the rings: XPos/YPosCenterIJK and RAS at the
+  /// central channel) and PVPhi (-(mean PA - 90)) from the parameters table
+  bool UpdateResultsGeometry(vtkMRMLAstroModelingParametersNode* pnode);
+
+  /// Contours of the results (segmentation GetResultContoursName()): the
+  /// data and the model at ContourLevel times the noise of the cube, and the
+  /// region of the model. Created if needed.
+  bool UpdateResultContours(vtkMRMLAstroModelingParametersNode* pnode);
+  vtkMRMLSegmentationNode* GetResultContours();
+  static const char* GetResultContoursName() { return "AstroModelingContoursSeg"; }
+  static const char* GetDataContoursSegmentID() { return "ModelingDataContours"; }
+  static const char* GetModelContoursSegmentID() { return "ModelingModelContours"; }
+  static const char* GetModelMaskSegmentID() { return "ModelingModelMask"; }
+  /// Visibility of a segment of the result contours (2D and 3D as set by
+  /// UpdateResultContours)
+  bool SetResultContoursVisibility(const char* segmentID, bool visible);
+  bool GetResultContoursVisibility(const char* segmentID);
+
+  /// PV slices of the results: the Yellow view along the major axis (mean
+  /// PA of the rings plus YellowRotValue, degrees) and the Green view along
+  /// the minor axis (plus GreenRotValue), both through the centre of the
+  /// rings; absolute orientations (presets "PVMajor", "PVMinor"), set
+  /// again identically after a scene is loaded. Then UpdateRingMarkers.
+  bool SetPVSlices(vtkMRMLAstroModelingParametersNode* pnode);
+  /// Points of the rotation curve on the PV slices: for each ring, the two
+  /// points where the ring crosses the plane of the Yellow (major axis) or
+  /// Green (minor axis) slice, at the velocity of the model there (as in
+  /// Galmod). Points of rings that do not cross the slice are hidden.
+  bool UpdateRingMarkers(vtkMRMLAstroModelingParametersNode* pnode);
+  vtkMRMLMarkupsFiducialNode* GetRingMarkers(bool major);
+  static const char* GetRingMarkersName(bool major)
+    {
+    return major ? "MarkupsFiducialsMajor" : "MarkupsFiducialsMinor";
+    }
+  /// Remove the points of the rotation curve and reset the geometry of the
+  /// results (e.g. a failed operation)
+  void ClearResults(vtkMRMLAstroModelingParametersNode* pnode);
+
+  /// Show the results: the cube, the model and the residuals prepared for
+  /// the 3D views (the cube shown), the PV slices; with setLayout, the
+  /// layout with a plot view (classic Slicer; the Workbench keeps its own).
+  bool ShowResults(vtkMRMLAstroModelingParametersNode* pnode, bool setLayout);
+
+  /// Plot chart of a parameter of the rings (a column of the parameters
+  /// table, e.g. "VRot") against the radius: chart "ModelingRingsChart"
+  /// with one series. Returns the chart (nullptr if the column is unknown).
+  vtkMRMLPlotChartNode* UpdateRingPlot(vtkMRMLAstroModelingParametersNode* pnode, const char* columnName);
+  //@}
+
   /// Output of the operations since the last call: what 3DBarolo prints
   /// (standard output and error, also still printed in the terminal) and
   /// the errors and warnings of the operations. Thread safe.
@@ -141,6 +251,27 @@ protected:
   /// \param MRML astro volume display node
   /// \return value
   double CalculateCentralVelocity(vtkMRMLAstroVolumeDisplayNode* volumeDisplayNode);
+
+  /// Nodes removed from the scene: the data cube of a parameters node (e.g.
+  /// a dataset deleted with its products) clears its results (rings,
+  /// points of the rotation curve, contours) and cancels its operation; a
+  /// node used by the running operation cancels it.
+  void SetMRMLSceneInternal(vtkMRMLScene* newScene) override;
+  void ProcessMRMLSceneEvents(vtkObject* caller, unsigned long event, void* callData) override;
+  void OnNodeAboutToBeRemoved(vtkMRMLNode* node);
+
+  /// Results of the operation started by StartOperation (GUI thread)
+  void FinishOperation(int result);
+  /// Model and residual cubes of an operation (CREATE, FIT, ESTIMATE)
+  bool CreateOutputVolumes(vtkMRMLAstroModelingParametersNode* pnode);
+
+  vtkSmartPointer<vtkMRMLAstroModelingParametersNode> OperationParameters;
+  vtkSmartPointer<vtkMRMLTableNode> OperationTable;
+  vtkWeakPointer<vtkMRMLAstroModelingParametersNode> OperationSceneParameters;
+  bool OperationRunning{false};
+  bool OperationCancelled{false};
+  int LastOperationResult{0};
+  std::string LastError;
 
 private:
   vtkSlicerAstroModelingLogic(const vtkSlicerAstroModelingLogic&); // Not implemented
