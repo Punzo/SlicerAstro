@@ -4,8 +4,19 @@ AstroWorkbench (module **AstroWorkbench**, `Ctrl+Shift+W`) is a viewer-style
 interface of SlicerAstro: the datasets on the left, the views in the centre
 with the channel scrubber below them, and the inspector on the right (Inspect,
 Mask, Sources, Process, Model). The full guide follows with the
-documentation of the new user interface; this page describes where the
-Workbench keeps its files.
+documentation of the new user interface; this page describes the home page
+and where the Workbench keeps its files.
+
+## Home
+
+The rail on the left has **Home**, **Spaces** and **Data** (and **Sky**, the
+Virtual Observatory search of a later version). **Home** is the welcome page
+of SlicerAstro in place of the views and panels: open data, the workspaces,
+the documentation, the recent files and workspaces (newest first) and the
+sample data (downloaded once, then cached). It opens when the Workbench starts
+without data; loading data, or **Spaces** or **Data**, brings the views and
+the panels back. The same page, in one column, is the **Welcome** module of
+classic Slicer.
 
 ## Workspaces
 

@@ -28,8 +28,11 @@
 #include "qSlicerAstroWelcomeModuleExport.h"
 
 class qSlicerAstroWelcomeModuleWidgetPrivate;
+class qSlicerAstroWelcomeWidget;
 
 /// \ingroup SlicerAstro_QtModules_SlicerAstroWelcome
+/// Welcome module panel: the welcome page of SlicerAstro
+/// (qSlicerAstroWelcomeWidget, also the home page of the AstroWorkbench).
 class Q_SLICERASTRO_QTMODULES_ASTROWELCOME_EXPORT qSlicerAstroWelcomeModuleWidget :
   public qSlicerAbstractModuleWidget
 {
@@ -41,22 +44,14 @@ public:
   qSlicerAstroWelcomeModuleWidget(QWidget *parent=0);
   virtual ~qSlicerAstroWelcomeModuleWidget();
 
+  virtual void enter();
 
-public slots:
-
-  void editApplicationSettings();
-  bool loadNonDicomData();
-  bool loadRemoteSampleData();
-  int navigateToTutorial();
+  /// The welcome page
+  Q_INVOKABLE qSlicerAstroWelcomeWidget* welcomeWidget() const;
 
 protected:
   virtual void setup();
 
-protected slots:
-  void loadSource(QWidget*);
-  void onLazyWidgetCollapsed();
-
-protected:
   QScopedPointer<qSlicerAstroWelcomeModuleWidgetPrivate> d_ptr;
 
 private:

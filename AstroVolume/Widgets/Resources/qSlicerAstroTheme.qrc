@@ -77,6 +77,7 @@
         <file alias="Icons/exitWorkbench.svg">Icons/Astro/exitWorkbench.svg</file>
         <file alias="Icons/link.svg">Icons/Astro/link.svg</file>
         <file alias="Icons/lock.svg">Icons/Astro/lock.svg</file>
+        <file alias="Icons/module-data-probe.svg">Icons/Astro/module-data-probe.svg</file>
         <file alias="Icons/module-masking.svg">Icons/Astro/module-masking.svg</file>
         <file alias="Icons/module-modelling.svg">Icons/Astro/module-modelling.svg</file>
         <file alias="Icons/module-moment-maps.svg">Icons/Astro/module-moment-maps.svg</file>

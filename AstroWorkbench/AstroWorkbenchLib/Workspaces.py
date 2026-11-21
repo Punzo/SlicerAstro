@@ -33,14 +33,28 @@ def theme():
 # ----------------------------------------------------------------------
 # Logic
 
+# the folder of this process only (setWorkspacesDirectory(..., persistent=False),
+# e.g. tests: the testing settings are shared by the processes of a test run)
+_directoryOverride = None
+
+
 def workspacesDirectory():
+    if _directoryOverride:
+        return _directoryOverride
     default = os.path.join(os.path.expanduser("~"), "SlicerAstro", "Workspaces")
     directory = qt.QSettings().value(SETTINGS_KEY, default) or default
     return str(directory)
 
 
-def setWorkspacesDirectory(directory):
-    qt.QSettings().setValue(SETTINGS_KEY, directory)
+def setWorkspacesDirectory(directory, persistent=True):
+    """The workspaces folder: saved in the application settings, or with
+    persistent=False only for this process (None: back to the setting)."""
+    global _directoryOverride
+    if persistent:
+        _directoryOverride = None
+        qt.QSettings().setValue(SETTINGS_KEY, directory)
+    else:
+        _directoryOverride = directory
 
 
 def folderName(name):
@@ -146,6 +160,19 @@ def listWorkspaces(directory=None):
     return sorted(workspaces, key=lambda data: data.get("modified", ""), reverse=True)
 
 
+def recentJSON(limit=8):
+    """The most recently saved or opened workspaces as JSON (for the home
+    page): a list of {"name", "folder", "preview", "time", "datasets"}."""
+    entries = []
+    for description in listWorkspaces():
+        time = max(description.get("modified", ""), description.get("opened", ""))
+        entries.append({"name": description.get("name", os.path.basename(description["folder"])),
+                        "folder": description["folder"], "preview": description["preview"], "time": time,
+                        "datasets": description.get("datasets", []) or description.get("objects", [])})
+    entries.sort(key=lambda entry: entry["time"], reverse=True)
+    return json.dumps(entries[:limit])
+
+
 def loadWorkspace(folder):
     """Replace the scene with the one of the workspace."""
     description = readDescription(folder)
@@ -155,6 +182,10 @@ def loadWorkspace(folder):
     # workspace replaces it
     slicer.mrmlScene.Clear(0)
     slicer.util.loadScene(description["scene"], {"clear": True})
+    # when it was last opened (recent workspaces of the home page)
+    data = {key: value for key, value in description.items() if key not in ("folder", "preview", "scene")}
+    data["opened"] = _now()
+    _writeDescription(folder, data)
     layout = description.get("layout")
     if layout is not None and slicer.app.layoutManager() is not None:
         slicer.app.layoutManager().setLayout(int(layout))

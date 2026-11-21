@@ -338,6 +338,10 @@ QFrame[astroRole="drawer"] { background: @panel@; border: none; border-right: 1p
 QFrame[astroRole="inspector"] { background: @panel@; border: none; border-left: 1px solid @line@; }
 QFrame[astroRole="scrubber"] { background: @panel@; border: none; border-top: 1px solid @line@; }
 QFrame[astroRole="card"] { background: @raised@; border: 1px solid @line@; border-radius: 12px; }
+QFrame[astroRole="actionCard"] { background: @panel@; border: 1px solid @line@; border-radius: 12px; }
+QFrame[astroRole="actionCard"]:hover { background: @raised@; border-color: @line-strong@; }
+QFrame[astroRole="actionCard"]:disabled { background: transparent; }
+QFrame[astroRole="actionCard"]:disabled QLabel { color: @subtle@; }
 
 QToolButton[astroRole="rail"] {
   border: none;

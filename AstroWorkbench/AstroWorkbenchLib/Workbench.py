@@ -303,7 +303,7 @@ class LayoutSwitch(qt.QWidget):
         self.index = -1
 
 class Rail(qt.QFrame):
-    """Activities: data, sample data, sky search (VO), layers, settings."""
+    """Activities: home, workspaces, data, sky search (VO)."""
 
     def __init__(self, workbench, parent=None):
         qt.QFrame.__init__(self, parent)
@@ -315,9 +315,24 @@ class Rail(qt.QFrame):
         layout.setSpacing(6)
         self.group = qt.QButtonGroup(self)
         self.buttons = {}
-        for name, icon, text, enabled in (("data", "layers", "Data", True), ("samples", "module-sample-data", "Samples", True),
-                                          ("workspaces", "folder", "Spaces", True),
-                                          ("sky", "globe", "Sky", False), ("layers", "colormap", "Layers", False)):
+        # the home page (welcome dashboard) in place of the views and panels
+        self.homeButton = qt.QToolButton()
+        self.homeButton.setProperty("astroRole", "rail")
+        self.homeButton.setObjectName("Rail_home")
+        self.homeButton.setToolButtonStyle(qt.Qt.ToolButtonTextUnderIcon)
+        self.homeButton.setIcon(theme().icon("module-sample-data", "muted"))
+        self.homeButton.setIconSize(qt.QSize(20, 20))
+        self.homeButton.text = "Home"
+        self.homeButton.checkable = True
+        self.homeButton.toolTip = ("Home: open data, recent files and workspaces, sample data. "
+                                   "Data or Spaces: back to the views.")
+        self.group.addButton(self.homeButton)
+        self.homeButton.connect("clicked()", lambda: self.workbench.setHomeVisible(True))
+        layout.addWidget(self.homeButton, 0, qt.Qt.AlignHCenter)
+        self.buttons["home"] = self.homeButton
+        for name, icon, text, enabled in (("workspaces", "archive", "Spaces", True),
+                                          ("data", "layers", "Data", True),
+                                          ("sky", "globe", "Sky", False)):
             button = qt.QToolButton()
             button.setProperty("astroRole", "rail")
             button.setObjectName(f"Rail_{name}")
@@ -329,13 +344,12 @@ class Rail(qt.QFrame):
             button.enabled = enabled
             button.toolTip = {
                 "data": "Datasets: the loaded data with their previews and derived products.",
-                "samples": "Sample data: public HI cubes and images to try SlicerAstro.",
                 "workspaces": "Workspaces: save the scene with a screenshot of the views; open a saved one.",
             }.get(name, f"{text}: coming with the next steps of SlicerAstro 2.0")
             self.group.addButton(button)
             layout.addWidget(button, 0, qt.Qt.AlignHCenter)
             self.buttons[name] = button
-            button.connect("clicked()", lambda n=name: self.workbench.drawer.showPage(n))
+            button.connect("clicked()", lambda n=name: self.workbench.showDrawerPage(n))
         self.buttons["data"].checked = True
         layout.addStretch(1)
 
@@ -359,93 +373,6 @@ class ElidedLabel(qt.QLabel):
         if elided != self.text:
             self.setText(elided)
         self.toolTip = self.fullText if elided != self.fullText else ""
-
-
-class SampleCard(qt.QFrame):
-    """A sample data set: a wide image band (3D rendering on black with the
-    Observatory colour function, or the image) over its name, kind,
-    description and credit; downloaded (once, then cached) and loaded on a
-    click."""
-
-    BAND_HEIGHT = 112
-
-    def __init__(self, source, short, details, credit, onClicked=None, parent=None):
-        qt.QFrame.__init__(self, parent)
-        self.source = source
-        self.onClicked = onClicked
-        self.setObjectName(f"Sample_{source.sampleName}")
-        self.setProperty("astroRole", "sampleCard")
-        self.setAttribute(qt.Qt.WA_Hover, True)
-        self.setCursor(qt.Qt.PointingHandCursor)
-        self.setSizePolicy(qt.QSizePolicy.Ignored, qt.QSizePolicy.Fixed)
-        kind, _, description = short.partition(" · ")
-        if not description:
-            kind, description = "", short
-        layout = qt.QVBoxLayout(self)
-        layout.setContentsMargins(6, 6, 6, 10)
-        layout.setSpacing(6)
-        path = getattr(source, "thumbnailFileName", None)
-        self.image = qt.QPixmap(path) if path and os.path.exists(path) else qt.QPixmap()
-        self.band = qt.QLabel()
-        self.band.setObjectName("SampleThumbnail")
-        self.band.setFixedHeight(self.BAND_HEIGHT)
-        self.band.setSizePolicy(qt.QSizePolicy.Ignored, qt.QSizePolicy.Fixed)
-        self.band.setStyleSheet("background: #000000; border-radius: 6px;")
-        layout.addWidget(self.band)
-        texts = qt.QVBoxLayout()
-        texts.setContentsMargins(6, 0, 6, 0)
-        texts.setSpacing(2)
-        titleRow = qt.QHBoxLayout()
-        titleRow.setSpacing(6)
-        title = ElidedLabel(source.sampleName, qt.Qt.ElideMiddle)
-        title.setObjectName("SampleName")
-        title.setStyleSheet("font-weight: 700;")
-        titleRow.addWidget(title, 1)
-        if kind:
-            chip = qt.QLabel(kind)
-            chip.setObjectName("SampleKind")
-            chip.setProperty("astroRole", "chip")
-            titleRow.addWidget(chip)
-        cached = self.isCached()
-        state = qt.QLabel()
-        state.setObjectName("SampleState")
-        state.setPixmap(theme().icon("check" if cached else "download", "muted").pixmap(14, 14))
-        state.toolTip = "Downloaded (cached): loaded at once." if cached else "Downloaded once, then cached."
-        titleRow.addWidget(state)
-        texts.addLayout(titleRow)
-        descriptionLabel = ElidedLabel(description)
-        descriptionLabel.setObjectName("SampleDescription")
-        descriptionLabel.setProperty("astroRole", "label")
-        texts.addWidget(descriptionLabel)
-        creditLabel = ElidedLabel(credit)
-        creditLabel.setObjectName("SampleCredit")
-        creditLabel.setProperty("astroRole", "monoLabel")
-        texts.addWidget(creditLabel)
-        layout.addLayout(texts)
-        self.setToolTip("<br>".join(text for text in (
-            f"<b>{source.sampleName}</b>", details, f"<i>{credit}</i>" if credit else "",
-            "Click: load (downloaded once, then cached).") if text))
-
-    def resizeEvent(self, event):
-        qt.QFrame.resizeEvent(self, event)
-        # the image cropped to the band (centre)
-        width = max(16, self.band.width)
-        if self.image.isNull():
-            return
-        scaled = self.image.scaled(width, self.BAND_HEIGHT, qt.Qt.KeepAspectRatioByExpanding,
-                                   qt.Qt.SmoothTransformation)
-        self.band.setPixmap(Sections.roundedPixmap(scaled.copy((scaled.width() - width) // 2,
-                                                               (scaled.height() - self.BAND_HEIGHT) // 2,
-                                                               width, self.BAND_HEIGHT)))
-
-    def isCached(self):
-        names = getattr(self.source, "fileNames", None) or []
-        return bool(names) and all(os.path.exists(os.path.join(slicer.app.cachePath, name)) for name in names)
-
-    def mouseReleaseEvent(self, event):
-        if event.button() == qt.Qt.LeftButton and self.rect.contains(event.pos()) and self.onClicked:
-            self.onClicked()
-        qt.QFrame.mouseReleaseEvent(self, event)
 
 
 class DatasetDrawer(qt.QFrame):
@@ -505,7 +432,7 @@ class DatasetDrawer(qt.QFrame):
         self.cardsLayout = qt.QVBoxLayout(self.cardsWidget)
         self.cardsLayout.setContentsMargins(0, 0, 4, 0)
         self.cardsLayout.setSpacing(8)
-        self.emptyLabel = qt.QLabel("No data yet: open a FITS file or download a sample.")
+        self.emptyLabel = qt.QLabel("No data yet: open a FITS file, or a sample from Home.")
         self.emptyLabel.setProperty("astroRole", "label")
         self.emptyLabel.wordWrap = True
         self.cardsLayout.addWidget(self.emptyLabel)
@@ -514,74 +441,17 @@ class DatasetDrawer(qt.QFrame):
         pageLayout.addWidget(scroll, 1)
         self.stack.addWidget(page)
 
-        # sample data
-        samples = qt.QWidget()
-        samplesPageLayout = qt.QVBoxLayout(samples)
-        samplesPageLayout.setContentsMargins(14, 14, 14, 10)
-        samplesPageLayout.setSpacing(8)
-        title = qt.QLabel("Sample data")
-        title.setProperty("astroRole", "title")
-        samplesPageLayout.addWidget(title)
-        note = qt.QLabel("Public HI cubes and images, downloaded once and cached.")
-        note.setProperty("astroRole", "label")
-        note.wordWrap = True
-        samplesPageLayout.addWidget(note)
-        samplesScroll = qt.QScrollArea()
-        samplesScroll.setObjectName("SamplesScrollArea")
-        samplesScroll.setWidgetResizable(True)
-        samplesScroll.setFrameShape(qt.QFrame.NoFrame)
-        samplesScroll.setHorizontalScrollBarPolicy(qt.Qt.ScrollBarAlwaysOff)
-        slicer.qSlicerAstroScrollAreaFitter(samplesScroll)
-        samplesList = qt.QWidget()
-        samplesLayout = qt.QVBoxLayout(samplesList)
-        samplesLayout.setContentsMargins(0, 0, 4, 0)
-        samplesLayout.setSpacing(10)
-        samplesScroll.setWidget(samplesList)
-        samplesPageLayout.addWidget(samplesScroll, 1)
-        self.samplesLayout = samplesLayout
-        self.samplesFilled = False
-        samplesLayout.addStretch(1)
-        self.stack.addWidget(samples)
-
         # workspaces
         self.workspacesPage = Workspaces.WorkspacesPage(workbench)
         self.workspacesPage.setObjectName("WorkspacesPage")
         self.stack.addWidget(self.workspacesPage)
 
     def showPage(self, name):
-        if name == "samples":
-            self.fillSamples()
-            self.stack.setCurrentIndex(1)
-        elif name == "workspaces":
+        if name == "workspaces":
             self.workspacesPage.refresh()
-            self.stack.setCurrentIndex(2)
+            self.stack.setCurrentIndex(1)
         else:
             self.stack.setCurrentIndex(0)
-
-    def fillSamples(self):
-        if self.samplesFilled:
-            return
-        self.samplesFilled = True
-        try:
-            import SampleData
-            sources = SampleData.SampleDataLogic.sampleDataSourcesByCategory("Astronomy")
-        except Exception:
-            sources = []
-        try:
-            import AstroSampleData
-            info = AstroSampleData.SAMPLE_DATA_INFO
-        except Exception:
-            info = {}
-        for index, source in enumerate(sources):
-            short, details, credit = info.get(source.sampleName, ("", "", ""))
-            card = SampleCard(source, short, details, credit, lambda s=source: self.downloadSample(s))
-            self.samplesLayout.insertWidget(index, card)
-
-    def downloadSample(self, source):
-        import SampleData
-        with slicer.util.tryWithErrorDisplay("The sample could not be downloaded.", waitCursor=True):
-            SampleData.SampleDataLogic().downloadFromSource(source)
-        self.workbench.rail.buttons["data"].click()
 
     def refresh(self):
         for card in self.cards:
@@ -895,6 +765,9 @@ class Workbench:
         self.visibility.onUpdated = self.refresh3DViewBars
         self.colorFunctionDrag = ColorFunctionDrag(self)
         self.activeViewKey = "Red"
+        self.home = None
+        self.homeShown = None
+        self.datasetCount = 0
 
     # ------------------------------------------------------------------
     def activeVolumeID(self):
@@ -917,6 +790,7 @@ class Workbench:
         """A dataset card clicked: another dataset opens in the views; the
         active one gets its views back (its products shown in its place go
         away, the zoom, channel and cameras are kept)."""
+        self.setHomeVisible(False)
         if volume is self.activeVolume():
             # the dataset back in every view: products shown in its place and
             # data dropped on single views are replaced (zoom, channel and
@@ -966,6 +840,7 @@ class Workbench:
     def dropNode(self, key, nodeID):
         """Data dragged from the Datasets drawer onto a view: shown in that
         view only."""
+        self.setHomeVisible(False)
         node = slicer.mrmlScene.GetNodeByID(nodeID)
         viewNodeID = self.viewNodeID(key)
         if node is None or viewNodeID is None:
@@ -1382,6 +1257,7 @@ class Workbench:
         self.toolbar(self.header, qt.Qt.TopToolBarArea, "WorkbenchHeaderBar")
         left = qt.QWidget()
         left.setMinimumWidth(360)
+        self.leftPanel = left
         leftLayout = qt.QHBoxLayout(left)
         leftLayout.setContentsMargins(0, 0, 0, 0)
         leftLayout.setSpacing(0)
@@ -1401,6 +1277,18 @@ class Workbench:
         self.toolbar(self.statusBar, qt.Qt.BottomToolBarArea, "WorkbenchStatusBar")
         for widget in (self.header, left, self.inspector, self.scrubberBar, self.statusBar):
             theme().applyTo(widget)
+
+        # the home page: the welcome dashboard over the views (at start
+        # without data, and from the rail)
+        self.home = slicer.qSlicerAstroWelcomeWidget()
+        self.home.setObjectName("WorkbenchHome")
+        self.home.wide = True
+        self.home.workbenchMode = True
+        self.home.setOverlayTarget(mainWindow.centralWidget())
+        self.home.connect("dataLoaded()", lambda: self.setHomeVisible(False))
+        self.home.connect("workspacesRequested()", self.openWorkspaces)
+        self.datasetCount = len(slicer.util.getNodesByClass("vtkMRMLAstroVolumeNode"))
+        self.setHomeVisible(self.datasetCount == 0)
 
         self.header.layoutButton.setCurrentIndex(self.layoutIndex())
         self.visibility.enter()
@@ -1447,6 +1335,50 @@ class Workbench:
         self.refresh()
         self.arrangeViews()
 
+    def setHomeVisible(self, visible):
+        """The home page (welcome dashboard) in place of the views, without
+        the Datasets drawer, the inspector and the scrubber (the rail stays);
+        hidden: the views and the panels back."""
+        if self.home is None or self.homeShown == visible:
+            return
+        self.homeShown = visible
+        mainWindow = slicer.util.mainWindow()
+        self.drawer.visible = not visible
+        self.leftPanel.setMinimumWidth(60 if visible else 360)
+        for name in ("WorkbenchInspector", "WorkbenchScrubber"):
+            dock = mainWindow.findChild("QDockWidget", name)
+            if dock is not None:
+                dock.visible = not visible
+        left = mainWindow.findChild("QDockWidget", "WorkbenchDatasets")
+        if left is not None:
+            # only the rail on the home page (the dock keeps its width otherwise)
+            left.setMaximumWidth(60 if visible else 16777215)
+            self.leftPanel.setMaximumWidth(60 if visible else 16777215)
+            # the dock geometry is applied again (it may keep its width)
+            left.hide()
+            left.show()
+            mainWindow.layout().invalidate()
+            mainWindow.resizeDocks([left], [60 if visible else 360], qt.Qt.Horizontal)
+        # shown over the views (raised by the widget)
+        self.home.visible = visible
+        button = self.rail.buttons["home" if visible else "data"]
+        if visible or self.rail.homeButton.checked:
+            button.checked = True
+        if not visible:
+            self.drawer.showPage("workspaces" if self.rail.buttons["workspaces"].checked else "data")
+
+    def showDrawerPage(self, name):
+        """A page of the Datasets drawer (Data, Spaces), with the views."""
+        self.setHomeVisible(False)
+        self.rail.buttons[name].checked = True
+        self.drawer.showPage(name)
+
+    def isHomeVisible(self):
+        return self.home is not None and bool(self.homeShown)
+
+    def openWorkspaces(self):
+        self.showDrawerPage("workspaces")
+
     def styleMainWindow(self):
         """Separators between the views and the panels (dock separators of
         the main window, and the gaps next to the docks of fixed size, which
@@ -1491,6 +1423,12 @@ class Workbench:
     def refresh(self):
         if not self.active:
             return
+        # new data (loaded or made by a script) while the home page is shown:
+        # the views
+        count = len(slicer.util.getNodesByClass("vtkMRMLAstroVolumeNode"))
+        if count > self.datasetCount and self.isHomeVisible():
+            self.setHomeVisible(False)
+        self.datasetCount = count
         volume = self.activeVolume()
         self.drawer.refresh()
         self.scrubberBar.setVolume(volume)
@@ -1571,6 +1509,13 @@ class Workbench:
         for shortcut in self.shortcuts:
             shortcut.delete()
         self.shortcuts = []
+        if self.home is not None:
+            self.home.setOverlayTarget(None)
+            self.home.hide()
+            self.home.setParent(None)
+            self.home.delete()
+            self.home = None
+            self.homeShown = None
         self.header.cleanup()
         self.scrubberBar.cleanup()
         self.statusBar.cleanup()

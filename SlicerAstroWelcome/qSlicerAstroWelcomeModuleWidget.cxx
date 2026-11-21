@@ -17,133 +17,28 @@
 
 ==============================================================================*/
 
-#include <stdlib.h>
-
 // Qt includes
-#include <QDebug>
-#include <QDesktopServices>
-#include <QMainWindow>
-#include <QMessageBox>
-#include <QSettings>
-#include <QLatin1String>
-#include <QTextStream>
+#include <QVBoxLayout>
 
-// Slicer includes
-#include "vtkSlicerConfigure.h" // For Slicer_BUILD_DICOM_SUPPORT
-#include "vtkSlicerVersionConfigure.h"
+// AstroVolume includes
+#include <qSlicerAstroPanelHeader.h>
+#include <qSlicerAstroTheme.h>
+#include <qSlicerAstroWelcomeWidget.h>
 
-// SlicerQt includes
 #include "qSlicerAstroWelcomeModuleWidget.h"
-#include "ui_qSlicerAstroWelcomeModuleWidget.h"
-#include "qSlicerApplication.h"
-#include "qSlicerIO.h"
-#include "qSlicerIOManager.h"
-#include "qSlicerLayoutManager.h"
-#include "qSlicerModuleManager.h"
-#include "qSlicerAbstractCoreModule.h"
-#include "qSlicerModulePanel.h"
-#include "qSlicerUtils.h"
-
-// CTK includes
-#include "ctkButtonGroup.h"
-
-class qSlicerAppMainWindow;
 
 //-----------------------------------------------------------------------------
 /// \ingroup SlicerAstro_QtModules_SlicerAstroWelcome
-class qSlicerAstroWelcomeModuleWidgetPrivate: public Ui_qSlicerAstroWelcomeModuleWidget
+class qSlicerAstroWelcomeModuleWidgetPrivate
 {
-  Q_DECLARE_PUBLIC(qSlicerAstroWelcomeModuleWidget);
-protected:
-  qSlicerAstroWelcomeModuleWidget* const q_ptr;
 public:
-  qSlicerAstroWelcomeModuleWidgetPrivate(qSlicerAstroWelcomeModuleWidget& object);
-  void setupUi(qSlicerWidget* widget);
-
-  bool selectModule(const QString& moduleName);
-
+  qSlicerAstroWelcomeWidget* Welcome{nullptr};
 };
-
-//-----------------------------------------------------------------------------
-// qSlicerAstroWelcomeModuleWidgetPrivate methods
-
-//-----------------------------------------------------------------------------
-qSlicerAstroWelcomeModuleWidgetPrivate::qSlicerAstroWelcomeModuleWidgetPrivate(qSlicerAstroWelcomeModuleWidget& object)
-  : q_ptr(&object)
-{
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroWelcomeModuleWidgetPrivate::setupUi(qSlicerWidget* widget)
-{
-  Q_Q(qSlicerAstroWelcomeModuleWidget);
-
-  this->Ui_qSlicerAstroWelcomeModuleWidget::setupUi(widget);
-
-  //this->IconLabel->setPixmap(QPixmap(QLatin1String(":/Images/SlicerAstroIcon.png")));
-  // Create the button group ensuring that only one collabsibleWidgetButton will be open at a time
-  ctkButtonGroup * group = new ctkButtonGroup(widget);
-
-  // Add all collabsibleWidgetButton to a button group
-  QList<ctkCollapsibleButton*> collapsibles = widget->findChildren<ctkCollapsibleButton*>();
-  for (ctkCollapsibleButton* collapsible : collapsibles)
-    {
-    group->addButton(collapsible);
-    }
-
-  // Lazily set the fitted browser source to avoid overhead when the module
-  // is loaded.
-  this->FeedbackCollapsibleWidget->setProperty("source", ":HTML/AstroFeedback.html");
-  this->WelcomeAndAboutCollapsibleWidget->setProperty("source", ":HTML/AstroAbout.html");
-  this->OverviewCollapsibleWidget->setProperty("source", ":HTML/AstroOverview.html");
-  this->AcknowledgmentCollapsibleWidget->setProperty("source", ":HTML/AstroAcknowledgment.html");
-
-  const QWidgetList lazyLoadedWidgets = QWidgetList()
-    << this->FeedbackCollapsibleWidget
-    << this->WelcomeAndAboutCollapsibleWidget
-    << this->OverviewCollapsibleWidget
-    << this->AcknowledgmentCollapsibleWidget;
-  for (QWidget* lazyWidget : lazyLoadedWidgets)
-    {
-    QObject::connect(lazyWidget, SIGNAL(contentsCollapsed(bool)),
-                     q, SLOT(onLazyWidgetCollapsed()));
-    }
-}
-
-//-----------------------------------------------------------------------------
-bool qSlicerAstroWelcomeModuleWidgetPrivate::selectModule(const QString& moduleName)
-{
-  Q_Q(qSlicerAstroWelcomeModuleWidget);
-  qSlicerModuleManager * moduleManager = qSlicerCoreApplication::application()->moduleManager();
-  if (!moduleManager)
-    {
-    return false;
-    }
-  qSlicerAbstractCoreModule * module = moduleManager->module(moduleName);
-  if(!module)
-    {
-    QMessageBox::warning(
-          q, q->tr("Raising %1 Module:").arg(moduleName),
-          q->tr("Unfortunately, this requested module is not available in this Slicer session."),
-          QMessageBox::Ok);
-    return false;
-    }
-  qSlicerLayoutManager * layoutManager = qSlicerApplication::application()->layoutManager();
-  if (!layoutManager)
-    {
-    return false;
-    }
-  layoutManager->setCurrentModule(moduleName);
-  return true;
-}
-
-//-----------------------------------------------------------------------------
-// qSlicerAstroWelcomeModuleWidget methods
 
 //-----------------------------------------------------------------------------
 qSlicerAstroWelcomeModuleWidget::qSlicerAstroWelcomeModuleWidget(QWidget* _parent)
   : Superclass(_parent)
-  , d_ptr(new qSlicerAstroWelcomeModuleWidgetPrivate(*this))
+  , d_ptr(new qSlicerAstroWelcomeModuleWidgetPrivate)
 {
 }
 
@@ -156,104 +51,33 @@ qSlicerAstroWelcomeModuleWidget::~qSlicerAstroWelcomeModuleWidget()
 void qSlicerAstroWelcomeModuleWidget::setup()
 {
   Q_D(qSlicerAstroWelcomeModuleWidget);
-  d->setupUi(this);
-
-  connect(d->LoadNonDicomDataButton, SIGNAL(clicked()),
-          this, SLOT (loadNonDicomData()));
-  connect(d->LoadSampleDataButton, SIGNAL(clicked()),
-          this, SLOT (loadRemoteSampleData()));
-  connect(d->EditApplicationSettingsButton, SIGNAL(clicked()),
-          this, SLOT (editApplicationSettings()));
-  connect(d->PushToTutorial, SIGNAL(clicked()),
-          this, SLOT (navigateToTutorial()));
-
+  QVBoxLayout* layout = new QVBoxLayout(this);
+  layout->setContentsMargins(0, 0, 0, 0);
+  layout->setSpacing(0);
+  qSlicerAstroPanelHeader* header = new qSlicerAstroPanelHeader(this);
+  header->setTitle(tr("Welcome"));
+  header->setIconName("module-welcome");
+  header->setToolTip(tr("Welcome to SlicerAstro."));
+  layout->addWidget(header);
+  // the narrow layout of the welcome page (the AstroWorkbench shows the wide one)
+  d->Welcome = new qSlicerAstroWelcomeWidget(this);
+  layout->addWidget(d->Welcome);
+  layout->addStretch(1);
+  qSlicerAstroTheme::instance()->applyTo(this);
   this->Superclass::setup();
-  d->FeedbackCollapsibleWidget->setCollapsed(false);
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroWelcomeModuleWidget::editApplicationSettings()
-{
-  qSlicerApplication::application()->settingsDialog()->exec();
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroWelcomeModuleWidget::loadSource(QWidget* widget)
-{
-  // Lookup fitted browser
-  ctkFittedTextBrowser* fittedTextBrowser =
-      widget->findChild<ctkFittedTextBrowser*>();
-  Q_ASSERT(fittedTextBrowser);
-  if (fittedTextBrowser->source().isEmpty())
-    {
-    // Read content
-    QString url = widget->property("source").toString();
-    QFile source(url);
-    if(!source.open(QIODevice::ReadOnly))
-      {
-      qWarning() << Q_FUNC_INFO << ": Failed to read" << url;
-      return;
-      }
-    QTextStream in(&source);
-    QString html = in.readAll();
-    source.close();
-
-    qSlicerCoreApplication* app = qSlicerCoreApplication::application();
-
-    // Update occurences of wiki URLs
-    QString wikiVersion = "Nightly";
-    if (app->releaseType() == "Stable")
-      {
-      wikiVersion = QString("%1.%2").arg(app->majorVersion()).arg(app->minorVersion());
-      }
-      html = qSlicerUtils::replaceWikiUrlVersion(html, wikiVersion);
-
-    fittedTextBrowser->setHtml(html);
-    }
-}
-
-//-----------------------------------------------------------------------------
-bool qSlicerAstroWelcomeModuleWidget::loadNonDicomData()
-{
-  qSlicerIOManager *ioManager = qSlicerApplication::application()->ioManager();
-  if (!ioManager)
-    {
-    return false;
-    }
-  return ioManager->openAddDataDialog();
-}
-
-
-//-----------------------------------------------------------------------------
-bool qSlicerAstroWelcomeModuleWidget::loadRemoteSampleData()
+void qSlicerAstroWelcomeModuleWidget::enter()
 {
   Q_D(qSlicerAstroWelcomeModuleWidget);
-  return d->selectModule("SampleData");
+  this->Superclass::enter();
+  d->Welcome->updateLists();
 }
 
 //-----------------------------------------------------------------------------
-int qSlicerAstroWelcomeModuleWidget::navigateToTutorial()
+qSlicerAstroWelcomeWidget* qSlicerAstroWelcomeModuleWidget::welcomeWidget() const
 {
-#if defined(__linux) || defined(__linux__) || defined(linux)
-  {
-  return system("xdg-open https://github.com/Punzo/SlicerAstro/wiki/Tutorial &");
-  }
-#elif defined(__APPLE__)
-  {
-  return system("open https://github.com/Punzo/SlicerAstro/wiki/Tutorial &");
-  }
-#elif defined(_WIN32)
-  {
-  QString message = QString("Please navigate to https://github.com/Punzo/SlicerAstro/wiki/Tutorial");
-  QMessageBox::information(NULL, tr("SlicerAstro tutorial"), message);
-  return 1;
-  }
-#endif
-}
-
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroWelcomeModuleWidget::onLazyWidgetCollapsed()
-{
-  this->loadSource(qobject_cast<QWidget*>(this->sender()));
+  Q_D(const qSlicerAstroWelcomeModuleWidget);
+  return d->Welcome;
 }

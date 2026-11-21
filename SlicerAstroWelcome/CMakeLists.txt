@@ -8,6 +8,7 @@ string(TOUPPER ${MODULE_NAME} MODULE_NAME_UPPER)
 set(MODULE_EXPORT_DIRECTIVE "Q_SLICERASTRO_QTMODULES_${MODULE_NAME_UPPER}_EXPORT")
 
 set(MODULE_INCLUDE_DIRECTORIES
+  ${qSlicerAstroVolumeModuleWidgets_INCLUDE_DIRS}
   )
 
 set(MODULE_SRCS
@@ -23,7 +24,6 @@ set(MODULE_MOC_SRCS
   )
 
 set(MODULE_UI_SRCS
-  Resources/UI/qSlicer${MODULE_NAME}ModuleWidget.ui
   )
 
 set(MODULE_RESOURCES
@@ -31,6 +31,7 @@ set(MODULE_RESOURCES
   )
 
 set(MODULE_TARGET_LIBRARIES
+  qSlicerAstroVolumeModuleWidgets
   )
 
 #-----------------------------------------------------------------------------

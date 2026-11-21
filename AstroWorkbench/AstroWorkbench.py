@@ -1,4 +1,5 @@
 import os
+import shutil
 
 import qt
 
@@ -174,6 +175,8 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         self.setUp()
         self.test_Sources()
         self.setUp()
+        self.test_Home()
+        self.setUp()
         self.test_ProductsKeepViews()
         self.tearDown()
 
@@ -345,6 +348,27 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         self.assertEqual(len([node for node in slicer.util.getNodesByClass("vtkMRMLAstroVolumeNode")
                               if node.GetName() == volume.GetName() + "_mom0"]), 1)
 
+        # Reproject step: done once data reprojected from the dataset exist
+        # (not counted as smoothed data)
+        from AstroWorkbenchLib import Inspector
+        self.assertEqual(slicer.util.findChild(inspector, "StepState_Reproject").text, "ready")
+        reproject = slicer.vtkMRMLAstroReprojectParametersNode()
+        reproject.SetInputVolumeNodeIDs(volume.GetID())
+        reproject.SetInputVolumeNodeID(volume.GetID())
+        reproject.SetSpatialGridMode(reproject.SpatialResample)
+        reproject.SetSpatialResampleFactor(2.)
+        reprojectLogic = slicer.modules.astroreproject.logic()
+        self.assertTrue(reprojectLogic.Reproject(reproject), reprojectLogic.GetLastError())
+        reprojected = slicer.mrmlScene.GetNodeByID(reproject.GetOutputVolumeNodeID())
+        workbench().refresh()
+        self.process()
+        self.assertEqual(slicer.util.findChild(inspector, "StepState_Reproject").text, "done")
+        smoothStep = [step for step in Inspector.STEPS if step.name == "Smooth"][0]
+        self.assertFalse(smoothStep.isDone(volume))
+        slicer.mrmlScene.RemoveNode(reprojected)
+        workbench().refresh()
+        self.process()
+
         # a product click shows a map in the sky plane; a second click hides it
         mom0 = logic.GetMomentMap(volume, 0)
         for name in ("Red", "Yellow", "Green"):
@@ -493,7 +517,7 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
                 self.assertScrollAreasFit(panel, module)
             workbench().enter()
             self.process(30)
-            for page in ("data", "samples", "workspaces"):
+            for page in ("data", "workspaces"):
                 workbench().rail.buttons[page].click()
                 self.process(10)
                 self.assertScrollAreasFit(mainWindow, f"drawer {page}")
@@ -1117,6 +1141,107 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         self.process()
         self.assertTrue(displayNode.GetShowInAllViewsByDefault())
         self.assertTrue(displayNode.IsDisplayableInView("vtkMRMLSliceNodeGreen"))
+
+    def test_Home(self):
+        """The home page (the welcome page, wide): shown over the views when
+        the Workbench starts without data, hidden when data are loaded,
+        shown again from the rail; the same widget is the Welcome module."""
+        mainWindow = slicer.util.mainWindow()
+        workbench().enter()
+        self.process()
+        home = workbench().home
+        self.assertTrue(home.visible)
+        self.assertTrue(home.wide)
+        self.assertTrue(slicer.util.findChild(mainWindow, "Rail_home").checked)
+        self.assertEqual(home.geometry.size(), mainWindow.centralWidget().size)
+        self.assertGreater(home.sampleCount(), 5)
+        self.assertIn("NGC2403", home.sampleNames())
+        # the Workbench card is replaced by Workspaces
+        self.assertTrue(slicer.util.findChild(home, "WorkspacesCard").visible)
+        # only the rail with the home page: no drawer, inspector or scrubber;
+        # no Samples entry (the samples are on the home page)
+        self.assertFalse(workbench().drawer.visible)
+        for name in ("WorkbenchInspector", "WorkbenchScrubber"):
+            self.assertFalse(mainWindow.findChild("QDockWidget", name).visible, name)
+        self.assertIsNone(mainWindow.findChild("QToolButton", "Rail_samples"))
+        self.assertFalse(slicer.util.findChild(home, "WorkbenchCard").visible)
+        self.assertFalse(slicer.util.findChild(home, "SkySearchCard").enabled)
+        # a sample from the home page: the views
+        self.assertTrue(home.loadSample("WEIN069"))
+        self.process()
+        self.assertFalse(home.visible)
+        self.assertFalse(slicer.util.findChild(mainWindow, "Rail_home").checked)
+        self.assertIsNotNone(workbench().activeVolume())
+        self.assertTrue(workbench().drawer.visible)
+        self.assertTrue(mainWindow.findChild("QDockWidget", "WorkbenchInspector").visible)
+        # a workspace: listed in Recent with the files, newest first
+        from AstroWorkbenchLib import Workspaces
+        directory = os.path.join(slicer.app.temporaryPath, "AstroWorkbenchHomeTest")
+        if os.path.isdir(directory):
+            shutil.rmtree(directory)
+        Workspaces.setWorkspacesDirectory(directory, persistent=False)
+        try:
+            # (times are in seconds: saved after the file was loaded)
+            import time
+            time.sleep(1.1)
+            self.assertIsNotNone(Workspaces.saveWorkspace("Home test"))
+            # back from the rail; Data gives the views and the panels back
+            slicer.util.findChild(mainWindow, "Rail_home").click()
+            self.process()
+            self.assertTrue(home.visible)
+            self.assertFalse(workbench().drawer.visible)
+            self.assertEqual(home.recentNames()[0], "Home test")
+            clear = slicer.util.findChild(home, "ClearRecentButton")
+            self.assertEqual(clear.text, "Clear history")
+            self.assertIn("workspaces", clear.toolTip)
+            slicer.util.findChild(mainWindow, "Rail_data").click()
+            self.process()
+            self.assertFalse(home.visible)
+            self.assertTrue(workbench().drawer.visible)
+            self.assertTrue(mainWindow.findChild("QDockWidget", "WorkbenchScrubber").visible)
+            # opening the workspace from Recent
+            slicer.util.findChild(mainWindow, "Rail_home").click()
+            self.process()
+            self.assertTrue(home.loadRecentFile(0))
+            self.process()
+            self.assertFalse(home.visible)
+            self.assertEqual(len(slicer.util.getNodesByClass("vtkMRMLAstroVolumeNode")), 1)
+            # clearing the history: no recent files or workspaces (the
+            # workspace stays)
+            slicer.util.findChild(mainWindow, "Rail_home").click()
+            self.process()
+            time.sleep(1.1)
+            home.clearRecentFiles()
+            self.process()
+            self.assertEqual(home.recentFileCount(), 0)
+            self.assertEqual(len(Workspaces.listWorkspaces()), 1)
+        finally:
+            Workspaces.setWorkspacesDirectory(None, persistent=False)
+        # the Workspaces card opens the workspaces
+        slicer.util.findChild(mainWindow, "Rail_home").click()
+        self.process()
+        workbench().openWorkspaces()
+        self.process()
+        self.assertFalse(home.visible)
+        self.assertTrue(slicer.util.findChild(mainWindow, "Rail_workspaces").checked)
+        # theme from the page
+        theme = slicer.app.property("SlicerAstroTheme")
+        home.setThemeMode("light")
+        self.assertEqual(theme.mode, "light")
+        home.setThemeMode("dark")
+        workbench().exit()
+        self.process()
+        self.assertIsNone(workbench().home)
+
+        # the Welcome module: the narrow page
+        slicer.util.selectModule("AstroWelcome")
+        self.process()
+        page = slicer.modules.astrowelcome.widgetRepresentation().welcomeWidget()
+        self.assertFalse(page.wide)
+        self.assertTrue(slicer.util.findChild(page, "WorkbenchCard").visible)
+        self.assertGreater(page.sampleCount(), 5)
+        for name in ("OpenDataCard", "WorkbenchCard", "SkySearchCard", "LearnCard", "AboutButton", "SettingsButton"):
+            self.assertTrue(slicer.util.findChild(page, name).toolTip, name)
 
     def test_About(self):
         """The About window: versions, shortcuts, credits; the shortcuts of

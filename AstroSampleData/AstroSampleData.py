@@ -145,6 +145,27 @@ def sampleThumbnailPath(sampleName):
     return None
 
 
+def samplesJSON():
+    """The samples as JSON (for the Welcome module): a list of
+    {"name", "title", "description", "thumbnail"}."""
+    import json
+    samples = []
+    for name, thumbnail, _ in SAMPLE_DATA_SOURCES:
+        info = SAMPLE_DATA_INFO.get(name, ("", "", ""))
+        samples.append({"name": name, "title": info[0], "description": info[1],
+                        "thumbnail": sampleThumbnailPath(name)})
+    return json.dumps(samples)
+
+
+def loadSample(sampleName):
+    """Download (once, then cached) and load a sample; a data cube or image
+    becomes the active volume. Returns the loaded node (or None)."""
+    node = AstroSampleDataLogic().downloadSample(sampleName)
+    if node is not None and node.IsA("vtkMRMLAstroVolumeNode"):
+        slicer.app.applicationLogic().GetSelectionNode().SetActiveVolumeID(node.GetID())
+    return node
+
+
 class AstroSampleData(ScriptedLoadableModule):
     def __init__(self, parent):
         ScriptedLoadableModule.__init__(self, parent)
