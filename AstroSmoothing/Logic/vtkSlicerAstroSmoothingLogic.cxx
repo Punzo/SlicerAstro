@@ -35,12 +35,6 @@
 #include <vtkAstroImageGradientSmooth.h>
 #include <vtkAstroImageKernelSmooth.h>
 #include <vtkAstroImageSeparableSmooth.h>
-#ifdef SLICERASTRO_HAS_WEBGPU
-#include <vtkAstroWebGPUDevice.h>
-#include <vtkAstroWebGPUImageGradientSmooth.h>
-#include <vtkAstroWebGPUImageKernelSmooth.h>
-#include <vtkAstroWebGPUImageSeparableSmooth.h>
-#endif
 #include <vtkCallbackCommand.h>
 #include <vtkImageAlgorithm.h>
 #include <vtkImageData.h>
@@ -68,51 +62,6 @@
 
 #define UNUSED(expr) (void)(expr)
 
-namespace
-{
-//----------------------------------------------------------------------------
-// WebGPU implementation of each CPU smoothing filter (same parameters).
-template <class CPUFilter>
-struct WebGPUFilter
-{
-  using Type = CPUFilter;
-};
-#ifdef SLICERASTRO_HAS_WEBGPU
-template <>
-struct WebGPUFilter<vtkAstroImageKernelSmooth>
-{
-  using Type = vtkAstroWebGPUImageKernelSmooth;
-};
-template <>
-struct WebGPUFilter<vtkAstroImageSeparableSmooth>
-{
-  using Type = vtkAstroWebGPUImageSeparableSmooth;
-};
-template <>
-struct WebGPUFilter<vtkAstroImageGradientSmooth>
-{
-  using Type = vtkAstroWebGPUImageGradientSmooth;
-};
-#endif
-
-//----------------------------------------------------------------------------
-template <class CPUFilter>
-vtkSmartPointer<CPUFilter> NewSmoothFilter(vtkObject* webGPUDevice)
-{
-#ifdef SLICERASTRO_HAS_WEBGPU
-  if (webGPUDevice)
-    {
-    vtkSmartPointer<typename WebGPUFilter<CPUFilter>::Type> filter =
-      vtkSmartPointer<typename WebGPUFilter<CPUFilter>::Type>::New();
-    filter->SetDevice(vtkAstroWebGPUDevice::SafeDownCast(webGPUDevice));
-    return filter;
-    }
-#else
-  (void)webGPUDevice;
-#endif
-  return vtkSmartPointer<CPUFilter>::New();
-}
-} // namespace
 
 //----------------------------------------------------------------------------
 class vtkSlicerAstroSmoothingLogic::vtkInternal
@@ -126,10 +75,6 @@ public:
   /// RunSmoothingFilter for its job
   std::function<void(bool)> PendingDone;
   bool PendingSynchronous{true};
-#ifdef SLICERASTRO_HAS_WEBGPU
-  // WebGPU device reused by all the smoothing runs
-  vtkSmartPointer<vtkAstroWebGPUDevice> WebGPUDevice;
-#endif
 };
 
 //----------------------------------------------------------------------------
@@ -247,18 +192,9 @@ int vtkSlicerAstroSmoothingLogic::ApplyFilter(vtkMRMLAstroSmoothingParametersNod
     return 0;
     }
 
-  // GPU backends: WebGPU (if available) runs the same code paths as the CPU
-  // with the WebGPU implementations of the filters; otherwise OpenGL (the
-  // render window, if any, provides the OpenGL context).
+  // GPU backend: OpenGL (the render window, if any, provides the OpenGL
+  // context; otherwise the filters create their own)
   bool openGL = pnode->GetHardware() != 0;
-  this->UseWebGPU = false;
-#ifdef SLICERASTRO_HAS_WEBGPU
-  if (openGL && vtkAstroWebGPUDevice::IsAvailable())
-    {
-    this->UseWebGPU = true;
-    openGL = false;
-    }
-#endif
 
   // images (2D) and spectra (1D): no smoothing along the missing axes (and
   // no rotation out of the plane); the parameters of the user are restored
@@ -278,12 +214,6 @@ int vtkSlicerAstroSmoothingLogic::ApplyFilter(vtkMRMLAstroSmoothingParametersNod
     // results): images and spectra are smoothed by the CPU filters
     vtkInfoMacro("Smoothing: images and spectra are smoothed on the CPU (the OpenGL filters handle cubes).");
     openGL = false;
-    }
-  if (dims[1] == 1 && this->UseWebGPU)
-    {
-    // spectra are small: the transfers to the GPU would cost more than the
-    // smoothing (images are smoothed by WebGPU)
-    this->UseWebGPU = false;
     }
   if (lowerDimensions)
     {
@@ -578,36 +508,14 @@ int vtkSlicerAstroSmoothingLogic::RunSmoothingFilter(vtkMRMLAstroSmoothingParame
 }
 
 //----------------------------------------------------------------------------
-vtkObject* vtkSlicerAstroSmoothingLogic::WebGPUDevice()
-{
-#ifdef SLICERASTRO_HAS_WEBGPU
-  if (this->UseWebGPU)
-    {
-    if (!this->Internal->WebGPUDevice)
-      {
-      this->Internal->WebGPUDevice = vtkSmartPointer<vtkAstroWebGPUDevice>::New();
-      }
-    return this->Internal->WebGPUDevice;
-    }
-#endif
-  return nullptr;
-}
-
-//----------------------------------------------------------------------------
 std::string vtkSlicerAstroSmoothingLogic::FilterName(const char* name) const
 {
-  return std::string(name) + (this->UseWebGPU ? " (GPU, WebGPU)" : " (CPU)");
+  return std::string(name) + " (CPU)";
 }
 
 //----------------------------------------------------------------------------
 std::string vtkSlicerAstroSmoothingLogic::GetGPUBackend()
 {
-#ifdef SLICERASTRO_HAS_WEBGPU
-  if (vtkAstroWebGPUDevice::IsAvailable())
-    {
-    return "WebGPU";
-    }
-#endif
 #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENGL
   return "OpenGL";
 #else
@@ -618,14 +526,7 @@ std::string vtkSlicerAstroSmoothingLogic::GetGPUBackend()
 //----------------------------------------------------------------------------
 std::string vtkSlicerAstroSmoothingLogic::GetGPUBackendDescription()
 {
-  const std::string backend = vtkSlicerAstroSmoothingLogic::GetGPUBackend();
-#ifdef SLICERASTRO_HAS_WEBGPU
-  if (backend == "WebGPU")
-    {
-    return backend + ": " + vtkAstroWebGPUDevice::GetDescription();
-    }
-#endif
-  return backend;
+  return vtkSlicerAstroSmoothingLogic::GetGPUBackend();
 }
 
 //----------------------------------------------------------------------------
@@ -635,7 +536,7 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLAstroSmoothingP
     {
     return 0;
     }
-  vtkSmartPointer<vtkAstroImageKernelSmooth> filter = NewSmoothFilter<vtkAstroImageKernelSmooth>(this->WebGPUDevice());
+  vtkSmartPointer<vtkAstroImageKernelSmooth> filter = vtkSmartPointer<vtkAstroImageKernelSmooth>::New();
   filter->SetBoxKernel(static_cast<int>(pnode->GetParameterX()),
                        static_cast<int>(pnode->GetParameterY()),
                        static_cast<int>(pnode->GetParameterZ()));
@@ -653,7 +554,7 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
   // Separable box: the kernel size is ParameterX along the axes with a
   // non-zero parameter.
   const int size = static_cast<int>(pnode->GetParameterX());
-  vtkSmartPointer<vtkAstroImageSeparableSmooth> filter = NewSmoothFilter<vtkAstroImageSeparableSmooth>(this->WebGPUDevice());
+  vtkSmartPointer<vtkAstroImageSeparableSmooth> filter = vtkSmartPointer<vtkAstroImageSeparableSmooth>::New();
   filter->SetAxisBoxKernel(0, pnode->GetParameterX() > 0.001 ? size : 0);
   filter->SetAxisBoxKernel(1, pnode->GetParameterY() > 0.001 ? size : 0);
   filter->SetAxisBoxKernel(2, pnode->GetParameterZ() > 0.001 ? size : 0);
@@ -688,7 +589,7 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLAstroSmoot
     return 0;
     }
   // 3D (possibly rotated) Gaussian kernel computed by the parameters node
-  vtkSmartPointer<vtkAstroImageKernelSmooth> filter = NewSmoothFilter<vtkAstroImageKernelSmooth>(this->WebGPUDevice());
+  vtkSmartPointer<vtkAstroImageKernelSmooth> filter = vtkSmartPointer<vtkAstroImageKernelSmooth>::New();
   // the filter gets its own copy of the kernel (a few values, not data): the
   // parameters node recomputes its kernels in place when the parameters
   // change, also while the filter runs in the background
@@ -713,7 +614,7 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
   // own copy of the kernel (see AnisotropicGaussianCPUFilter)
   vtkNew<vtkDoubleArray> kernel1D;
   kernel1D->DeepCopy(pnode->GetGaussianKernel1D());
-  vtkSmartPointer<vtkAstroImageSeparableSmooth> filter = NewSmoothFilter<vtkAstroImageSeparableSmooth>(this->WebGPUDevice());
+  vtkSmartPointer<vtkAstroImageSeparableSmooth> filter = vtkSmartPointer<vtkAstroImageSeparableSmooth>::New();
   filter->SetAxisKernel(0, pnode->GetParameterX() > 0.001 ? kernel1D : nullptr);
   filter->SetAxisKernel(1, pnode->GetParameterY() > 0.001 ? kernel1D : nullptr);
   filter->SetAxisKernel(2, pnode->GetParameterZ() > 0.001 ? kernel1D : nullptr);
@@ -754,7 +655,7 @@ int vtkSlicerAstroSmoothingLogic::GradientCPUFilter(vtkMRMLAstroSmoothingParamet
     {
     return 0;
     }
-  vtkSmartPointer<vtkAstroImageGradientSmooth> filter = NewSmoothFilter<vtkAstroImageGradientSmooth>(this->WebGPUDevice());
+  vtkSmartPointer<vtkAstroImageGradientSmooth> filter = vtkSmartPointer<vtkAstroImageGradientSmooth>::New();
   filter->SetConductance(pnode->GetParameterX(), pnode->GetParameterY(), pnode->GetParameterZ());
   filter->SetTimeStep(pnode->GetTimeStep());
   filter->SetK(pnode->GetK());

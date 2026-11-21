@@ -144,8 +144,7 @@ Environment variables of `build-extension.sh`:
   `activateWindow()` does not make a window active. Tests that need keyboard
   shortcuts of the main window call `QApplication.setActiveWindow()` when the
   window is still not active (see `AstroCloudLassoTest`).
-- **Software OpenGL:** OpenGL is Mesa llvmpipe. The OpenGL smoothing works;
-  there is no WebGPU adapter.
+- **Software OpenGL:** OpenGL is Mesa llvmpipe. The OpenGL smoothing works.
 - **Data:** sample and testing data are downloaded from the GitHub releases
   (`SampleData-v2`, `TestingData-v1`) and cached.
 

@@ -62,19 +62,13 @@ endif()
 # Configuration header
 # Multi-threading uses vtkSMPTools (TBB backend in Slicer): no OpenMP.
 #
-# GPU smoothing backends:
-#  - OpenGL (vtkOpenGLFilters): available with the standard Slicer builds.
-#  - WebGPU (vtkAstroWebGPUFilters, planned): only when Slicer's VTK is built
-#    with VTK_ENABLE_WEBGPU (e.g. SlicerAstroApp).
+# GPU smoothing: OpenGL (vtkOpenGLFilters), available with the standard
+# Slicer builds.
 set(VTK_SLICER_ASTRO_SUPPORT_OPENGL OFF)
 if(TARGET VTK::RenderingOpenGL2)
   set(VTK_SLICER_ASTRO_SUPPORT_OPENGL ON)
 endif()
-set(SLICERASTRO_HAS_WEBGPU OFF)
-if(TARGET VTK::RenderingWebGPU)
-  set(SLICERASTRO_HAS_WEBGPU ON)
-endif()
-message(STATUS "SlicerAstro GPU smoothing: OpenGL=${VTK_SLICER_ASTRO_SUPPORT_OPENGL} WebGPU=${SLICERASTRO_HAS_WEBGPU}")
+message(STATUS "SlicerAstro GPU smoothing: OpenGL=${VTK_SLICER_ASTRO_SUPPORT_OPENGL}")
 configure_file(
   ${SlicerAstro_SOURCE_DIR}/CMake/vtkSlicerAstroConfigure.h.in
   ${SlicerAstro_BINARY_DIR}/vtkSlicerAstroConfigure.h
@@ -108,9 +102,6 @@ add_subdirectory(vtkAstroReproject)
 add_subdirectory(vtkAstroImageFilters)
 if(VTK_SLICER_ASTRO_SUPPORT_OPENGL)
   add_subdirectory(vtkOpenGLFilters)
-endif()
-if(SLICERASTRO_HAS_WEBGPU)
-  add_subdirectory(vtkAstroWebGPUFilters)
 endif()
 include(${CMAKE_CURRENT_SOURCE_DIR}/CMake/SlicerAstroTesting.cmake)
 add_subdirectory(AstroVolume)

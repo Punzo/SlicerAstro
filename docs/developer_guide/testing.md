@@ -46,7 +46,7 @@ Some tests are opt-in or need hardware:
 |---|---|
 | `AstroFITSIOTest.test_LargeCube` | `SLICERASTRO_LARGE_TESTS=1` (cube of more than 2³¹ voxels, 8.7 GB of memory and disk) |
 | `AstroFITSIOTest.test_Memory` | Linux (peak memory from `/proc`) |
-| `AstroSmoothingSelfTest.test_AstroSmoothingGPU` | a GPU backend (OpenGL or WebGPU) |
+| `AstroSmoothingSelfTest.test_AstroSmoothingGPU` | OpenGL |
 
 The tests also run in GitHub Actions: see
 [Continuous integration](continuous_integration.md).

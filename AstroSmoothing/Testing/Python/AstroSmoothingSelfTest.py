@@ -262,7 +262,7 @@ class AstroSmoothingSelfTestTest(ScriptedLoadableModuleTest):
         self.delayDisplay("Test passed")
 
     def test_AstroSmoothingGPU(self):
-        """The GPU filters (OpenGL, or WebGPU if available) through the module
+        """The GPU (OpenGL) filters through the module
         (the Apply button: as the users run them), against the references."""
         import AstroSampleData
         from vtk.util.numpy_support import vtk_to_numpy

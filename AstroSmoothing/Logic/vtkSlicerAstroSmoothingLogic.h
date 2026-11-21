@@ -84,8 +84,8 @@ public:
   int Apply(vtkMRMLAstroSmoothingParametersNode *pnode, vtkRenderWindow *renderWindow);
 
 #ifndef __VTK_WRAP__
-  /// Start the smoothing without blocking the user interface (CPU and WebGPU
-  /// filters in a worker thread; the OpenGL filters need the GUI thread and
+  /// Start the smoothing without blocking the user interface (CPU filters in
+  /// a worker thread; the OpenGL filters need the GUI thread and
   /// run synchronously); done(success) is called in the GUI thread at its
   /// end. Returns false if it could not start (done is not called).
   /// Synchronous if synchronous is true.
@@ -104,15 +104,14 @@ public:
                                   double newBeam[3], double kernel[3]);
 
   /// GPU backend used when the parameters node selects the GPU hardware:
-  /// "WebGPU" (SlicerAstro built against a VTK with WebGPU and a WebGPU
-  /// adapter available), otherwise "OpenGL", or an empty string if SlicerAstro
-  /// has been built without GPU support.
+  /// "OpenGL", or an empty string if SlicerAstro has been built without GPU
+  /// support.
   static std::string GetGPUBackend();
 
-  /// Description of the GPU backend in use (e.g. "WebGPU: Vulkan - NVIDIA ...").
+  /// Description of the GPU backend in use.
   static std::string GetGPUBackendDescription();
 
-  /// Progress (0-100) of the CPU/WebGPU filter in progress (thread safe), and
+  /// Progress (0-100) of the CPU filter in progress (thread safe), and
   /// cancel request (Apply returns 0).
   int GetSmoothingProgress() { return this->SmoothingProgress; }
   void CancelSmoothing() { this->SmoothingCancelRequested = true; }
@@ -183,19 +182,11 @@ private:
   class vtkInternal;
   vtkInternal* Internal;
 
-  /// True while Apply runs the (CPU code paths of the) filters with their
-  /// WebGPU implementations.
-  bool UseWebGPU{false};
-
   std::atomic<int> SmoothingProgress{0};
   std::atomic<bool> SmoothingCancelRequested{false};
 
   /// Name of a filter including the hardware used, e.g. "Box Filter (CPU)".
   std::string FilterName(const char* name) const;
-
-  /// WebGPU device (vtkAstroWebGPUDevice) shared by the runs if UseWebGPU,
-  /// otherwise nullptr.
-  vtkObject* WebGPUDevice();
 };
 
 #endif

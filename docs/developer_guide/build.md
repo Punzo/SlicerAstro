@@ -44,12 +44,6 @@ The pinned versions are in `SuperBuild/External_*.cmake`. The workflow
 `.github/workflows/dependencies.yml` builds and tests these libraries on
 Linux, Windows and macOS (see [Continuous integration](continuous_integration.md)).
 
-## Optional: WebGPU smoothing
-
-The WebGPU smoothing filters (`vtkAstroWebGPUFilters`) are built only when
-VTK provides the WebGPU module (SlicerAstroApp); otherwise AstroSmoothing
-uses OpenGL on the GPU.
-
 ## Coding conventions
 
 - C++17, the VTK and 3D Slicer style; explicit types (no `auto` or

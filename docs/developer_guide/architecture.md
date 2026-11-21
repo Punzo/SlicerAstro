@@ -9,7 +9,6 @@
 | `vtkAstroReproject` | reprojection engine (`vtkAstroReprojector`), beams (`vtkAstroBeams`), exact overlap (from astropy reproject, BSD-3) |
 | `vtkAstroImageFilters` | multithreaded smoothing filters (vtkSMPTools) |
 | `vtkOpenGLFilters` | GPU smoothing filters (OpenGL) |
-| `vtkAstroWebGPUFilters` | GPU smoothing filters (WebGPU, optional) |
 
 ## Modules
 
