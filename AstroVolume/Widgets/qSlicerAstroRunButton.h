@@ -21,6 +21,8 @@
 #include <QElapsedTimer>
 #include <QWidget>
 
+#include <functional>
+
 #include "qSlicerAstroVolumeModuleWidgetsExport.h"
 
 class QPushButton;
@@ -58,6 +60,13 @@ public:
   /// The run button whose clicked() signal is being handled (the work
   /// started by that click reports its progress to it), or nullptr
   static qSlicerAstroRunButton* activeButton();
+  /// Runs action as if this button had been clicked: the work it starts
+  /// reports its progress (and Cancel) here (e.g. a second button of a panel
+  /// whose work is shown in the run button)
+  void runAsActive(const std::function<void()>& action);
+  /// The same for scripts: the work started between setActive(true) and
+  /// setActive(false) reports to this button
+  Q_INVOKABLE void setActive(bool active);
 
 public slots:
   void setRunning(bool running);

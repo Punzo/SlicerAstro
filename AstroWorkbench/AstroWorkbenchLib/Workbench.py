@@ -17,11 +17,15 @@ import slicer
 from . import Astro
 from . import About
 from . import Contours
+from . import Sections
 from .Inspector import Inspector
 from .Views import ViewDecorator, ViewVisibility
 from . import Workspaces
 
 VIEW_COLOR = (7 / 255.0, 10 / 255.0, 18 / 255.0)
+# Slicer's default gradient of the 3D views (vtkMRMLViewNode), in the light theme
+LIGHT_VIEW_COLORS = ((0.7568627450980392, 0.7647058823529412, 0.9098039215686275),
+                     (0.4549019607843137, 0.4705882352941176, 0.7450980392156863))
 
 
 def theme():
@@ -149,9 +153,14 @@ class HeaderBar(qt.QFrame):
         self.navigateButton.checked = True
         self.crosshairButton = iconButton("target", "Crosshair: the same position in all the views", checkable=True)
         self.colorFunctionButton = iconButton(
-            "colormap", "Colour function: drag in a 2D view to change its window (left-right: contrast, "
-                        "up-down: brightness); drag in a 3D view to move its 3D colour function along the "
-                        "data values (left-right) and its opacity (up-down). Inspect follows.", checkable=True)
+            "colormap", "<b>Colour function</b><br>"
+                        "Click this button, then left-drag in a view:<br>"
+                        "&bull; <b>2D view</b>: left-right changes the contrast (window), "
+                        "up-down the brightness (level) of the 2D colour function;<br>"
+                        "&bull; <b>3D view</b>: left-right moves the 3D colour function along the data values, "
+                        "up-down makes it more or less opaque.<br>"
+                        "Inspect (Display and its 3D rendering) shows the new values. The pointer button returns to navigation. "
+                        "All the shortcuts: About (F1).", checkable=True)
         self.colorFunctionButton.setObjectName("WorkbenchToolColorFunction")
         self.pointsButton = iconButton("point", "Points: sky positions and velocities (e.g. sources); click to "
                                                 "place, several in a row (Esc to stop)", checkable=True)
@@ -425,8 +434,9 @@ class SampleCard(qt.QFrame):
             return
         scaled = self.image.scaled(width, self.BAND_HEIGHT, qt.Qt.KeepAspectRatioByExpanding,
                                    qt.Qt.SmoothTransformation)
-        self.band.setPixmap(scaled.copy((scaled.width() - width) // 2, (scaled.height() - self.BAND_HEIGHT) // 2,
-                                        width, self.BAND_HEIGHT))
+        self.band.setPixmap(Sections.roundedPixmap(scaled.copy((scaled.width() - width) // 2,
+                                                               (scaled.height() - self.BAND_HEIGHT) // 2,
+                                                               width, self.BAND_HEIGHT)))
 
     def isCached(self):
         names = getattr(self.source, "fileNames", None) or []
@@ -471,6 +481,13 @@ class DatasetDrawer(qt.QFrame):
         openButton.setIcon(theme().icon("folder", "text"))
         openButton.connect("clicked()", slicer.util.openAddDataDialog)
         titleRow.addWidget(openButton)
+        openPartButton = qt.QPushButton()
+        openPartButton.setObjectName("OpenPartButton")
+        openPartButton.toolTip = ("Open part of a FITS file: choose the extension (e.g. DATA or STAT of a "
+                                  "MUSE cube) and the pixel and channel ranges; only those voxels are read.")
+        openPartButton.setIcon(theme().icon("crop", "text"))
+        openPartButton.connect("clicked()", self.openPart)
+        titleRow.addWidget(openPartButton)
         pageLayout.addLayout(titleRow)
         self.filterEdit = qt.QLineEdit()
         self.filterEdit.setObjectName("DatasetFilter")
@@ -584,7 +601,7 @@ class DatasetDrawer(qt.QFrame):
                 card.addProduct(productID, name, detail, icon)
             card.setActive(volume.GetID() == activeID)
             self.addContourChips(card, volume)
-            card.connect("clicked()", lambda v=volume: self.workbench.activate(v))
+            card.connect("clicked()", lambda v=volume: self.workbench.onDatasetClicked(v))
             card.connect("productClicked(QString)", self.workbench.showProduct)
             card.connect("deleteRequested()", lambda v=volume: self.deleteDataset(v))
             self.cardsLayout.insertWidget(len(self.cards), card)
@@ -599,7 +616,7 @@ class DatasetDrawer(qt.QFrame):
         products = Astro.derivedNodes(volume, slicer.mrmlScene)
         if ask:
             box = qt.QMessageBox(slicer.util.mainWindow())
-            theme().applyTo(box)
+            theme().applyToDialog(box)
             box.setWindowTitle("Delete dataset")
             box.setIcon(qt.QMessageBox.Question)
             box.setText(f"Delete {volume.GetName()} from the scene?")
@@ -652,6 +669,28 @@ class DatasetDrawer(qt.QFrame):
         slicer.vtkSlicerAstroVolumeLogic.SetContourSourceVisibility(contours, sourceID, on)
         if self.workbench.inspector is not None and self.workbench.inspector.volume is volume:
             self.workbench.inspector.contoursWidget.updateSources()
+
+    def openPart(self, path=None):
+        """Opens a part of a FITS file: the file (asked if not given), then
+        the extension and the pixel and channel ranges; only those voxels are
+        read. Returns the loaded dataset (None: cancelled)."""
+        settingsKey = "AstroWorkbench/OpenPartDirectory"
+        if not path:
+            directory = qt.QSettings().value(settingsKey, "") or ""
+            path = qt.QFileDialog.getOpenFileName(
+                slicer.util.mainWindow(), "Open part of a FITS file", directory,
+                "FITS files (*.fits *.fit *.fts *.fits.gz *.fz);;All files (*)")
+            if not path:
+                return None
+            qt.QSettings().setValue(settingsKey, os.path.dirname(path))
+        dialog = slicer.qSlicerAstroSubCubeDialog(slicer.util.mainWindow())
+        if not dialog.setFile(path, 0):
+            slicer.util.errorDisplay(f"{os.path.basename(path)} has no image data that can be loaded.",
+                                     windowTitle="Open part of a FITS file")
+            return None
+        if not dialog.exec_():
+            return None
+        return dialog.load()
 
     def applyFilter(self):
         text = self.filterEdit.text.strip().lower()
@@ -850,14 +889,10 @@ class Workbench:
         self.refreshTimer.connect("timeout()", self.refresh)
         self.inspector = None
         self.scrubberBar = None
-        self.automaticContours = Contours.AutomaticHIContours()
-        self.automaticContoursTimer = qt.QTimer()
-        self.automaticContoursTimer.setSingleShot(True)
-        self.automaticContoursTimer.setInterval(400)
-        self.automaticContoursTimer.connect("timeout()", self.runAutomaticContours)
         self.shortcuts = []
         self.views = ViewDecorator(self)
         self.visibility = ViewVisibility()
+        self.visibility.onUpdated = self.refresh3DViewBars
         self.colorFunctionDrag = ColorFunctionDrag(self)
         self.activeViewKey = "Red"
 
@@ -870,6 +905,28 @@ class Workbench:
         volumeID = self.activeVolumeID()
         volume = slicer.mrmlScene.GetNodeByID(volumeID) if volumeID else None
         return volume if Astro.isAstroVolume(volume) else None
+
+    def refresh3DViewBars(self):
+        """The eye and the data named in the bars of the 3D views (a
+        rendering shown or hidden in Inspect, a panel or the logic)."""
+        for key, bar in self.views.bars.items():
+            if key.startswith("3D"):
+                bar.refresh()
+
+    def onDatasetClicked(self, volume):
+        """A dataset card clicked: another dataset opens in the views; the
+        active one gets its views back (its products shown in its place go
+        away, the zoom, channel and cameras are kept)."""
+        if volume is self.activeVolume():
+            # the dataset back in every view: products shown in its place and
+            # data dropped on single views are replaced (zoom, channel and
+            # cameras kept for the views on its grid)
+            slicer.modules.astrovolume.logic().HideProductsInViews(volume)
+            self.visibility.extra = {}
+            self.arrangeViews()
+            self.views.refresh()
+            return
+        self.activate(volume)
 
     def activate(self, volume):
         """Opens a dataset: active volume, in the views (channel map, moment
@@ -947,7 +1004,7 @@ class Workbench:
         self.visibility.update()
         self.setActiveView(key)
 
-    def showInSliceView(self, sliceNode, composite, node, orientation=None):
+    def showInSliceView(self, sliceNode, composite, node, orientation=None, clearForeground=True):
         """Data shown in a slice view. Data on the sky grid of what the view
         shows (the dataset and its products) keep the view (zoom, pan and
         channel; a 2D map moves the view to its plane only); other data: the
@@ -955,9 +1012,13 @@ class Workbench:
         previousID = composite.GetBackgroundVolumeID()
         previous = slicer.mrmlScene.GetNodeByID(previousID) if previousID else None
         composite.SetBackgroundVolumeID(node.GetID())
-        composite.SetForegroundVolumeID(None)
+        if clearForeground:
+            composite.SetForegroundVolumeID(None)
         sliceLogic = slicer.app.applicationLogic().GetSliceLogic(sliceNode)
         orientation = orientation or sliceNode.GetOrientation()
+        if previous is node and sliceNode.GetOrientation() == orientation:
+            # already shown so: the view is kept
+            return
         if (previous is not None and previous is not node and sliceNode.GetOrientation() == orientation
                 and Astro.sameSkyGrid(previous, node)):
             if Astro.sameGrid(previous, node) or sliceLogic is None:
@@ -1010,44 +1071,24 @@ class Workbench:
                 displayNode.SetVisibility(not displayNode.GetVisibility())
             return
         if node.IsA("vtkMRMLTableNode"):
-            # a catalogue: its sources in Inspect
+            # a catalogue: its sources in the Sources tab
             volume = Astro.catalogueVolume(node)
             if volume is not None and volume is not self.activeVolume():
                 self.activate(volume)
-            self.inspector.tabs["Inspect"].checked = True
-            self.inspector.showTab(0)
             self.inspector.sourcesWidget.setVolumeNode(self.activeVolume())
-            self.inspector.sourcesWidget.setCatalogueNode(node)
-            self.inspector.sourcesFold.setCollapsed(False)
+            self.inspector.showSources(node)
             return
-        composite = slicer.mrmlScene.GetNodeByID("vtkMRMLSliceCompositeNodeYellow" if self.layoutIndex() > 0
-                                                 else "vtkMRMLSliceCompositeNodeRed")
-        sliceNode = slicer.mrmlScene.GetNodeByID("vtkMRMLSliceNodeYellow" if self.layoutIndex() > 0
-                                                 else "vtkMRMLSliceNodeRed")
-        logic = slicer.modules.astrovolume.logic()
+        # data: in place of the dataset in its views, or back (the same as
+        # the Show buttons of the panels; vtkSlicerAstroVolumeLogic)
+        if not Astro.isAstroVolume(node):
+            return
         dataset = self.activeVolume()
-        shown = composite.GetBackgroundVolumeID() == node.GetID()
-        if Astro.dimensions(node) >= 3:
-            # a derived cube (e.g. smoothed): in 3D instead of the dataset
-            rendering = logic.GetVolumeRenderingDisplayNode(node, False)
-            shown = shown or bool(rendering is not None and rendering.GetVisibility())
-            if shown:
-                self.showProductHidden(node, dataset, composite)
-                return
-            logic.PrepareVolumeRendering(node)
-            if dataset is not None and dataset is not node:
-                logic.SetVolumeRenderingVisibility(dataset, False, False)
-            # in place of the dataset: the cameras are kept (centred only for
-            # data elsewhere on the sky)
-            logic.SetVolumeRenderingVisibility(node, True, dataset is None or not Astro.sameSkyGrid(dataset, node))
-            self.views.refresh()
-            return
-        elif shown:
-            # second click: hidden, the dataset is shown again
-            self.showProductHidden(node, dataset, composite)
-            return
-        # maps in the sky plane (the zoom and pan of the view kept)
-        self.showInSliceView(sliceNode, composite, node, "XY")
+        source = Astro.sourceOf(node)
+        if dataset is None or (source is not dataset and source is not node):
+            dataset = source
+        slicer.modules.astrovolume.logic().ToggleProductInViews(node, dataset)
+        self.visibility.update()
+        self.views.refresh()
 
     def fitSliceView(self, sliceNode):
         """Fit one view to its data, keeping its orientation (the fit of the
@@ -1055,21 +1096,6 @@ class Workbench:
         sliceLogic = slicer.app.applicationLogic().GetSliceLogic(sliceNode) if sliceNode is not None else None
         if sliceLogic is not None:
             sliceLogic.FitSliceToAll()
-
-    def showProductHidden(self, node, dataset, composite):
-        """Hide a product shown by showProduct: the dataset in its place."""
-        logic = slicer.modules.astrovolume.logic()
-        if Astro.dimensions(node) >= 3:
-            logic.SetVolumeRenderingVisibility(node, False, False)
-            if dataset is not None and dataset is not node:
-                logic.SetVolumeRenderingVisibility(dataset, True, not Astro.sameSkyGrid(dataset, node))
-        if composite.GetBackgroundVolumeID() == node.GetID():
-            sliceNode = slicer.mrmlScene.GetNodeByID(composite.GetID().replace("CompositeNode", "Node"))
-            if dataset is not None and dataset is not node:
-                self.showInSliceView(sliceNode, composite, dataset)
-            else:
-                composite.SetBackgroundVolumeID(None)
-        self.views.refresh()
 
     # ------------------------------------------------------------------
     THREE_VIEWS = 3501
@@ -1200,19 +1226,15 @@ class Workbench:
             sliceNode = slicer.mrmlScene.GetNodeByID(f"vtkMRMLSliceNode{name}")
             if composite is None or sliceNode is None:
                 continue
-            composite.SetBackgroundVolumeID(node.GetID())
-            composite.SetForegroundVolumeID(None)
-            # another orientation first: the slice is recomputed for the new
-            # background (as the moment maps panel does)
-            sliceNode.SetOrientation("XZ" if orientation == "XY" else "XY")
-            sliceNode.SetOrientation(orientation)
-            sliceLogic = slicer.app.applicationLogic().GetSliceLogic(sliceNode)
-            if sliceLogic is not None:
-                sliceLogic.FitSliceToAll()
+            # views already on the grid of the data keep zoom, pan and
+            # channel; the others are oriented and fitted
+            self.showInSliceView(sliceNode, composite, node, orientation)
         if cube:
             threeD = self.viewNodeID("3D0")
             if threeD is not None:
-                self.visibility.renderInView(volume, threeD)
+                rendered = self.visibility.renderedVolume(threeD)
+                self.visibility.renderInView(volume, threeD,
+                                             centerCamera=rendered is None or not Astro.sameSkyGrid(rendered, volume))
         self.visibility.update()
         if cube:
             self.showSpectrumPlot(volume)
@@ -1284,10 +1306,11 @@ class Workbench:
         self.views.install()
 
     def style3DViews(self):
-        """3D views: dark background in both themes (the colour functions are
-        made for a dark sky) and no bounding box. The default view node of the
-        scene has the same values, so the views keep them when a scene is
-        closed or loaded (the view nodes are reset to the default node)."""
+        """3D views: the dark sky in the dark theme, Slicer's gradient in the
+        light theme, and no bounding box. The default view node of the scene
+        has the same values, so the views keep them when a scene is closed or
+        loaded (the view nodes are reset to the default node)."""
+        color, color2 = (VIEW_COLOR, VIEW_COLOR) if theme().dark else LIGHT_VIEW_COLORS
         scene = slicer.mrmlScene
         if "defaultViewNode" not in self.saved:
             self.saved["defaultViewNode"] = scene.GetDefaultNodeByClass("vtkMRMLViewNode")
@@ -1295,15 +1318,15 @@ class Workbench:
         previous = self.saved["defaultViewNode"]
         if previous is not None:
             default.Copy(previous)
-        default.SetBackgroundColor(*VIEW_COLOR)
-        default.SetBackgroundColor2(*VIEW_COLOR)
+        default.SetBackgroundColor(*color)
+        default.SetBackgroundColor2(*color2)
         default.SetBoxVisible(False)
         scene.AddDefaultNode(default)
         for viewNode in slicer.util.getNodesByClass("vtkMRMLViewNode"):
-            if tuple(viewNode.GetBackgroundColor()) != VIEW_COLOR:
-                viewNode.SetBackgroundColor(*VIEW_COLOR)
-            if tuple(viewNode.GetBackgroundColor2()) != VIEW_COLOR:
-                viewNode.SetBackgroundColor2(*VIEW_COLOR)
+            if tuple(viewNode.GetBackgroundColor()) != color:
+                viewNode.SetBackgroundColor(*color)
+            if tuple(viewNode.GetBackgroundColor2()) != color2:
+                viewNode.SetBackgroundColor2(*color2)
             if viewNode.GetBoxVisible():
                 viewNode.SetBoxVisible(False)
 
@@ -1371,6 +1394,9 @@ class Workbench:
         self.dock(self.inspector, qt.Qt.RightDockWidgetArea, "WorkbenchInspector")
         self.scrubberBar = ScrubberBar(self)
         self.dock(self.scrubberBar, qt.Qt.BottomDockWidgetArea, "WorkbenchScrubber")
+        # a line set in Info (wavelengths to velocities): the axis of the
+        # scrubber, the view bars and the chips again
+        self.inspector.infoWidget.connect("spectralAxisChanged()", self.onSpectralAxisChanged)
         self.statusBar = StatusBar(self)
         self.toolbar(self.statusBar, qt.Qt.BottomToolBarArea, "WorkbenchStatusBar")
         for widget in (self.header, left, self.inspector, self.scrubberBar, self.statusBar):
@@ -1381,6 +1407,7 @@ class Workbench:
         self.saved["styleSheet"] = mainWindow.styleSheet
         self.styleMainWindow()
         theme().connect("themeChanged()", self.styleMainWindow)
+        theme().connect("themeChanged()", self.style3DViews)
         self.styleViews()
         mainWindow.resizeDocks([mainWindow.findChild("QDockWidget", "WorkbenchDatasets")], [360], qt.Qt.Horizontal)
         for event in (slicer.mrmlScene.NodeAddedEvent, slicer.mrmlScene.NodeRemovedEvent,
@@ -1399,6 +1426,11 @@ class Workbench:
         if console is not None:
             console.connect("visibilityChanged(bool)", self.onConsoleVisibilityChanged)
             self.onConsoleVisibilityChanged(console.visible)
+        # the menus (e.g. the right-click menus of the views) and the dialogs
+        # (e.g. Add data, file dialogs) in the theme; the Python console too
+        theme().setPopupsThemed(True)
+        self.styleConsole()
+        theme().connect("themeChanged()", self.styleConsole)
         # no menu of the toolbars and docks of Slicer on a right click
         self.saved["contextMenuPolicy"] = mainWindow.contextMenuPolicy
         mainWindow.setContextMenuPolicy(qt.Qt.PreventContextMenu)
@@ -1443,10 +1475,11 @@ class Workbench:
                 segmentation.RemoveObserver(tag)
         self.observedSegmentations = {}
 
+    def onSpectralAxisChanged(self):
+        self.scrubberBar.volume = None
+        self.scheduleRefresh()
+
     def scheduleRefresh(self, caller=None, event=None):
-        if event == "EndCloseEvent":
-            # node IDs are reused by the next data
-            self.automaticContours.done.clear()
         if event in ("EndCloseEvent", "EndImportEvent"):
             self.style3DViews()
         if event == "EndCloseEvent":
@@ -1455,26 +1488,9 @@ class Workbench:
             self.observeSegmentations()
         self.refreshTimer.start()
 
-    def runAutomaticContours(self):
-        """HI contours over the images that overlap an HI dataset (new pairs
-        only)."""
-        if not self.active or not self.automaticContours.candidates():
-            return
-        if slicer.modules.astrovolume.logic().IsRunningInBackground():
-            # another computation is running (its event loop runs this
-            # timer): later
-            self.automaticContoursTimer.start()
-            return
-        updated = self.automaticContours.run()
-        if updated:
-            self.statusBar.showMessage(f"HI contours drawn on {', '.join(updated)}")
-            self.refresh()
-
     def refresh(self):
         if not self.active:
             return
-        if self.automaticContours.candidates():
-            self.automaticContoursTimer.start()
         volume = self.activeVolume()
         self.drawer.refresh()
         self.scrubberBar.setVolume(volume)
@@ -1497,12 +1513,39 @@ class Workbench:
             self.header.contextLabel.text = ""
             self.header.contextLabel.toolTip = "Active dataset"
 
+    CONSOLE_COLORS = {"backgroundColor": "panel", "outputTextColor": "text", "errorTextColor": "err",
+                      "promptColor": "accent", "stdinTextColor": "data", "commandTextColor": "data",
+                      "welcomeTextColor": "subtle"}
+
+    def styleConsole(self):
+        """The Python console (and its dock) in the colours of the theme;
+        Slicer's colours are kept to be restored (restoreConsole)."""
+        console = slicer.app.pythonConsole() if hasattr(slicer.app, "pythonConsole") else None
+        dock = slicer.util.mainWindow().findChild("QDockWidget", "PythonConsoleDockWidget")
+        if console is None:
+            return
+        if "console" not in self.saved:
+            self.saved["console"] = {name: getattr(console, name) for name in self.CONSOLE_COLORS}
+        for name, token in self.CONSOLE_COLORS.items():
+            setattr(console, name, theme().color(token))
+        if dock is not None:
+            theme().applyTo(dock)
+
+    def restoreConsole(self):
+        console = slicer.app.pythonConsole() if hasattr(slicer.app, "pythonConsole") else None
+        saved = self.saved.pop("console", None)
+        if console is not None and saved:
+            for name, color in saved.items():
+                setattr(console, name, color)
+        dock = slicer.util.mainWindow().findChild("QDockWidget", "PythonConsoleDockWidget")
+        if dock is not None:
+            theme().removeFrom(dock)
+
     def exit(self):
         if not self.active:
             return
         self.active = False
         self.refreshTimer.stop()
-        self.automaticContoursTimer.stop()
         self.colorFunctionDrag.remove()
         if getattr(self, "tool", None) == "colorFunction":
             # Slicer's own window/level mode is not left on
@@ -1522,6 +1565,9 @@ class Workbench:
         if console is not None:
             console.disconnect("visibilityChanged(bool)", self.onConsoleVisibilityChanged)
         mainWindow.setContextMenuPolicy(self.saved.get("contextMenuPolicy", qt.Qt.DefaultContextMenu))
+        theme().setPopupsThemed(False)
+        theme().disconnect("themeChanged()", self.styleConsole)
+        self.restoreConsole()
         for shortcut in self.shortcuts:
             shortcut.delete()
         self.shortcuts = []
@@ -1549,6 +1595,7 @@ class Workbench:
         for dock, visible in self.saved["docks"]:
             dock.visible = visible
         theme().disconnect("themeChanged()", self.styleMainWindow)
+        theme().disconnect("themeChanged()", self.style3DViews)
         mainWindow.setStyleSheet(self.saved.get("styleSheet", ""))
         mainWindow.restoreState(self.saved["state"])
         self.views.remove()

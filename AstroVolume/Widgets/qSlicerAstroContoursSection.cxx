@@ -67,6 +67,7 @@
 #include <vector>
 
 #include "qSlicerAstroBackgroundRunner.h"
+#include "qSlicerAstroRunButton.h"
 #include "qSlicerAstroContoursSection.h"
 #include "qSlicerAstroSegmentedButton.h"
 #include "qSlicerAstroTheme.h"
@@ -147,7 +148,7 @@ public:
   qSlicerAstroSegmentedButton* Unit{nullptr};
   QLabel* UnitInfo{nullptr};
   QComboBox* Colours{nullptr};
-  QPushButton* DrawButton{nullptr};
+  qSlicerAstroRunButton* DrawButton{nullptr};
   QToolButton* ShowButton{nullptr};
   QToolButton* SmoothButton{nullptr};
   QToolButton* DeleteButton{nullptr};
@@ -258,20 +259,28 @@ qSlicerAstroContoursSection::qSlicerAstroContoursSection(QWidget* parent)
 
   QHBoxLayout* buttons = new QHBoxLayout();
   buttons->setSpacing(4);
-  d->DrawButton = new QPushButton(tr("Draw contours"), this);
+  // a run button: the work of the contours (e.g. the reprojection of the
+  // data of another grid, the smoothing of the lines) shows its progress and
+  // Cancel here
+  d->DrawButton = new qSlicerAstroRunButton(this);
+  d->DrawButton->setText(tr("Draw contours"));
   d->DrawButton->setObjectName("ContoursDraw");
-  d->DrawButton->setProperty("astroRole", "primary");
-  d->DrawButton->setIcon(qSlicerAstroTheme::instance()->icon("contour", "on-accent"));
+  d->DrawButton->pushButton()->setIcon(qSlicerAstroTheme::instance()->icon("contour", "on-accent"));
   d->DrawButton->setToolTip(tr("Draw the levels. The contours of the same source are replaced, those of other "
                                "sources are kept."));
-  QObject::connect(d->DrawButton, &QPushButton::clicked, this, [this]() { this->drawContours(); });
+  QObject::connect(d->DrawButton, &qSlicerAstroRunButton::clicked, this, [this]() { this->drawContours(); });
   buttons->addWidget(d->DrawButton, 1);
   d->ShowButton = IconButton("eye", tr("Show or hide all the contours of the data."), "ContoursShow", true, this);
   d->SmoothButton = IconButton("smoothing", tr("Smooth contour lines (slower) instead of the outlines of the pixels."),
                                "ContoursSmooth", true, this);
   d->DeleteButton = IconButton("trash", tr("Delete all the contours of the data."), "ContoursDelete", false, this);
   QObject::connect(d->ShowButton, SIGNAL(toggled(bool)), this, SLOT(setContoursVisible(bool)));
-  QObject::connect(d->SmoothButton, SIGNAL(toggled(bool)), this, SLOT(setContoursSmooth(bool)));
+  // the smoothing reports to the run button of the section
+  QObject::connect(d->SmoothButton, &QToolButton::toggled, this, [this](bool smooth)
+    {
+    Q_D(qSlicerAstroContoursSection);
+    d->DrawButton->runAsActive([this, smooth]() { this->setContoursSmooth(smooth); });
+    });
   QObject::connect(d->DeleteButton, SIGNAL(clicked()), this, SLOT(deleteContours()));
   buttons->addWidget(d->ShowButton);
   buttons->addWidget(d->SmoothButton);

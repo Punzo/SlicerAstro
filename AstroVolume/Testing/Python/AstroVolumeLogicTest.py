@@ -407,6 +407,13 @@ class AstroVolumeLogicTestTest(ScriptedLoadableModuleTest):
         data[0, 0, :5] = np.nan
         volume = self.loadCube("display", data)
         logic = slicer.vtkSlicerAstroVolumeLogic
+        # loaded data: the window of the 2D colours is the 99.5% clipping (the
+        # bright source does not hide the rest)
+        values = data[np.isfinite(data)].astype(np.float64)
+        loadedWindow = (np.quantile(values[values < 0], 0.005), np.quantile(values[values > 0], 0.995))
+        displayNode = volume.GetDisplayNode()
+        self.assertAlmostEqual(displayNode.GetWindow(), loadedWindow[1] - loadedWindow[0], places=5)
+        self.assertAlmostEqual(displayNode.GetLevel(), (loadedWindow[1] + loadedWindow[0]) / 2, places=5)
         centres, counts = vtk.vtkDoubleArray(), vtk.vtkDoubleArray()
         self.assertTrue(logic.ComputeHistogram(volume, 50, centres, counts))
         values = data[np.isfinite(data)].astype(np.float64)
@@ -465,10 +472,20 @@ class AstroVolumeLogicTestTest(ScriptedLoadableModuleTest):
         target = handle.x() + 40.0
         mouse(qt.QEvent.MouseButtonPress, handle.x(), handle.y(), qt.Qt.LeftButton)
         mouse(qt.QEvent.MouseMove, target, handle.y(), qt.Qt.LeftButton)
+        # applied while dragging (the 3D colour functions follow live)
+        import time
+        end = time.time() + 0.2
+        while time.time() < end:
+            slicer.app.processEvents()
+        self.assertGreater(volume.GetDisplayThreshold(), 2.0)
         mouse(qt.QEvent.MouseButtonRelease, target, handle.y(), qt.Qt.NoButton)
         self.assertGreater(histogram.noise, 2.0)
         self.assertAlmostEqual(volume.GetDisplayThreshold(), histogram.noise, places=9)
         self.assertGreater(histogram.noiseHandlePosition().x(), handle.x() + 30.0)
+        # the window lines dragged: the 2D colours follow at once
+        section.onHistogramWindowDragged(-1.0, 5.0)
+        self.assertAlmostEqual(displayNode.GetWindow(), 6.0, places=9)
+        self.assertAlmostEqual(displayNode.GetLevel(), 2.0, places=9)
         mouse(qt.QEvent.MouseButtonDblClick, 100.0, 100.0, qt.Qt.LeftButton)
         self.assertFalse(histogram.isZoomed())
         self.assertEqual(int(sum(histogram.binCounts())), values.size)

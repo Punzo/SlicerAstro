@@ -86,6 +86,8 @@ public slots:
   /// Segment Editor node modified: the last lasso again if the editable
   /// intensity range changed (automatic threshold updating)
   void onSegmentEditorNodeModified();
+  /// The options of the effect changed: the parameters of the Scissors effect
+  void onOptionsChanged();
 
   /// Keyboard shortcuts (n, m, k, l, c, x)
   void decreaseThresholdMinimum();

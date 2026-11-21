@@ -17,6 +17,8 @@ import shutil
 import qt
 import slicer
 
+from . import Sections
+
 SETTINGS_KEY = "SlicerAstro/WorkspacesDirectory"
 SCENE_FILE = "scene.mrb"
 PREVIEW_FILE = "preview.png"
@@ -121,6 +123,10 @@ def readDescription(folder):
             data = json.load(file)
     except (OSError, ValueError):
         return None
+    if "objects" not in data:
+        # saved by an earlier version: "datasets" were the FITS objects
+        data["objects"] = data.get("datasets", [])
+        data["datasets"] = []
     data["folder"] = folder
     data["preview"] = os.path.join(folder, PREVIEW_FILE)
     data["scene"] = os.path.join(folder, SCENE_FILE)
@@ -230,6 +236,95 @@ def dateGroup(isoDate, today=None):
 # ----------------------------------------------------------------------
 # Page of the drawer
 
+def _value(attribute):
+    """A Qt property (a PythonQt attribute) or a method."""
+    return attribute() if callable(attribute) else attribute
+
+
+class TitleEdit(qt.QLineEdit):
+    """A name edited in place: elided ("…") to the width when not edited (the
+    full name in the tooltip), the full name while edited; onFinished(text)
+    when the editing ends (Enter or focus out). Escape cancels."""
+
+    def __init__(self, text, onFinished, parent=None):
+        qt.QLineEdit.__init__(self, parent)
+        self.onFinished = onFinished
+        self.fullText = text
+        self.editing = False
+        self.showElided()
+
+    def setFullText(self, text):
+        self.fullText = text
+        if not self.editing:
+            self.showElided()
+
+    def showElided(self):
+        width = max(20, _value(self.width) - 12)
+        self.setText(self.fontMetrics().elidedText(self.fullText, qt.Qt.ElideRight, width))
+        self.setCursorPosition(0)
+
+    def focusInEvent(self, event):
+        self.editing = True
+        self.setText(self.fullText)
+        qt.QLineEdit.focusInEvent(self, event)
+
+    def focusOutEvent(self, event):
+        qt.QLineEdit.focusOutEvent(self, event)
+        if not self.editing:
+            return
+        self.editing = False
+        text = self.text.strip()
+        self.showElided()
+        if self.onFinished is not None:
+            self.onFinished(text)
+
+    def keyPressEvent(self, event):
+        if event.key() in (qt.Qt.Key_Return, qt.Qt.Key_Enter):
+            self.clearFocus()
+            return
+        if event.key() == qt.Qt.Key_Escape:
+            self.setText(self.fullText)
+            self.clearFocus()
+            return
+        qt.QLineEdit.keyPressEvent(self, event)
+
+    def resizeEvent(self, event):
+        qt.QLineEdit.resizeEvent(self, event)
+        if not self.editing:
+            self.showElided()
+
+
+class NotesEdit(qt.QPlainTextEdit):
+    """Notes edited in place: a fixed height of LINES lines (a vertical
+    scroll bar only when the text is longer), so the card does not move
+    while typing; onFinished(text) when the editing ends (focus out)."""
+
+    LINES = 4
+
+    def __init__(self, text, onFinished, parent=None, lines=None):
+        qt.QPlainTextEdit.__init__(self, parent)
+        self.onFinished = onFinished
+        self.lines = lines or self.LINES
+        self.setProperty("astroRole", "inlineEdit")
+        self.setFrameShape(qt.QFrame.NoFrame)
+        self.setLineWrapMode(qt.QPlainTextEdit.WidgetWidth)
+        self.setHorizontalScrollBarPolicy(qt.Qt.ScrollBarAlwaysOff)
+        self.setVerticalScrollBarPolicy(qt.Qt.ScrollBarAsNeeded)
+        self.setTabChangesFocus(True)
+        self.document().setDocumentMargin(2)
+        self.setPlainText(text)
+        self.setSizePolicy(qt.QSizePolicy.Expanding, qt.QSizePolicy.Fixed)
+        margins = self.contentsMargins()
+        self.setFixedHeight(self.lines * self.fontMetrics().lineSpacing()
+                            + 2 * int(_value(self.document().documentMargin))
+                            + margins.top() + margins.bottom() + 6)
+
+    def focusOutEvent(self, event):
+        qt.QPlainTextEdit.focusOutEvent(self, event)
+        if self.onFinished is not None:
+            self.onFinished(self.toPlainText())
+
+
 class WorkspaceEntry(qt.QFrame):
     """One entry of the logbook: wide preview, name, date, datasets and the
     actions."""
@@ -253,20 +348,21 @@ class WorkspaceEntry(qt.QFrame):
             width = 236
             height = width * 9 // 16
             scaled = pixmap.scaled(width, height, qt.Qt.KeepAspectRatioByExpanding, qt.Qt.SmoothTransformation)
-            preview.setPixmap(scaled.copy((scaled.width() - width) // 2, (scaled.height() - height) // 2,
-                                          width, height))
+            preview.setPixmap(Sections.roundedPixmap(scaled.copy((scaled.width() - width) // 2,
+                                                                 (scaled.height() - height) // 2, width, height)))
         else:
             preview.text = "no preview"
             preview.setProperty("astroRole", "label")
         preview.toolTip = "Double-click: open this workspace."
         layout.addWidget(preview)
         # name and notes edited in place (saved when the editing finishes)
-        self.titleEdit = qt.QLineEdit(description.get("name", ""))
+        self.titleEdit = TitleEdit(description.get("name", ""), self.onTitleEdited)
         self.titleEdit.setObjectName("WorkspaceTitle")
         self.titleEdit.setProperty("astroRole", "inlineEdit")
         self.titleEdit.setProperty("inlineTitle", True)
-        self.titleEdit.toolTip = "Name of the workspace: click to rename it.\n" + description["folder"]
-        self.titleEdit.connect("editingFinished()", self.onTitleEdited)
+        self.titleEdit.toolTip = (description.get("name", "") + "\nClick to rename the workspace (Enter: done, "
+                                  "Escape: cancel).\n" + description["folder"])
+        self.titleEdit.setAlignment(qt.Qt.AlignHCenter)
         layout.addWidget(self.titleEdit)
         modified = description.get("modified", "").replace("T", " ")
         datasets = ", ".join(description.get("datasets", []))
@@ -276,12 +372,10 @@ class WorkspaceEntry(qt.QFrame):
         objects = ", ".join(description.get("objects", []))
         meta.toolTip = f"Saved {modified}. Datasets: {datasets or '-'}" + (f". Objects: {objects}" if objects else "")
         layout.addWidget(meta)
-        self.notesEdit = qt.QLineEdit(description.get("notes", ""))
+        self.notesEdit = NotesEdit(description.get("notes", ""), lambda text: self.onNotesEdited())
         self.notesEdit.setObjectName("WorkspaceNotesEdit")
-        self.notesEdit.setProperty("astroRole", "inlineEdit")
-        self.notesEdit.placeholderText = "Add notes"
-        self.notesEdit.toolTip = "Notes of the workspace: click to edit them."
-        self.notesEdit.connect("editingFinished()", self.onNotesEdited)
+        self.notesEdit.placeholderText = "Add notes…"
+        self.notesEdit.toolTip = "Notes of the workspace: click to write or edit them (several lines); saved when you leave the field."
         layout.addWidget(self.notesEdit)
         actions = qt.QHBoxLayout()
         actions.setSpacing(2)
@@ -331,23 +425,25 @@ class WorkspaceEntry(qt.QFrame):
                           os.path.dirname(self.description["folder"]), overwrite=True)
         self.page.refresh()
 
-    def onTitleEdited(self):
-        name = self.titleEdit.text.strip()
+    def onTitleEdited(self, name):
+        """The name edited in the card: the workspace renamed."""
+        name = (name or "").strip()
         if not name or name == self.description.get("name", ""):
-            self.titleEdit.text = self.description.get("name", "")
+            self.titleEdit.setFullText(self.description.get("name", ""))
             return
         try:
             self.description["folder"] = renameWorkspace(self.description["folder"], name)
             self.description["name"] = name
+            self.titleEdit.setFullText(name)
         except Exception as error:
-            self.titleEdit.text = self.description.get("name", "")
+            self.titleEdit.setFullText(self.description.get("name", ""))
             self.page.workbench.statusBar.showMessage(f"The workspace could not be renamed: {error}")
             return
         # the logbook is rebuilt after this signal (it deletes this entry)
         qt.QTimer.singleShot(0, self.page.refresh)
 
     def onNotesEdited(self):
-        notes = self.notesEdit.text.strip()
+        notes = self.notesEdit.toPlainText().strip()
         if notes == self.description.get("notes", ""):
             return
         if setWorkspaceNotes(self.description["folder"], notes):
@@ -402,10 +498,12 @@ class WorkspacesPage(qt.QWidget):
         self.nameEdit.connect("returnPressed()", self.save)
         saveRow.addWidget(self.saveButton)
         layout.addLayout(saveRow)
-        self.notesEdit = qt.QLineEdit()
+        # as high as the other fields for one line
+        self.notesEdit = NotesEdit("", None, lines=2)
+        self.notesEdit.setProperty("astroRole", "")
         self.notesEdit.setObjectName("WorkspaceNotes")
         self.notesEdit.placeholderText = "Notes (optional)"
-        self.notesEdit.toolTip = "A line about the workspace, shown in the logbook."
+        self.notesEdit.toolTip = "Notes about the workspace (several lines), shown in the logbook."
         layout.addWidget(self.notesEdit)
         self.filterEdit = qt.QLineEdit()
         self.filterEdit.setObjectName("WorkspaceFilter")
@@ -425,10 +523,8 @@ class WorkspacesPage(qt.QWidget):
         self.entriesLayout.setSpacing(8)
         scroll.setWidget(self.entriesWidget)
         layout.addWidget(scroll, 1)
-        self.folderLabel = qt.QLabel()
-        self.folderLabel.setProperty("astroRole", "monoLabel")
-        self.folderLabel.wordWrap = True
-        layout.addWidget(self.folderLabel)
+        # the folder of the workspaces is shown in About (Folders) and in the
+        # documentation, not here
 
     def save(self):
         name = self.nameEdit.text.strip() or datetime.datetime.now().strftime("Workspace %Y-%m-%d %H.%M")
@@ -442,10 +538,10 @@ class WorkspacesPage(qt.QWidget):
                 return
             overwrite = True
         with slicer.util.tryWithErrorDisplay("The workspace could not be saved.", waitCursor=True):
-            saveWorkspace(name, self.notesEdit.text.strip(), overwrite=overwrite)
+            saveWorkspace(name, self.notesEdit.toPlainText().strip(), overwrite=overwrite)
             self.workbench.statusBar.showMessage(f"Workspace saved: {name}")
         self.nameEdit.text = ""
-        self.notesEdit.text = ""
+        self.notesEdit.setPlainText("")
         self.refresh()
 
     def refresh(self):
@@ -476,4 +572,3 @@ class WorkspacesPage(qt.QWidget):
             empty.wordWrap = True
             self.entriesLayout.addWidget(empty)
         self.entriesLayout.addStretch(1)
-        self.folderLabel.text = workspacesDirectory()

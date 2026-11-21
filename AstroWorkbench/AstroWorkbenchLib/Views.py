@@ -16,27 +16,41 @@ import vtk
 
 from . import Astro
 
-VIEW = "#070A12"
-VIEW_LINE = "#26304A"
-VIEW_TEXT = "#E7EBF3"
-VIEW_SUBTLE = "#8592AC"
 ACCENT = "#F2B24C"
+# a volume rendering hidden with the eye of a 3D view bar: its view still
+# shows the masks of the cube
+HIDDEN_BY_EYE = "SlicerAstro.RenderingHiddenInView"
 
-BAR_STYLE = f"""
-QFrame#AstroViewBar {{ background: {VIEW}; border: none; border-bottom: 1px solid {VIEW_LINE}; }}
-QLabel {{ background: transparent; color: {VIEW_TEXT}; font-family: "Atkinson Hyperlegible Next"; font-size: 12px; }}
-QLabel#AstroViewDetail {{ color: {VIEW_SUBTLE}; font-family: "Atkinson Hyperlegible Mono"; font-size: 11px; }}
+
+def viewColor(token):
+    """A view token of the theme (dark views in the dark theme, light views
+    in the light theme): view, view-text, view-subtle, view-line,
+    view-hover, view-groove, view-data."""
+    return theme().color(token).name()
+
+
+def barStyle():
+    return f"""
+QFrame#AstroViewBar {{ background: {viewColor("view")}; border: none;
+  border-bottom: 1px solid {viewColor("view-line")}; }}
+QLabel {{ background: transparent; color: {viewColor("view-text")}; font-family: "Atkinson Hyperlegible Next";
+  font-size: 12px; }}
+QLabel#AstroViewDetail {{ color: {viewColor("view-subtle")}; font-family: "Atkinson Hyperlegible Mono";
+  font-size: 11px; }}
 QToolButton {{ background: transparent; border: none; border-radius: 6px; padding: 2px; }}
-QToolButton:hover {{ background: #202A42; }}
+QToolButton:hover {{ background: {viewColor("view-hover")}; }}
 QToolButton:checked {{ background: rgba(242, 178, 76, 40); }}
 QToolButton::menu-indicator {{ image: none; width: 0px; }}
 """
 
-SLIDER_STYLE = f"""
-QSlider {{ background: {VIEW}; }}
-QSlider::groove:vertical {{ width: 4px; background: #34405F; border-radius: 2px; margin: 4px 0px; }}
-QSlider::sub-page:vertical {{ background: #34405F; border-radius: 2px; }}
-QSlider::add-page:vertical {{ background: #34405F; border-radius: 2px; }}
+
+def sliderStyle():
+    groove = viewColor("view-groove")
+    return f"""
+QSlider {{ background: {viewColor("view")}; }}
+QSlider::groove:vertical {{ width: 4px; background: {groove}; border-radius: 2px; margin: 4px 0px; }}
+QSlider::sub-page:vertical {{ background: {groove}; border-radius: 2px; }}
+QSlider::add-page:vertical {{ background: {groove}; border-radius: 2px; }}
 QSlider::handle:vertical {{ height: 22px; width: 10px; margin: 0px -3px; border-radius: 5px; background: {ACCENT}; }}
 QSlider::handle:vertical:hover {{ background: #F6C26C; }}
 """
@@ -65,7 +79,7 @@ class ViewBar(qt.QFrame):
         self.workbench = workbench
         self.setObjectName("AstroViewBar")
         self.setFixedHeight(28)
-        self.setStyleSheet(BAR_STYLE)
+        self.setStyleSheet(barStyle())
         self.barLayout = qt.QHBoxLayout(self)
         self.barLayout.setContentsMargins(10, 0, 6, 0)
         self.barLayout.setSpacing(6)
@@ -229,14 +243,17 @@ class SliceViewBar(ViewBar):
         none.checked = not self.compositeNode.GetForegroundVolumeID()
         none.connect("triggered()", lambda: self.compositeNode.SetForegroundVolumeID(None))
         for volume in volumes:
-            for menu, getter, setter in ((background, self.compositeNode.GetBackgroundVolumeID,
-                                          self.compositeNode.SetBackgroundVolumeID),
-                                         (foreground, self.compositeNode.GetForegroundVolumeID,
-                                          self.compositeNode.SetForegroundVolumeID)):
-                action = menu.addAction(volume.GetName())
-                action.checkable = True
-                action.checked = getter() == volume.GetID()
-                action.connect("triggered()", lambda v=volume, s=setter: (s(v.GetID()), self.fit()))
+            # background: the view is kept for data on the same grid (fitted
+            # otherwise); foreground: over the background, the view kept
+            action = background.addAction(volume.GetName())
+            action.checkable = True
+            action.checked = self.compositeNode.GetBackgroundVolumeID() == volume.GetID()
+            action.connect("triggered()", lambda v=volume: self.workbench.showInSliceView(
+                self.sliceNode, self.compositeNode, v, clearForeground=False))
+            action = foreground.addAction(volume.GetName())
+            action.checkable = True
+            action.checked = self.compositeNode.GetForegroundVolumeID() == volume.GetID()
+            action.connect("triggered()", lambda v=volume: self.compositeNode.SetForegroundVolumeID(v.GetID()))
         self.layersMenu.addSeparator()
         opacity = qt.QWidgetAction(self.layersMenu)
         row = qt.QWidget()
@@ -279,7 +296,8 @@ class ThreeDViewBar(ViewBar):
         self.threeDWidget = threeDWidget
         self.viewNode = threeDWidget.mrmlViewNode()
         self.tag.text = "3D"
-        self.visibilityButton = self.button("eye", "Show or hide the volume rendering", True, "View3DVisibility")
+        self.visibilityButton = self.button("eye", "Show or hide the volume rendering (the masks stay shown)", True,
+                                            "View3DVisibility")
         self.visibilityButton.connect("toggled(bool)", self.setRenderingVisible)
         self.axesButton, self.axesMenu = self.menuButton("viewCamera", "Look at the data from an axis (north, south, east, west, along the velocity)",
                                                          "View3DAxes")
@@ -323,8 +341,14 @@ class ThreeDViewBar(ViewBar):
         self.maximizeButton.setIcon(viewIcon("viewRestore" if maximized else "viewMaximize"))
 
     def setRenderingVisible(self, visible):
+        """Only the volume rendering: the masks of the cube stay in the view
+        (marked on the display node, see ViewVisibility.viewsShowing)."""
         displayNode = self.renderingDisplayNode()
         if displayNode is not None:
+            if visible:
+                displayNode.RemoveAttribute(HIDDEN_BY_EYE)
+            else:
+                displayNode.SetAttribute(HIDDEN_BY_EYE, "1")
             displayNode.SetVisibility(visible)
         self.refresh()
 
@@ -357,8 +381,8 @@ def _rgb(hexColor):
 
 class PlotViewBar(ViewBar):
     """Plot view: the chart shown (spectrum of the cube or profiles), fit
-    and maximize. The chart is drawn on the dark view background with the
-    text and lines of the view bars."""
+    and maximize. The chart is drawn on the view background with the text
+    and lines of the view bars (dark or light, as the theme)."""
 
     def __init__(self, workbench, plotWidget, parent=None):
         ViewBar.__init__(self, workbench, parent)
@@ -388,15 +412,16 @@ class PlotViewBar(ViewBar):
         return [axis for axis in axes if axis is not None]
 
     def applyChartStyle(self):
-        """Dark background, light text, dim grid (Slicer's values kept to be
-        restored when leaving the Workbench)."""
+        """The view colours of the theme: background, text, dim grid (Slicer's
+        values kept to be restored when leaving the Workbench)."""
         chart = self.chart()
         if chart is None:
             return
-        text = [value / 255.0 for value in _rgb(VIEW_TEXT)]
-        subtle = [value / 255.0 for value in _rgb(VIEW_SUBTLE)]
-        line = _rgb(VIEW_LINE)
-        grid = _rgb("#1A2236")
+        view = _rgb(viewColor("view"))
+        text = [value / 255.0 for value in _rgb(viewColor("view-text"))]
+        subtle = [value / 255.0 for value in _rgb(viewColor("view-subtle"))]
+        line = _rgb(viewColor("view-line"))
+        grid = _rgb(viewColor("view-hover"))
         if self.saved is None:
             background = chart.GetBackgroundBrush().GetColorObject()
             self.saved = {
@@ -416,14 +441,14 @@ class PlotViewBar(ViewBar):
                     "pen": (pen.GetRed(), pen.GetGreen(), pen.GetBlue(), pen.GetAlpha()),
                     "grid": (gridPen.GetRed(), gridPen.GetGreen(), gridPen.GetBlue(), gridPen.GetAlpha()),
                 })
-        chart.GetBackgroundBrush().SetColor(*_rgb(VIEW), 255)
+        chart.GetBackgroundBrush().SetColor(*view, 255)
         # the renderer too: an empty plot (no chart) shows only the renderer
         renderer = self.renderer(chart)
         if renderer is not None:
-            renderer.SetBackground(*[value / 255.0 for value in _rgb(VIEW)])
+            renderer.SetBackground(*[value / 255.0 for value in view])
         chart.GetTitleProperties().SetColor(*text)
         chart.GetLegend().GetLabelProperties().SetColor(*text)
-        chart.GetLegend().GetBrush().SetColor(*_rgb(VIEW), 220)
+        chart.GetLegend().GetBrush().SetColor(*view, 220)
         chart.GetLegend().GetPen().SetColor(*line, 255)
         for axis in self.chartParts(chart):
             axis.GetTitleProperties().SetColor(*subtle)
@@ -499,10 +524,9 @@ class ViewDecorator:
             sliceNode.SetAttribute("SlicerAstro.Beam", "on")
             widget.sliceController().visible = False
             widget.setSliceOffsetSliderOrientation(qt.Qt.Vertical)
-            controller = widget.sliceVerticalController()
-            controller.setStyleSheet(f"background: {VIEW};")
-            for slider in controller.findChildren("QSlider"):
-                slider.setStyleSheet(SLIDER_STYLE)
+            # Slicer's background of the slice view (outside the data)
+            color = widget.sliceView().backgroundColor
+            self.saved[f"background:{name}"] = qt.QColor(color.red(), color.green(), color.blue())
             bar = SliceViewBar(self.workbench, widget)
             widget.layout().insertWidget(0, bar)
             self.bars[name] = bar
@@ -535,6 +559,26 @@ class ViewDecorator:
         self.styleViewport()
         self.setActive(self.workbench.activeViewKey)
 
+    def styleViews(self):
+        """Bars, slice sliders, slice backgrounds and plots in the view colours
+        of the theme (again when the theme changes)."""
+        layoutManager = slicer.app.layoutManager()
+        background = qt.QColor(viewColor("view"))
+        for key, bar in self.bars.items():
+            bar.setStyleSheet(barStyle())
+            if isinstance(bar, PlotViewBar):
+                bar.applyChartStyle()
+            elif not key.startswith("3D"):
+                widget = layoutManager.sliceWidget(key)
+                if widget is None:
+                    continue
+                controller = widget.sliceVerticalController()
+                controller.setStyleSheet(f"background: {viewColor('view')};")
+                for slider in controller.findChildren("QSlider"):
+                    slider.setStyleSheet(sliderStyle())
+                widget.sliceView().setBackgroundColor(background)
+                widget.sliceView().scheduleRender()
+
     def addFrame(self, key, container, view):
         """Rounded corners, active border and drop target of a view."""
         frame = slicer.qSlicerAstroViewFrame()
@@ -563,6 +607,7 @@ class ViewDecorator:
         bg = theme().color("bg").name()
         viewport.setStyleSheet(f"QWidget#{viewport.objectName} {{ background: {bg}; }}"
                                f"QWidget#{viewport.objectName} QSplitter::handle {{ background: {bg}; }}")
+        self.styleViews()
 
     def refresh(self):
         for bar in self.bars.values():
@@ -593,6 +638,10 @@ class ViewDecorator:
                     controller.setStyleSheet("")
                     for slider in controller.findChildren("QSlider"):
                         slider.setStyleSheet("")
+                    background = self.saved.get(f"background:{key}")
+                    if background is not None:
+                        widget.sliceView().setBackgroundColor(background)
+                        widget.sliceView().scheduleRender()
                     widget.setSliceOffsetSliderOrientation(self.saved.get(key, qt.Qt.Horizontal))
                     beam = self.saved.get(f"beam:{key}")
                     sliceNode = widget.mrmlSliceNode()
@@ -639,6 +688,9 @@ class ViewVisibility:
         self.timer.setSingleShot(True)
         self.timer.setInterval(50)
         self.timer.connect("timeout()", self.update)
+        # called after each update (e.g. the 3D view bars follow the
+        # renderings shown or hidden anywhere: Inspect, panels, logic)
+        self.onUpdated = None
 
     def enter(self):
         scene = slicer.mrmlScene
@@ -670,13 +722,28 @@ class ViewVisibility:
                 if volumeID:
                     showing.setdefault(volumeID, set()).add(sliceNode.GetID())
         viewNodes = slicer.util.getNodesByClass("vtkMRMLViewNode")
+        activeID = slicer.app.applicationLogic().GetSelectionNode().GetActiveVolumeID()
         for displayNode in slicer.util.getNodesByClass("vtkMRMLVolumeRenderingDisplayNode"):
             volume = displayNode.GetDisplayableNode()
-            if volume is None or not displayNode.GetVisibility():
+            if volume is None:
+                continue
+            if displayNode.GetVisibility():
+                if displayNode.GetAttribute(HIDDEN_BY_EYE):
+                    displayNode.RemoveAttribute(HIDDEN_BY_EYE)
+            elif not displayNode.GetAttribute(HIDDEN_BY_EYE) or \
+                    activeID not in (volume.GetID(), volume.GetAttribute("SlicerAstro.ShownInPlaceOf")):
+                # hidden (not with the eye of the view bar, or no more the
+                # active dataset): its masks leave the view
                 continue
             for viewNode in viewNodes:
                 if displayNode.IsDisplayableInView(viewNode.GetID()):
                     showing.setdefault(volume.GetID(), set()).add(viewNode.GetID())
+        # a product shown in place of its dataset (smoothed cube, map...):
+        # the masks of the dataset stay in its views
+        for volume in slicer.util.getNodesByClass("vtkMRMLAstroVolumeNode"):
+            datasetID = volume.GetAttribute("SlicerAstro.ShownInPlaceOf")
+            if datasetID and volume.GetID() in showing:
+                showing.setdefault(datasetID, set()).update(showing[volume.GetID()])
         return showing
 
     def allViews(self):
@@ -710,6 +777,8 @@ class ViewVisibility:
             displayNode.SetShowInAllViewsByDefault(False)
             if set(displayNode.GetViewNodeIDs()) != views:
                 displayNode.SetViewNodeIDs(sorted(views))
+        if self.onUpdated is not None:
+            self.onUpdated()
 
     def addToView(self, segmentation, viewNodeID):
         self.extra.setdefault(segmentation.GetID(), set()).add(viewNodeID)

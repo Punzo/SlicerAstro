@@ -28,7 +28,9 @@
 #include "vtkMedicalImageReader2.h"
 
 // VTK decleration
+class vtkIntArray;
 class vtkMatrix4x4;
+class vtkStringArray;
 
 // FITS includes
 #include "fitsio.h"
@@ -137,6 +139,33 @@ public:
   bool AllocatePointData(vtkImageData *out, vtkInformation* outInfo);
 
   ///
+  /// HDU (extension) to read: cfitsio absolute HDU number (1: the primary
+  /// HDU); 0 (default): the first image HDU with data (e.g. the DATA
+  /// extension of MUSE cubes, after an empty primary HDU).
+  vtkSetMacro(HDUNumber, int);
+  vtkGetMacro(HDUNumber, int);
+
+  ///
+  /// Sub-cube to read (UseSubExtent on): voxel extent (i0, i1, j0, j1, k0, k1;
+  /// 0-based, inclusive) in the data of the file, clamped to the data. Only
+  /// these voxels are read (fits_read_subset); the header (NAXISn, CRPIXn)
+  /// and the WCS describe the sub-cube. Not for DSS plate solutions.
+  vtkSetVector6Macro(SubExtent, int);
+  vtkGetVector6Macro(SubExtent, int);
+  vtkSetMacro(UseSubExtent, bool);
+  vtkGetMacro(UseSubExtent, bool);
+  vtkBooleanMacro(UseSubExtent, bool);
+
+  ///
+  /// The image HDUs with data of a FITS file (also .gz and tile-compressed
+  /// .fz files), from the headers only: their cfitsio HDU numbers, names
+  /// (EXTNAME, or PRIMARY / HDU n) and descriptions (dimensions and unit, e.g.
+  /// "320 x 320 x 3681 · 10**(-20)*erg/s/cm**2/Angstrom"). Returns their
+  /// number, -1 if the file can not be read.
+  static int GetImageHDUs(const char* fileName, vtkIntArray* numbers, vtkStringArray* names,
+                          vtkStringArray* descriptions);
+
+  ///
   /// Scalar type of the voxels of masks (DATAMODEL = MASK): VTK_SHORT
   /// (default, label map volumes) or VTK_INT (e.g. source IDs of SoFiA
   /// masks larger than 32767, segmentations).
@@ -169,12 +198,19 @@ public:
   /// The reader converts some keywords (e.g. the spectral axis FREQ ->
   /// VOPT-F2W): this gives the original ones, to write the file back.
   static std::map<std::string, std::string> ReadHeaderKeywords(const char* fileName,
-                                                               const std::vector<std::string>& keys);
+                                                               const std::vector<std::string>& keys,
+                                                               int hduNumber = 0);
 
   ///
   /// Keywords of the spectral axis that the reader converts or adds
   /// (CTYPE3, CRVAL3, CDELT3, CUNIT3, CRPIX3, ..., RESTFREQ, DRVAL3, DUNIT3).
   static std::vector<std::string> GetSpectralAxisKeywords();
+
+  /// A CDi_j matrix given in the equivalent PCi_j and CDELTi form (CDELTi =
+  /// CDi_i): needed before converting the spectral axis with wcssptr, which
+  /// loses the spectral step of a CD matrix (e.g. MUSE cubes). Call wcsset
+  /// afterwards. Nothing for a PCi_j matrix.
+  static void ConvertCDMatrixToPC(struct wcsprm* wcs);
 
   ///
   /// Messages about the FITS header of the current file: missing keywords,
@@ -224,6 +260,19 @@ protected:
   // Fix the third spectral axis for datacube generated with Gipsy
   int FixGipsyHeader();
   bool AllocateWCS();
+  int HDUNumber{0};
+  int SubExtent[6]{0, -1, 0, -1, 0, -1};
+  bool UseSubExtent{false};
+  /// offset of the sub-cube read in the data of the file (voxels)
+  int SubExtentOffset[3]{0, 0, 0};
+  /// NAXISn and CRPIXn of the header for the sub-cube; false if it can not be
+  /// read (e.g. a DSS plate solution)
+  bool ApplySubExtentToHeader();
+  /// Shifts the reference pixel of the WCS to the sub-cube
+  void ApplySubExtentToWCS();
+  /// Reads the voxels (all, or the sub-cube) with cfitsio
+  int ReadFITSVoxels(int fitsType, void* nullValue, void* buffer, long long numberOfElements, int* anyNull);
+
 
   bool FixGipsyHeaderOn;
   // Gipsy optical velocity convention (FREQ-OHEL, FREQ-OLSR)

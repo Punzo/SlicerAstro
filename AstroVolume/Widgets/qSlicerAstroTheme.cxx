@@ -29,6 +29,17 @@
 #include <QList>
 #include <QPainter>
 #include <QPixmap>
+#include <QDialog>
+#include <QDialogButtonBox>
+#include <QFileDialog>
+#include <QFileIconProvider>
+#include <QFileInfo>
+#include <QMenu>
+#include <QPushButton>
+#include <QToolButton>
+#include <QAbstractButton>
+#include <QProgressBar>
+#include <QProgressDialog>
 #include <QPointer>
 #include <QRegularExpression>
 
@@ -55,7 +66,7 @@ struct Token
 };
 
 // Tokens of the design ("Observatory" dark, "Daylight" light). The view
-// tokens are the same in both themes: the data stay on a dark background.
+// tokens (bars, slice backgrounds, plots of the views) follow the theme too.
 const Token Tokens[] =
 {
   {"bg", "#0B0F1A", "#EEF1F6"},
@@ -82,11 +93,13 @@ const Token Tokens[] =
   {"warn-soft", "#1AFF9F43", "#14B85C00"},
   {"err", "#FF6B6B", "#C62F2F"},
   {"err-soft", "#1AFF6B6B", "#14C62F2F"},
-  {"view", "#070A12", "#070A12"},
-  {"view-text", "#E7EBF3", "#E7EBF3"},
-  {"view-subtle", "#8592AC", "#8592AC"},
-  {"view-data", "#4FD1E0", "#4FD1E0"},
-  {"view-line", "#26304A", "#26304A"},
+  {"view", "#070A12", "#E6EAF1"},
+  {"view-text", "#E7EBF3", "#121826"},
+  {"view-subtle", "#8592AC", "#5F6B80"},
+  {"view-data", "#4FD1E0", "#0B7C8C"},
+  {"view-line", "#26304A", "#C9D0DC"},
+  {"view-hover", "#202A42", "#D5DBE6"},
+  {"view-groove", "#34405F", "#B9C2D3"},
 };
 
 const char* const SettingsKey = "SlicerAstro/Theme";
@@ -150,6 +163,66 @@ private:
 } // end of anonymous namespace
 
 //-----------------------------------------------------------------------------
+namespace
+{
+//-----------------------------------------------------------------------------
+/// Icons of the files and folders of file dialogs: the icons of the theme
+/// (follow the light and dark modes) instead of the icons of the system
+class qSlicerAstroFileIconProvider : public QFileIconProvider
+{
+public:
+  explicit qSlicerAstroFileIconProvider(const qSlicerAstroTheme* theme) : Theme(theme) {}
+
+  QIcon icon(IconType type) const override
+  {
+    switch (type)
+      {
+      case QFileIconProvider::Computer:
+      case QFileIconProvider::Desktop:
+        return this->Theme->icon("monitor", "muted");
+      case QFileIconProvider::Trashcan:
+        return this->Theme->icon("trash", "muted");
+      case QFileIconProvider::Network:
+        return this->Theme->icon("globe", "muted");
+      case QFileIconProvider::Drive:
+        return this->Theme->icon("drive", "muted");
+      case QFileIconProvider::Folder:
+        return this->Theme->icon("folder", "accent-ink");
+      default:
+        return this->Theme->icon("file", "muted");
+      }
+  }
+
+  QIcon icon(const QFileInfo& info) const override
+  {
+    if (info.isRoot())
+      {
+      return this->icon(QFileIconProvider::Drive);
+      }
+    if (info.isDir())
+      {
+      return info.absoluteFilePath() == QDir::homePath() ? this->Theme->icon("home", "accent-ink") :
+                                                           this->Theme->icon("folder", "accent-ink");
+      }
+    // astronomical data (FITS, also compressed) stand out
+    const QString name = info.fileName().toLower();
+    const char* suffixes[] = {".fits", ".fit", ".fts", ".fz", ".fits.gz", ".fit.gz", ".fts.gz"};
+    for (const char* suffix : suffixes)
+      {
+      if (name.endsWith(QLatin1String(suffix)))
+        {
+        return this->Theme->icon("fileData", "text");
+        }
+      }
+    return this->Theme->icon("file", "muted");
+  }
+
+private:
+  const qSlicerAstroTheme* Theme;
+};
+} // end of anonymous namespace
+
+//-----------------------------------------------------------------------------
 class qSlicerAstroThemePrivate
 {
 public:
@@ -159,9 +232,14 @@ public:
   bool FontsRegistered{false};
   QString StyleSheetTemplate;
   QList<QPointer<QWidget> > Widgets;
+  bool PopupsThemed{false};
+  /// menus and dialogs themed while popups are themed
+  QList<QPointer<QWidget> > Popups;
   QTemporaryDir IconDir;
   QHash<QString, QString> IconFiles;
   QHash<QString, QByteArray> IconSources;
+  /// Icons of the files and folders of themed file dialogs
+  QScopedPointer<QFileIconProvider> FileIconProvider;
 
   void registerFonts();
   QString styleSheet(const qSlicerAstroTheme* theme);
@@ -326,8 +404,23 @@ bool qSlicerAstroTheme::eventFilter(QObject* watched, QEvent* event)
     {
     this->setMode("system");
     }
-  // a themed panel shown in a scroll area
   QWidget* widget = qobject_cast<QWidget*>(watched);
+  // menus and dialogs (also Slicer's) while popups are themed
+  if (d->PopupsThemed && widget && event->type() == QEvent::Show && widget->isWindow() &&
+      (qobject_cast<QMenu*>(widget) || qobject_cast<QDialog*>(widget)) && !d->Popups.contains(widget))
+    {
+    d->Popups.append(widget);
+    if (qobject_cast<QMenu*>(widget))
+      {
+      d->restyle(widget, this);
+      widget->resize(widget->sizeHint());
+      }
+    else
+      {
+      this->applyToDialog(widget);
+      }
+    }
+  // a themed panel shown in a scroll area
   if (widget && watched != qApp && event->type() == QEvent::Show && qSlicerAstroTheme::fitScrollAreaOf(widget))
     {
     widget->removeEventFilter(this);
@@ -550,6 +643,203 @@ bool qSlicerAstroTheme::fitScrollAreaOf(QWidget* widget)
       }
     }
   return false;
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroTheme::setPopupsThemed(bool themed)
+{
+  Q_D(qSlicerAstroTheme);
+  if (themed == d->PopupsThemed)
+    {
+    return;
+    }
+  d->PopupsThemed = themed;
+  if (!themed && !d->AppliedToApplication)
+    {
+    // Slicer's look back on the menus and dialogs that are kept
+    const QList<QPointer<QWidget> > popups = d->Popups;
+    d->Popups.clear();
+    for (const QPointer<QWidget>& popup : popups)
+      {
+      this->removeFrom(popup);
+      }
+    }
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroTheme::removeFrom(QWidget* widget)
+{
+  Q_D(qSlicerAstroTheme);
+  if (!widget)
+    {
+    return;
+    }
+  d->Widgets.removeAll(widget);
+  widget->setProperty("astroPanel", QVariant());
+  widget->setStyleSheet(QString());
+  widget->setPalette(QApplication::palette());
+  widget->setFont(QApplication::font());
+  widget->update();
+}
+
+//-----------------------------------------------------------------------------
+QList<QWidget*> qSlicerAstroTheme::suspendProgressDialogs(QWidget* except)
+{
+  QList<QWidget*> visible;
+  for (QWidget* widget : QApplication::topLevelWidgets())
+    {
+    if (widget == except)
+      {
+      continue;
+      }
+    QProgressDialog* progressDialog = qobject_cast<QProgressDialog*>(widget);
+    const bool shown = widget->isVisible();
+    if (progressDialog)
+      {
+      // reset: its timer would show it during the question
+      progressDialog->reset();
+      progressDialog->hide();
+      }
+    else if (shown && qobject_cast<QDialog*>(widget) && widget->findChild<QProgressBar*>())
+      {
+      widget->hide();
+      }
+    else
+      {
+      continue;
+      }
+    if (shown)
+      {
+      visible << widget;
+      }
+    }
+  return visible;
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroTheme::resumeProgressDialogs(const QList<QWidget*>& dialogs)
+{
+  for (QWidget* widget : dialogs)
+    {
+    if (widget)
+      {
+      widget->show();
+      }
+    }
+}
+
+//-----------------------------------------------------------------------------
+bool qSlicerAstroTheme::popupsThemed() const
+{
+  Q_D(const qSlicerAstroTheme);
+  return d->PopupsThemed;
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroTheme::applyToDialog(QWidget* dialog)
+{
+  Q_D(qSlicerAstroTheme);
+  if (!dialog)
+    {
+    return;
+    }
+  this->applyTo(dialog);
+  // the buttons of the dialog: an icon of the theme by text, else by role
+  struct TextIcon
+    {
+    const char* Text;
+    const char* Icon;
+    };
+  const TextIcon textIcons[] = {{"replace", "reverse"}, {"merge", "layers"}, {"delete", "trash"},
+                                {"remove", "trash"}, {"save", "download"}, {"export", "download"},
+                                {"open", "folder"}, {"load", "folder"}, {"import", "folder"},
+                                {"reset", "reset"}, {"help", "help"}, {"retry", "reset"}};
+  for (QDialogButtonBox* box : dialog->findChildren<QDialogButtonBox*>())
+    {
+    for (QAbstractButton* button : box->buttons())
+      {
+      const QString text = button->text().remove('&').toLower();
+      QString iconName;
+      for (const TextIcon& textIcon : textIcons)
+        {
+        if (text.contains(QLatin1String(textIcon.Text)))
+          {
+          iconName = textIcon.Icon;
+          break;
+          }
+        }
+      if (iconName.isEmpty())
+        {
+        const QDialogButtonBox::ButtonRole role = box->buttonRole(button);
+        if (role == QDialogButtonBox::AcceptRole || role == QDialogButtonBox::YesRole ||
+            role == QDialogButtonBox::ApplyRole)
+          {
+          iconName = "check";
+          }
+        else if (role == QDialogButtonBox::RejectRole || role == QDialogButtonBox::NoRole)
+          {
+          iconName = "close";
+          }
+        else if (role == QDialogButtonBox::DestructiveRole)
+          {
+          iconName = "trash";
+          }
+        else if (role == QDialogButtonBox::ResetRole)
+          {
+          iconName = "reset";
+          }
+        else if (role == QDialogButtonBox::HelpRole)
+          {
+          iconName = "help";
+          }
+        }
+      button->setIcon(iconName.isEmpty() ? QIcon() : this->icon(iconName, "text"));
+      button->setIconSize(QSize(15, 15));
+      }
+    }
+  // the other push buttons of Slicer's dialogs (e.g. Reset of "Add data")
+  for (QPushButton* button : dialog->findChildren<QPushButton*>())
+    {
+    if (!qobject_cast<QDialogButtonBox*>(button->parentWidget()) && !button->icon().isNull())
+      {
+      const QString text = button->text().remove('&').toLower();
+      button->setIcon(text.contains("reset") ? this->icon("reset", "text") : QIcon());
+      }
+    }
+  // the tool buttons of a file dialog (Qt's names)
+  struct NamedIcon
+    {
+    const char* Name;
+    const char* Icon;
+    };
+  const NamedIcon fileDialogIcons[] = {{"backButton", "chevronLeft"}, {"forwardButton", "chevronRight"},
+                                       {"toParentButton", "arrowUp"}, {"newFolderButton", "folderPlus"},
+                                       {"listModeButton", "list"}, {"detailModeButton", "table"}};
+  // (a named list: a range-for on a temporary built with << would dangle)
+  QList<QFileDialog*> fileDialogs = dialog->findChildren<QFileDialog*>();
+  fileDialogs.prepend(qobject_cast<QFileDialog*>(dialog));
+  for (QFileDialog* fileDialog : fileDialogs)
+    {
+    if (!fileDialog)
+      {
+      continue;
+      }
+    // the files and folders (list, sidebar, "Look in")
+    if (!d->FileIconProvider)
+      {
+      d->FileIconProvider.reset(new qSlicerAstroFileIconProvider(this));
+      }
+    fileDialog->setIconProvider(d->FileIconProvider.data());
+    for (const NamedIcon& namedIcon : fileDialogIcons)
+      {
+      QToolButton* button = fileDialog->findChild<QToolButton*>(namedIcon.Name);
+      if (button)
+        {
+        button->setIcon(this->icon(namedIcon.Icon, "muted"));
+        button->setAutoRaise(true);
+        }
+      }
+    }
 }
 
 //-----------------------------------------------------------------------------

@@ -259,6 +259,25 @@ class AstroMomentMapsSelfTestTest(ScriptedLoadableModuleTest):
         self.assertTrue(all(c > 0.85 for c in rgb))  # systemic velocity: light grey
         self.assertFalse(slicer.vtkSlicerAstroVolumeLogic.GetColorMapColor("NoSuchMap", 0.5, rgb))
 
+        # Show of a result: the map in place of the cube in a channel-map
+        # view (the cube stays active); Show again (now Hide): the cube back
+        selection = slicer.app.applicationLogic().GetSelectionNode()
+        selection.SetActiveVolumeID(volumeNode.GetID())
+        layoutManager = slicer.app.layoutManager()
+        composites = [layoutManager.sliceWidget(name).mrmlSliceCompositeNode()
+                      for name in layoutManager.sliceViewNames()]
+        before = [composite.GetBackgroundVolumeID() for composite in composites]
+        card = slicer.util.findChild(widget, "FirstMomentResult")
+        card.showButton().click()
+        slicer.app.processEvents()
+        self.assertIn(nodes[1].GetID(), [composite.GetBackgroundVolumeID() for composite in composites])
+        self.assertEqual(selection.GetActiveVolumeID(), volumeNode.GetID())
+        self.assertEqual(card.showButton().text, "Hide")
+        card.showButton().click()
+        slicer.app.processEvents()
+        self.assertEqual([composite.GetBackgroundVolumeID() for composite in composites], before)
+        self.assertEqual(card.showButton().text, "Show")
+
         velocities, zmin, zmax = channelRange(volumeNode, parametersNode)
         expected = referenceMoments(voxelArray(volumeNode), velocities, zmin, zmax,
                                     parametersNode.GetIntensityMin(), parametersNode.GetIntensityMax(),

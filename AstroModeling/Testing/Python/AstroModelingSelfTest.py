@@ -72,7 +72,7 @@ class AstroModelingSelfTestTest(ScriptedLoadableModuleTest):
         parametersNode.SetInputVolumeNodeID(volumeNode.GetID())
         return volumeNode, widget, parametersNode
 
-    def runOperation(self, parametersNode, start, cancelAfter=None, timeout=1500):
+    def runOperation(self, parametersNode, start, cancelAfter=None, timeout=300):
         """Run a 3DBarolo operation of the widget (worker thread) and wait
         for its end; returns the seconds it took. The widget sets the status
         to 1 when it starts the worker, to 100 when the worker ends and back
@@ -263,20 +263,22 @@ class AstroModelingSelfTestTest(ScriptedLoadableModuleTest):
         """Estimate, model and model from the table with an input mask: the
         segment is read directly (no label map volume)."""
         import scipy.ndimage
-        from AstroVolumeLogicTest import maskSegmentation
 
         volumeNode, widget, parametersNode = self.openModule()
         cube = voxelArray(volumeNode)
         with np.errstate(invalid="ignore"):
             emission = cube > 3. * volumeNode.GetDisplayThreshold()
         galaxy = scipy.ndimage.binary_dilation(emission, iterations=2)
-        segmentationNode, (galaxyID,) = maskSegmentation(volumeNode, {"Galaxy": galaxy}, "NGC2403_TestMask")
+        # the mask of the data (one per dataset): the galaxy segment; the
+        # panel uses it without a selection (its first segment)
+        segmentationNode = slicer.modules.astrovolume.logic().GetMaskSegmentationForVolume(volumeNode, True)
+        self.assertIsNotNone(segmentationNode)
+        galaxyID = segmentationNode.GetSegmentation().AddEmptySegment("Galaxy", "Galaxy")
+        slicer.util.updateSegmentBinaryLabelmapFromArray(galaxy.astype(np.uint8), segmentationNode, galaxyID,
+                                                         volumeNode)
 
         slicer.util.findChild(widget, "MaskCheckBox").setChecked(True)
         self.assertTrue(parametersNode.GetMaskActive())
-        slicer.util.findChild(widget, "SegmentationNodeComboBox").setCurrentNode(segmentationNode)
-        slicer.app.processEvents()
-        slicer.util.findChild(widget, "SegmentsTableView").setSelectedSegmentIDs([galaxyID])
         slicer.app.processEvents()
 
         self.estimate(widget, parametersNode)

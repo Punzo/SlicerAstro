@@ -157,6 +157,8 @@ class AstroVolumeSelfTestTest(unittest.TestCase):
     self.downloadWEIN069()
     astroVolume = slicer.util.getNode("WEIN069")
     astroVolumeDisplay = astroVolume.GetAstroVolumeDisplayNode()
+    # the default 2D colours of astronomical data: Observatory
+    self.assertEqual(astroVolumeDisplay.GetColorNode().GetName(), "Observatory")
     Ronekers = slicer.util.getNode("Ronekers")
     astroVolumeDisplay.SetAndObserveColorNodeID(Ronekers.GetID())
     self.delayDisplay('Setting Ronekers 2D color function', 700)
@@ -217,16 +219,13 @@ class AstroVolumeSelfTestTest(unittest.TestCase):
 
     # Masks section: the mask (binary labelmaps, shown as labelmaps) but not the contours
     masksSection = astroVolumeModuleWidget.masksSection()
-    maskSelector = slicer.util.findChild(masksSection, "MasksSelector")
     slicer.app.processEvents()
-    hidden = maskSelector.sortFilterProxyModel().hiddenNodeIDs
-    self.assertIn(contoursNode.GetID(), hidden)
-    self.assertNotIn(maskNode.GetID(), hidden)
+    self.assertIsNot(masksSection.maskNode(), contoursNode)
     # The table shows the selected mask, never the contours, and the Segment
     # Editor is not switched to the contours
     segmentsTable = slicer.util.findChild(masksSection, "MasksTable")
     self.assertIsNot(segmentsTable.segmentationNode(), contoursNode)
-    self.assertIs(segmentsTable.segmentationNode(), maskSelector.currentNode())
+    self.assertIs(segmentsTable.segmentationNode(), masksSection.maskNode())
     editorNode = slicer.mrmlScene.GetSingletonNode("SegmentEditor", "vtkMRMLSegmentEditorNode")
     if editorNode:
       self.assertIsNot(editorNode.GetSegmentationNode(), contoursNode)

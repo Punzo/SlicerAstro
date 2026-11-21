@@ -33,6 +33,7 @@
 #include <vtkSlicerAstroVolumeModuleMRMLExport.h>
 
 class vtkMRMLMarkupsROINode;
+class vtkImageData;
 class vtkMRMLAstroVolumeDisplayNode;
 class vtkMRMLTransformNode;
 class vtkMRMLVolumePropertyNode;
@@ -111,13 +112,20 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeNode : public vtkMRMLScalarVolumeN
   /// Update Max and Min Attributes
   virtual bool UpdateRangeAttributes();
 
-  /// Range of the 2D display (window/level) of the data: the minimum and
-  /// maximum, except when they are isolated outliers (e.g. stars or bright
-  /// HII regions in optical data: the maximum more than 10 times the 99.9th
-  /// percentile), which are replaced by the percentile (0.1th for the
-  /// minimum). Percentiles from a sample of at most 10^6 finite voxels.
-  /// Returns false if the volume has no finite voxels.
+  /// Default window of the 2D colours (loaded data, new products): the
+  /// SlicerAstro clipping at DefaultClipPercentage (99.5%) of the negative
+  /// and of the positive values, so that the extreme values (bright point
+  /// sources, stars) do not hide the emission. The window of a volume of a
+  /// scene is the saved one. Returns false if the volume has no finite voxels.
   bool GetDisplayRange(double range[2]);
+  static double GetDefaultClipPercentage() { return 99.5; }
+
+  /// Window (lower, upper) with a percentage of the negative and of the
+  /// positive values of an image (the extreme values outside; 100: the
+  /// minimum and maximum), from a regular sample of at most maxSamples
+  /// finite voxels (first component). False if there is no finite voxel.
+  static bool ComputeClippedWindow(vtkImageData* image, double percentage, double window[2],
+                                   vtkIdType maxSamples = 2000000);
 
   /// Update DisplayThreshold Attribute
    virtual bool UpdateDisplayThresholdAttributes();

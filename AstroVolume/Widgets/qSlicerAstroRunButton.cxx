@@ -166,6 +166,33 @@ void qSlicerAstroRunButton::onClicked()
 }
 
 //-----------------------------------------------------------------------------
+void qSlicerAstroRunButton::runAsActive(const std::function<void()>& action)
+{
+  QPointer<qSlicerAstroRunButton> previous = ActiveRunButton;
+  ActiveRunButton = this;
+  if (action)
+    {
+    action();
+    }
+  ActiveRunButton = previous;
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroRunButton::setActive(bool active)
+{
+  static QList<QPointer<qSlicerAstroRunButton> > previous;
+  if (active)
+    {
+    previous.append(ActiveRunButton);
+    ActiveRunButton = this;
+    }
+  else if (ActiveRunButton == this)
+    {
+    ActiveRunButton = previous.isEmpty() ? nullptr : previous.takeLast();
+    }
+}
+
+//-----------------------------------------------------------------------------
 void qSlicerAstroRunButton::onCancel()
 {
   this->Progress->Text = tr("Cancelling...");

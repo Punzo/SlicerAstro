@@ -41,6 +41,7 @@ References to cite when you use SlicerAstro.
 
 user_guide/installation
 user_guide/getting_started
+user_guide/workbench
 user_guide/sample_data
 user_guide/modules/index
 user_guide/measurements

@@ -196,7 +196,8 @@ qSlicerAstroDatasetCard::qSlicerAstroDatasetCard(QWidget* parent)
   this->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
   // hover highlight (style sheet :hover)
   this->setAttribute(Qt::WA_Hover, true);
-  this->setToolTip(tr("Click: open in the views. Drag: show in one view."));
+  this->setToolTip(tr("Click: open in the views (the active dataset: its products shown in its place go back "
+                      "to it). Drag: show in one view."));
   QVBoxLayout* layout = new QVBoxLayout(this);
   layout->setContentsMargins(10, 10, 10, 10);
   layout->setSpacing(9);
@@ -415,8 +416,28 @@ void qSlicerAstroDatasetCard::addProduct(const QString& id, const QString& name,
   button->setProperty("productName", name);
   button->setProperty("productDetail", detail);
   button->setText(detail.isEmpty() ? name : QString("%1   %2").arg(name, detail));
-  button->setToolTip(tr("%1\nClick: show. Drag: show in one view.").arg(
-    detail.isEmpty() ? name : QString("%1 (%2)").arg(name, detail)));
+  const QString title = detail.isEmpty() ? name : QString("%1 (%2)").arg(name, detail);
+  vtkMRMLVolumeNode* datasetVolume = this->volume();
+  const QString dataset = datasetVolume && datasetVolume->GetName() ? QString::fromUtf8(datasetVolume->GetName())
+                                                                   : tr("the dataset");
+  QString usage;
+  if (iconName == "lasso")
+    {
+    usage = tr("Click: show or hide the mask in the views. Drag onto a view: show it there.");
+    }
+  else if (iconName == "table")
+    {
+    usage = tr("Click: its sources in the Sources tab (a click on a source moves the views to it).");
+    }
+  else
+    {
+    usage = tr("Click: shown in place of %1 in the views showing it (a cube: the channel maps, position-velocity "
+               "and 3D views; a map: one channel-map view). Zoom, channel and 3D camera are kept and %1 stays "
+               "the active dataset. Click again, or click %1: %1 back.\n"
+               "Drag onto a view: shown in that view only.\n"
+               "The Show buttons of the panels do the same.").arg(dataset);
+    }
+  button->setToolTip(QString("%1\n%2").arg(title, usage));
   button->setProperty("nodeID", id);
   button->installEventFilter(this);
   QObject::connect(button, &QToolButton::clicked, this, [this, id]() { emit this->productClicked(id); });

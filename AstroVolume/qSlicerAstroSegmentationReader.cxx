@@ -17,10 +17,23 @@
 ==============================================================================*/
 
 // Qt includes
+#include <QAbstractButton>
+#include <QApplication>
 #include <QFileInfo>
+#include <QMainWindow>
+#include <QMessageBox>
+#include <QProgressBar>
+#include <QProgressDialog>
+#include <QPushButton>
 
 // SlicerQt includes
 #include "qSlicerAstroSegmentationReader.h"
+
+// SlicerQt includes
+#include <qSlicerApplication.h>
+
+// AstroVolume widgets
+#include <qSlicerAstroTheme.h>
 
 // MRML includes
 #include <vtkMRMLAstroSegmentationStorageNode.h>
@@ -133,6 +146,59 @@ bool qSlicerAstroSegmentationReader::load(const IOProperties& properties)
   if (volumeNode)
     {
     vtkSlicerAstroVolumeLogic::AttachMaskToVolume(segmentationNode, volumeNode, offset);
+    }
+  // one mask per dataset: the dataset has a mask with segments already, the
+  // loaded mask replaces it, is merged into it, or is not loaded (property
+  // "maskConflict": "replace", "merge", "cancel"; otherwise the user is
+  // asked, or "merge" without a main window, e.g. in tests)
+  if (vtkSlicerAstroVolumeLogic::GetConflictingMask(segmentationNode))
+    {
+    vtkMRMLSegmentationNode* currentMask = vtkSlicerAstroVolumeLogic::GetConflictingMask(segmentationNode);
+    int resolution = vtkSlicerAstroVolumeLogic::MaskConflictMerge;
+    const QString option = properties.value("maskConflict").toString();
+    if (option == "replace")
+      {
+      resolution = vtkSlicerAstroVolumeLogic::MaskConflictReplace;
+      }
+    else if (option == "cancel")
+      {
+      resolution = vtkSlicerAstroVolumeLogic::MaskConflictCancel;
+      }
+    else if (option.isEmpty() && qSlicerApplication::application() &&
+             qSlicerApplication::application()->mainWindow() &&
+             !qSlicerApplication::application()->testAttribute(qSlicerCoreApplication::AA_EnableTesting))
+      {
+      QMessageBox question(QMessageBox::Question, tr("Mask of %1").arg(QString::fromUtf8(volumeNode->GetName())),
+        tr("%1 has a mask with %2 segments already. Replace it with the mask of %3, merge the two masks, or do "
+           "not load the file?").arg(QString::fromUtf8(volumeNode->GetName()))
+           .arg(currentMask->GetSegmentation()->GetNumberOfSegments()).arg(QFileInfo(fileName).fileName()),
+        QMessageBox::NoButton, qSlicerApplication::application()->mainWindow());
+      QPushButton* replaceButton = question.addButton(tr("Replace"), QMessageBox::DestructiveRole);
+      QPushButton* mergeButton = question.addButton(tr("Merge"), QMessageBox::AcceptRole);
+      question.addButton(QMessageBox::Cancel);
+      question.setDefaultButton(mergeButton);
+      for (QAbstractButton* button : question.buttons())
+        {
+        // no icons of the Slicer style on the buttons
+        button->setIcon(QIcon());
+        }
+      qSlicerAstroTheme::instance()->applyToDialog(&question);
+      // the "Loading data" progress of Slicer would cover the question
+      const QList<QWidget*> hiddenProgress = qSlicerAstroTheme::suspendProgressDialogs(&question);
+      question.exec();
+      qSlicerAstroTheme::resumeProgressDialogs(hiddenProgress);
+      resolution = question.clickedButton() == replaceButton ? vtkSlicerAstroVolumeLogic::MaskConflictReplace :
+        (question.clickedButton() == mergeButton ? vtkSlicerAstroVolumeLogic::MaskConflictMerge :
+                                                   vtkSlicerAstroVolumeLogic::MaskConflictCancel);
+      }
+    vtkMRMLSegmentationNode* mask = vtkSlicerAstroVolumeLogic::ResolveMaskConflict(segmentationNode, resolution);
+    if (resolution == vtkSlicerAstroVolumeLogic::MaskConflictCancel || !mask)
+      {
+      this->setLoadedNodes(QStringList());
+      return false;
+      }
+    this->setLoadedNodes(QStringList() << QString(mask->GetID()));
+    return true;
     }
   this->setLoadedNodes(QStringList() << QString(segmentationNode->GetID()));
   return true;

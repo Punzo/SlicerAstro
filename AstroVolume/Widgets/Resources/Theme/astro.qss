@@ -119,15 +119,22 @@ QLineEdit:focus, QAbstractSpinBox:focus { border-color: @data@; }
 QLineEdit:disabled, QAbstractSpinBox:disabled { color: @subtle@; background: @panel@; }
 /* text edited in place (e.g. the name and notes of a workspace card): plain
    text until hovered or focused */
-QLineEdit[astroRole="inlineEdit"] {
+QLineEdit[astroRole="inlineEdit"], QPlainTextEdit[astroRole="inlineEdit"] {
   background: transparent;
   border: 1px solid transparent;
-  padding: 0px 4px;
-  min-height: 22px;
+  border-radius: 6px;
+  padding: 0px 2px;
+  selection-background-color: @data-soft-strong@;
+  selection-color: @text@;
 }
-QLineEdit[astroRole="inlineEdit"]:hover { border-color: @line@; }
-QLineEdit[astroRole="inlineEdit"]:focus { border-color: @data@; background: @raised@; }
+QLineEdit[astroRole="inlineEdit"] { min-height: 22px; }
+QLineEdit[astroRole="inlineEdit"]:hover, QPlainTextEdit[astroRole="inlineEdit"]:hover { background: @hover@; }
+QLineEdit[astroRole="inlineEdit"]:focus, QPlainTextEdit[astroRole="inlineEdit"]:focus {
+  background: @raised@;
+  border-color: @line@;
+}
 QLineEdit[astroRole="inlineEdit"][inlineTitle="true"] { font-weight: 600; }
+QPlainTextEdit[astroRole="inlineEdit"] { color: @muted@; }
 /* fields have no steppers (keyboard and wheel still step); the buttons are
    kept with no width: without buttons a styled spin box loses its edit area */
 QAbstractSpinBox::up-button, QAbstractSpinBox::down-button { width: 0px; border: none; }
@@ -250,6 +257,48 @@ QFrame[astroRole="result"] {
   border-radius: 9px;
 }
 
+/* Segments of a mask (qMRMLSegmentsTableView): a plain list */
+QTableView[astroRole="segments"] {
+  background: @panel@;
+  border: 1px solid @line@;
+  border-radius: 9px;
+  padding: 2px;
+  outline: none;
+  selection-background-color: @accent-soft-strong@;
+  selection-color: @text@;
+}
+QTableView[astroRole="segments"]::item { border: none; padding: 0px 6px; }
+QTableView[astroRole="segments"]::item:selected { background: @accent-soft-strong@; color: @text@; }
+QTableView[astroRole="segments"]::item:hover { background: @hover@; }
+QTableView[astroRole="segments"] QToolButton { background: transparent; border: none; }
+
+/* Options of a Segment Editor effect: no frame, title as an overline */
+QGroupBox[astroRole="plain"] { border: none; margin-top: 16px; padding: 0px; }
+QGroupBox[astroRole="plain"]::title {
+  subcontrol-origin: margin;
+  left: 0px;
+  color: @subtle@;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* Colour swatches (qSlicerAstroColorPicker) */
+QToolButton[astroRole="swatch"] { background: transparent; border: 2px solid transparent; border-radius: 7px; padding: 0px; }
+QToolButton[astroRole="swatch"]:hover { border-color: @line-strong@; }
+QToolButton[astroRole="swatch"]:checked { border-color: @accent@; }
+
+/* Lists of SlicerAstro dialogs (e.g. the types of a segment) */
+QListWidget[astroRole="segments"] {
+  background: @panel@;
+  border: 1px solid @line@;
+  border-radius: 9px;
+  padding: 2px;
+  outline: none;
+}
+QListWidget[astroRole="segments"]::item { padding: 4px 6px; border: none; }
+QListWidget[astroRole="segments"]::item:selected { background: @accent-soft-strong@; color: @text@; }
+QListWidget[astroRole="segments"]::item:hover { background: @hover@; }
+
 /* Fold (progressive disclosure) */
 QToolButton[astroRole="fold"] {
   border: none;
@@ -262,7 +311,8 @@ QToolButton[astroRole="fold"] {
   font-weight: 700;
   text-align: left;
 }
-QToolButton[astroRole="fold"]:hover { color: @text@; background: transparent; }
+QToolButton[astroRole="fold"]:hover { color: @text@; background: @hover@; border-top-color: @line-strong@; }
+QToolButton[astroRole="fold"]:pressed { background: @raised@; }
 
 QToolTip {
   background: @raised@;
@@ -313,7 +363,7 @@ QToolButton[astroRole="toolbar"]:checked { background: @accent-soft@; color: @ac
 QToolButton[astroRole="tab"] {
   border: 1px solid transparent;
   border-radius: 7px;
-  padding: 0px 10px;
+  padding: 0px 7px;
   min-height: 28px;
   font-weight: 600;
   color: @muted@;

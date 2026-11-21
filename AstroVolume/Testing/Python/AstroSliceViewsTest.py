@@ -513,11 +513,15 @@ class AstroSliceViewsTestTest(ScriptedLoadableModuleTest):
 
         # The axes are updated once per render, not for every modification of
         # the slice node (e.g. every mouse move while panning)
+        # (the view does not render meanwhile: under load, CTK renders at once
+        # when enough time passed since the last render)
         ticks, _ = self.axesActors(view)
         ticksTime = ticks.GetMTime()
+        view.renderEnabled = False
         for step in range(5):
             sliceNode.SetXYZOrigin(step * 3., 0., 0.)
         self.assertEqual(ticks.GetMTime(), ticksTime, "no update without render")
+        view.renderEnabled = True
         view.forceRender()
         self.assertGreater(ticks.GetMTime(), ticksTime, "update at render")
         self.assertTicksOnWCS(view, volumeNode, 0, 1, "XY after render")

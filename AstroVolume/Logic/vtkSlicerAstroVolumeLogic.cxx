@@ -69,6 +69,7 @@
 #include <vtkMRMLSegmentEditorNode.h>
 #include <vtkMRMLSliceNode.h>
 #include <vtkMRMLSliceLayerLogic.h>
+#include <vtkMRMLSliceCompositeNode.h>
 #include <vtkMRMLSliceLogic.h>
 #include <vtkMRMLApplicationLogic.h>
 #include <vtkMRMLSliceViewDisplayableManagerFactory.h>
@@ -517,6 +518,36 @@ bool vtkSlicerAstroVolumeLogic::GetColorMapColor(const char* name, double value,
 const char* vtkSlicerAstroVolumeLogic::GetMomentMapColorTableName(int order)
 {
   return order == 1 ? "Doppler" : (order == 2 ? "Ember" : "Observatory");
+}
+
+//----------------------------------------------------------------------------
+const char* vtkSlicerAstroVolumeLogic::GetDefaultColorTableName(vtkMRMLVolumeNode* volumeNode)
+{
+  const char* datamodel = volumeNode ? volumeNode->GetAttribute("SlicerAstro.DATAMODEL") : nullptr;
+  if (datamodel && !strcmp(datamodel, "FIRSTMOMENTMAP"))
+    {
+    return vtkSlicerAstroVolumeLogic::GetMomentMapColorTableName(1);
+    }
+  if (datamodel && !strcmp(datamodel, "SECONDMOMENTMAP"))
+    {
+    return vtkSlicerAstroVolumeLogic::GetMomentMapColorTableName(2);
+    }
+  return "Observatory";
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::SetDefaultColorTable(vtkMRMLVolumeNode* volumeNode)
+{
+  vtkMRMLScene* scene = volumeNode ? volumeNode->GetScene() : nullptr;
+  vtkMRMLDisplayNode* displayNode = volumeNode ? volumeNode->GetDisplayNode() : nullptr;
+  vtkMRMLNode* table = scene ? scene->GetFirstNodeByName(
+    vtkSlicerAstroVolumeLogic::GetDefaultColorTableName(volumeNode)) : nullptr;
+  if (!displayNode || !table || !table->IsA("vtkMRMLColorTableNode"))
+    {
+    return false;
+    }
+  displayNode->SetAndObserveColorNodeID(table->GetID());
+  return true;
 }
 
 //----------------------------------------------------------------------------
@@ -1402,6 +1433,9 @@ ArchetypeVolumeNodeSet AstroVolumeNodeSetFactory(std::string& volumeName, vtkMRM
   // masks overlap whatever the order and the way of loading
   (void)options;
   storageNode->SetCenterImage(1);
+  // the extension and the part of the file chosen for this load (volume
+  // reader of the AstroVolume module)
+  vtkMRMLAstroVolumeStorageNode::ApplyNextReadOptions(storageNode);
   astroNode->SetAndObserveStorageNodeID(storageNode->GetID());
 
   nodeSet.StorageNode = storageNode;
@@ -1630,7 +1664,7 @@ vtkMRMLAstroVolumeNode* vtkSlicerAstroVolumeLogic::CloneAstroVolume(vtkMRMLScene
         clone->SetAndObserveDisplayNodeID(clonedDisplayNode->GetID());
         }
       }
-    clone->SetName(scene->GetUniqueNameByString(name));
+    clone->SetName(vtkSlicerAstroVolumeLogic::GetFreeNodeName(scene, name ? name : "Volume").c_str());
     scene->AddNode(clone);
     outputVolume = clone;
     }
@@ -3432,6 +3466,476 @@ bool vtkSlicerAstroVolumeLogic::SetVolumeRenderingVisibility(vtkMRMLAstroVolumeN
 }
 
 //----------------------------------------------------------------------------
+namespace
+{
+const char* ShownInPlaceOfAttribute = "SlicerAstro.ShownInPlaceOf";
+const char* ShownReplacedAttribute = "SlicerAstro.ShownReplaced";
+const char* ShownReplacedOffsetAttribute = "SlicerAstro.ShownReplacedOffset";
+// 3D views of the product and of the dataset before ShowProductInViews
+// ("hidden", or the view node IDs separated by spaces; empty: all views)
+const char* ShownProductRenderingAttribute = "SlicerAstro.ShownProductRendering";
+const char* ShownDatasetRenderingAttribute = "SlicerAstro.ShownDatasetRendering";
+
+std::string RenderingState(vtkMRMLVolumeRenderingDisplayNode* rendering)
+{
+  if (!rendering || !rendering->GetVisibility())
+    {
+    return "hidden";
+    }
+  std::string ids;
+  for (const std::string& id : rendering->GetViewNodeIDs())
+    {
+    ids += (ids.empty() ? "" : " ") + id;
+    }
+  return ids;
+}
+
+std::vector<std::string> RenderingViews(const std::string& state)
+{
+  std::vector<std::string> ids;
+  std::string id;
+  for (char c : state)
+    {
+    if (c == ' ')
+      {
+      if (!id.empty())
+        {
+        ids.push_back(id);
+        }
+      id.clear();
+      }
+    else
+      {
+      id += c;
+      }
+    }
+  if (!id.empty())
+    {
+    ids.push_back(id);
+    }
+  return ids;
+}
+
+int VolumeDimensions(vtkMRMLVolumeNode* volume)
+{
+  const char* naxis = volume ? volume->GetAttribute("SlicerAstro.NAXIS") : nullptr;
+  if (naxis)
+    {
+    return atoi(naxis);
+    }
+  vtkImageData* image = volume ? volume->GetImageData() : nullptr;
+  return image && image->GetDimensions()[2] > 1 ? 3 : 2;
+}
+
+vtkMRMLSliceNode* SliceNodeOf(vtkMRMLScene* scene, vtkMRMLSliceCompositeNode* composite)
+{
+  const char* layoutName = composite ? composite->GetLayoutName() : nullptr;
+  return layoutName ? vtkMRMLSliceNode::SafeDownCast(scene->GetSingletonNode(layoutName, "vtkMRMLSliceNode")) : nullptr;
+}
+} // end of anonymous namespace
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::IsOnSameSkyGrid(vtkMRMLVolumeNode* volume, vtkMRMLVolumeNode* other, bool sameVoxels)
+{
+  if (!volume || !other || !volume->GetImageData() || !other->GetImageData())
+    {
+    return false;
+    }
+  if (volume == other)
+    {
+    return true;
+    }
+  int dimsA[3], dimsB[3];
+  volume->GetImageData()->GetDimensions(dimsA);
+  other->GetImageData()->GetDimensions(dimsB);
+  if (dimsA[0] != dimsB[0] || dimsA[1] != dimsB[1] || (sameVoxels && dimsA[2] != dimsB[2]))
+    {
+    return false;
+    }
+  vtkNew<vtkMatrix4x4> a, b;
+  volume->GetIJKToRASMatrix(a);
+  other->GetIJKToRASMatrix(b);
+  double scale = 0.;
+  for (int row = 0; row < 3; row++)
+    {
+    for (int column = 0; column < 3; column++)
+      {
+      scale = std::max(scale, std::fabs(a->GetElement(row, column)));
+      }
+    }
+  scale = scale > 0. ? scale : 1.;
+  const double tolerance = 1e-6 * scale;
+  const int columns = sameVoxels ? 3 : 2;
+  for (int column = 0; column < columns; column++)
+    {
+    for (int row = 0; row < 3; row++)
+      {
+      if (std::fabs(a->GetElement(row, column) - b->GetElement(row, column)) > tolerance)
+        {
+        return false;
+        }
+      }
+    }
+  // origins: equal, or (sky grid only) apart along the spectral axis
+  double delta[3], axis[3];
+  for (int row = 0; row < 3; row++)
+    {
+    delta[row] = b->GetElement(row, 3) - a->GetElement(row, 3);
+    axis[row] = a->GetElement(row, 2);
+    }
+  if (!sameVoxels)
+    {
+    const double norm = vtkMath::Norm(axis);
+    if (norm > 0.)
+      {
+      const double along = vtkMath::Dot(delta, axis) / norm;
+      for (int row = 0; row < 3; row++)
+        {
+        delta[row] -= along * axis[row] / norm;
+        }
+      }
+    }
+  return vtkMath::Norm(delta) <= 10. * tolerance;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::IsProductShownInViews(vtkMRMLAstroVolumeNode* product)
+{
+  return product && product->GetAttribute(ShownInPlaceOfAttribute);
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::ShowProductInViews(vtkMRMLAstroVolumeNode* product, vtkMRMLAstroVolumeNode* dataset)
+{
+  vtkMRMLScene* scene = product ? product->GetScene() : nullptr;
+  if (!scene || !dataset || product == dataset || !product->GetImageData() || !product->GetID() || !dataset->GetID())
+    {
+    return false;
+    }
+  vtkMRMLApplicationLogic* appLogic = this->GetMRMLApplicationLogic();
+  std::vector<vtkMRMLNode*> composites;
+  scene->GetNodesByClass("vtkMRMLSliceCompositeNode", composites);
+  std::vector<vtkMRMLNode*> volumes;
+  scene->GetNodesByClass("vtkMRMLAstroVolumeNode", volumes);
+  const bool sameSky = vtkSlicerAstroVolumeLogic::IsOnSameSkyGrid(dataset, product);
+  // background of a view replaced by this product: the dataset, or another
+  // product of the dataset shown in its place
+  std::function<bool(vtkMRMLNode*)> showsDataset = [dataset](vtkMRMLNode* node)
+    {
+    vtkMRMLAstroVolumeNode* volume = vtkMRMLAstroVolumeNode::SafeDownCast(node);
+    const char* shownInPlaceOf = volume ? volume->GetAttribute(ShownInPlaceOfAttribute) : nullptr;
+    return volume && (volume == dataset || (shownInPlaceOf && !strcmp(shownInPlaceOf, dataset->GetID())));
+    };
+
+  if (VolumeDimensions(product) >= 3)
+    {
+    // a cube: in place of the dataset in all the views
+    bool replaced = false;
+    for (vtkMRMLNode* node : composites)
+      {
+      vtkMRMLSliceCompositeNode* composite = vtkMRMLSliceCompositeNode::SafeDownCast(node);
+      vtkMRMLNode* background = composite && composite->GetBackgroundVolumeID() ?
+        scene->GetNodeByID(composite->GetBackgroundVolumeID()) : nullptr;
+      if (!composite || !background || VolumeDimensions(vtkMRMLVolumeNode::SafeDownCast(background)) < 3 ||
+          !showsDataset(background))
+        {
+        continue;
+        }
+      composite->SetBackgroundVolumeID(product->GetID());
+      replaced = true;
+      vtkMRMLSliceNode* sliceNode = SliceNodeOf(scene, composite);
+      vtkMRMLSliceLogic* sliceLogic = appLogic && sliceNode ? appLogic->GetSliceLogic(sliceNode) : nullptr;
+      if (!sameSky && sliceLogic)
+        {
+        sliceLogic->FitSliceToAll();
+        }
+      }
+    if (!replaced)
+      {
+      // the dataset in no view: the product in the views of the layout
+      for (vtkMRMLNode* node : composites)
+        {
+        vtkMRMLSliceCompositeNode* composite = vtkMRMLSliceCompositeNode::SafeDownCast(node);
+        vtkMRMLSliceNode* sliceNode = SliceNodeOf(scene, composite);
+        if (!composite || !sliceNode || !sliceNode->IsMappedInLayout())
+          {
+          continue;
+          }
+        composite->SetBackgroundVolumeID(product->GetID());
+        vtkMRMLSliceLogic* sliceLogic = appLogic ? appLogic->GetSliceLogic(sliceNode) : nullptr;
+        if (sliceLogic)
+          {
+          sliceLogic->FitSliceToAll();
+          }
+        }
+      }
+    // 3D views: the product rendered where the dataset (or another of its
+    // products) was rendered, and where it was rendered already
+    vtkMRMLVolumeRenderingDisplayNode* datasetRendering = this->GetVolumeRenderingDisplayNode(dataset, false);
+    vtkMRMLVolumeRenderingDisplayNode* productRendering = this->GetVolumeRenderingDisplayNode(product, false);
+    const std::string productState = RenderingState(productRendering);
+    const std::string datasetState = RenderingState(datasetRendering);
+    std::vector<std::string> viewIDs = datasetRendering ? datasetRendering->GetViewNodeIDs() : std::vector<std::string>();
+    bool rendered = datasetRendering && datasetRendering->GetVisibility();
+    for (vtkMRMLNode* node : volumes)
+      {
+      vtkMRMLAstroVolumeNode* volume = vtkMRMLAstroVolumeNode::SafeDownCast(node);
+      if (!volume || volume == product || !showsDataset(volume))
+        {
+        continue;
+        }
+      vtkMRMLVolumeRenderingDisplayNode* rendering = this->GetVolumeRenderingDisplayNode(volume, false);
+      if (rendering && rendering->GetVisibility())
+        {
+        if (volume != dataset)
+          {
+          // another product shown in place of the dataset: its views
+          viewIDs = rendering->GetViewNodeIDs();
+          }
+        rendered = true;
+        this->SetVolumeRenderingVisibility(volume, false, false);
+        }
+      if (volume != dataset)
+        {
+        volume->RemoveAttribute(ShownInPlaceOfAttribute);
+        }
+      }
+    if (rendered && this->PrepareVolumeRendering(product))
+      {
+      vtkMRMLVolumeRenderingDisplayNode* rendering = this->GetVolumeRenderingDisplayNode(product, false);
+      if (rendering)
+        {
+        // the views of the dataset and the views the product had (empty:
+        // all the views)
+        std::vector<std::string> own = RenderingViews(productState);
+        if (productState != "hidden" && !viewIDs.empty())
+          {
+          if (own.empty())
+            {
+            viewIDs.clear();
+            }
+          for (const std::string& id : own)
+            {
+            if (std::find(viewIDs.begin(), viewIDs.end(), id) == viewIDs.end())
+              {
+              viewIDs.push_back(id);
+              }
+            }
+          }
+        rendering->SetViewNodeIDs(viewIDs);
+        }
+      this->SetVolumeRenderingVisibility(product, true, !sameSky);
+      }
+    // the 3D views restored by HideProductInViews (the first product shown
+    // in place of the dataset keeps the state of the dataset)
+    const char* earlierDatasetState = nullptr;
+    for (vtkMRMLNode* node : volumes)
+      {
+      vtkMRMLAstroVolumeNode* volume = vtkMRMLAstroVolumeNode::SafeDownCast(node);
+      if (volume && volume != product && volume->GetAttribute(ShownDatasetRenderingAttribute) &&
+          !volume->GetAttribute(ShownInPlaceOfAttribute))
+        {
+        earlierDatasetState = volume->GetAttribute(ShownDatasetRenderingAttribute);
+        volume->RemoveAttribute(ShownDatasetRenderingAttribute);
+        volume->RemoveAttribute(ShownProductRenderingAttribute);
+        }
+      }
+    product->SetAttribute(ShownProductRenderingAttribute, productState.c_str());
+    product->SetAttribute(ShownDatasetRenderingAttribute,
+                          earlierDatasetState ? earlierDatasetState : datasetState.c_str());
+    product->SetAttribute(ShownInPlaceOfAttribute, dataset->GetID());
+    return true;
+    }
+
+  // a 2D map: one channel-map view, the one already showing a map of the
+  // dataset, otherwise yellow (in the layout), otherwise red
+  vtkMRMLSliceCompositeNode* target = nullptr;
+  vtkMRMLAstroVolumeNode* previousMap = nullptr;
+  for (vtkMRMLNode* node : composites)
+    {
+    vtkMRMLSliceCompositeNode* composite = vtkMRMLSliceCompositeNode::SafeDownCast(node);
+    vtkMRMLAstroVolumeNode* background = composite && composite->GetBackgroundVolumeID() ?
+      vtkMRMLAstroVolumeNode::SafeDownCast(scene->GetNodeByID(composite->GetBackgroundVolumeID())) : nullptr;
+    if (background && background != product && VolumeDimensions(background) < 3 &&
+        background->GetAttribute(ShownInPlaceOfAttribute) && showsDataset(background))
+      {
+      target = composite;
+      previousMap = background;
+      break;
+      }
+    }
+  for (const char* name : {"Yellow", "Red"})
+    {
+    if (target)
+      {
+      break;
+      }
+    vtkMRMLSliceNode* sliceNode = vtkMRMLSliceNode::SafeDownCast(scene->GetSingletonNode(name, "vtkMRMLSliceNode"));
+    if (sliceNode && sliceNode->IsMappedInLayout())
+      {
+      target = vtkMRMLSliceCompositeNode::SafeDownCast(scene->GetSingletonNode(name, "vtkMRMLSliceCompositeNode"));
+      }
+    }
+  vtkMRMLSliceNode* sliceNode = SliceNodeOf(scene, target);
+  if (!target || !sliceNode)
+    {
+    return false;
+    }
+  vtkMRMLSliceLogic* sliceLogic = appLogic ? appLogic->GetSliceLogic(sliceNode) : nullptr;
+  vtkMRMLVolumeNode* previous = target->GetBackgroundVolumeID() ?
+    vtkMRMLVolumeNode::SafeDownCast(scene->GetNodeByID(target->GetBackgroundVolumeID())) : nullptr;
+  // what the view showed before the maps (restored by HideProductInViews)
+  std::string replacedID = previous && previous->GetID() ? previous->GetID() : "";
+  std::string replacedOffset = DoubleToString(sliceLogic ? sliceLogic->GetSliceOffset() : sliceNode->GetSliceOffset());
+  if (previousMap)
+    {
+    const char* id = previousMap->GetAttribute(ShownReplacedAttribute);
+    const char* offset = previousMap->GetAttribute(ShownReplacedOffsetAttribute);
+    replacedID = id ? id : "";
+    replacedOffset = offset ? offset : replacedOffset;
+    previousMap->RemoveAttribute(ShownInPlaceOfAttribute);
+    previousMap->RemoveAttribute(ShownReplacedAttribute);
+    previousMap->RemoveAttribute(ShownReplacedOffsetAttribute);
+    }
+  const bool keepView = previous && vtkSlicerAstroVolumeLogic::IsOnSameSkyGrid(previous, product) &&
+                        sliceNode->GetOrientation() == "XY";
+  target->SetBackgroundVolumeID(product->GetID());
+  target->SetForegroundVolumeID(nullptr);
+  if (!keepView)
+    {
+    // another orientation first: the slice is recomputed for the new data
+    sliceNode->SetOrientation("XZ");
+    sliceNode->SetOrientation("XY");
+    if (sliceLogic)
+      {
+      sliceLogic->FitSliceToAll();
+      }
+    }
+  else if (sliceLogic)
+    {
+    // the plane of the map (zoom and pan kept)
+    double bounds[6] = {0., 0., 0., 0., 0., 0.};
+    sliceLogic->GetVolumeSliceBounds(product, bounds);
+    sliceLogic->SetSliceOffset(0.5 * (bounds[4] + bounds[5]));
+    }
+  product->SetAttribute(ShownReplacedAttribute, replacedID.c_str());
+  product->SetAttribute(ShownReplacedOffsetAttribute, replacedOffset.c_str());
+  product->SetAttribute(ShownInPlaceOfAttribute, dataset->GetID());
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::HideProductInViews(vtkMRMLAstroVolumeNode* product)
+{
+  vtkMRMLScene* scene = product ? product->GetScene() : nullptr;
+  const char* datasetID = product ? product->GetAttribute(ShownInPlaceOfAttribute) : nullptr;
+  if (!scene || !datasetID)
+    {
+    return false;
+    }
+  vtkMRMLAstroVolumeNode* dataset = vtkMRMLAstroVolumeNode::SafeDownCast(scene->GetNodeByID(datasetID));
+  vtkMRMLApplicationLogic* appLogic = this->GetMRMLApplicationLogic();
+  std::vector<vtkMRMLNode*> composites;
+  scene->GetNodesByClass("vtkMRMLSliceCompositeNode", composites);
+  const char* replacedAttribute = product->GetAttribute(ShownReplacedAttribute);
+  const char* offsetAttribute = product->GetAttribute(ShownReplacedOffsetAttribute);
+  vtkMRMLVolumeNode* replaced = replacedAttribute && *replacedAttribute ?
+    vtkMRMLVolumeNode::SafeDownCast(scene->GetNodeByID(replacedAttribute)) : dataset;
+  for (vtkMRMLNode* node : composites)
+    {
+    vtkMRMLSliceCompositeNode* composite = vtkMRMLSliceCompositeNode::SafeDownCast(node);
+    if (!composite || !composite->GetBackgroundVolumeID() ||
+        strcmp(composite->GetBackgroundVolumeID(), product->GetID()))
+      {
+      continue;
+      }
+    composite->SetBackgroundVolumeID(replaced ? replaced->GetID() : nullptr);
+    vtkMRMLSliceNode* sliceNode = SliceNodeOf(scene, composite);
+    vtkMRMLSliceLogic* sliceLogic = appLogic && sliceNode ? appLogic->GetSliceLogic(sliceNode) : nullptr;
+    if (!sliceLogic || !replaced)
+      {
+      continue;
+      }
+    if (!vtkSlicerAstroVolumeLogic::IsOnSameSkyGrid(replaced, product))
+      {
+      sliceLogic->FitSliceToAll();
+      }
+    else if (offsetAttribute && VolumeDimensions(product) < 3)
+      {
+      // the channel shown before the map
+      sliceLogic->SetSliceOffset(StringToDouble(offsetAttribute));
+      }
+    }
+  // 3D views: the product and the dataset as they were before
+  vtkMRMLVolumeRenderingDisplayNode* rendering = this->GetVolumeRenderingDisplayNode(product, false);
+  const char* productStateAttribute = product->GetAttribute(ShownProductRenderingAttribute);
+  const char* datasetStateAttribute = product->GetAttribute(ShownDatasetRenderingAttribute);
+  const std::string productState = productStateAttribute ? productStateAttribute : "hidden";
+  const std::string datasetState = datasetStateAttribute ? datasetStateAttribute :
+    (rendering && rendering->GetVisibility() ? RenderingState(rendering) : std::string("hidden"));
+  if (rendering && rendering->GetVisibility())
+    {
+    if (productState == "hidden")
+      {
+      this->SetVolumeRenderingVisibility(product, false, false);
+      }
+    else
+      {
+      rendering->SetViewNodeIDs(RenderingViews(productState));
+      }
+    if (dataset && datasetState != "hidden" && this->PrepareVolumeRendering(dataset))
+      {
+      vtkMRMLVolumeRenderingDisplayNode* datasetRendering = this->GetVolumeRenderingDisplayNode(dataset, false);
+      if (datasetRendering)
+        {
+        datasetRendering->SetViewNodeIDs(RenderingViews(datasetState));
+        }
+      this->SetVolumeRenderingVisibility(dataset, true, !vtkSlicerAstroVolumeLogic::IsOnSameSkyGrid(dataset, product));
+      }
+    }
+  product->RemoveAttribute(ShownProductRenderingAttribute);
+  product->RemoveAttribute(ShownDatasetRenderingAttribute);
+  product->RemoveAttribute(ShownReplacedAttribute);
+  product->RemoveAttribute(ShownReplacedOffsetAttribute);
+  product->RemoveAttribute(ShownInPlaceOfAttribute);
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::ToggleProductInViews(vtkMRMLAstroVolumeNode* product, vtkMRMLAstroVolumeNode* dataset)
+{
+  return vtkSlicerAstroVolumeLogic::IsProductShownInViews(product) ? this->HideProductInViews(product) :
+                                                                      this->ShowProductInViews(product, dataset);
+}
+
+//----------------------------------------------------------------------------
+void vtkSlicerAstroVolumeLogic::HideProductsInViews(vtkMRMLAstroVolumeNode* dataset)
+{
+  vtkMRMLScene* scene = dataset ? dataset->GetScene() : nullptr;
+  if (!scene || !dataset->GetID())
+    {
+    return;
+    }
+  std::vector<vtkMRMLNode*> volumes;
+  scene->GetNodesByClass("vtkMRMLAstroVolumeNode", volumes);
+  // maps first: they restore what their view showed (possibly a cube
+  // product, restored next)
+  for (int pass = 0; pass < 2; pass++)
+    {
+    for (vtkMRMLNode* node : volumes)
+      {
+      vtkMRMLAstroVolumeNode* volume = vtkMRMLAstroVolumeNode::SafeDownCast(node);
+      const char* shownInPlaceOf = volume ? volume->GetAttribute(ShownInPlaceOfAttribute) : nullptr;
+      if (shownInPlaceOf && !strcmp(shownInPlaceOf, dataset->GetID()) &&
+          (VolumeDimensions(volume) >= 3) == (pass == 1))
+        {
+        this->HideProductInViews(volume);
+        }
+      }
+    }
+}
+
+//----------------------------------------------------------------------------
 void vtkSlicerAstroVolumeLogic::ShowSelectedActiveVolume()
 {
   vtkMRMLScene* scene = this->GetMRMLScene();
@@ -4048,7 +4552,8 @@ bool vtkSlicerAstroVolumeLogic::NameMaskAfterReferenceVolume(vtkMRMLSegmentation
     {
     return false;
     }
-  std::string name = scene->GenerateUniqueName(std::string(volumeNode->GetName()) + "_mask");
+  std::string name = vtkSlicerAstroVolumeLogic::GetFreeNodeName(scene, std::string(volumeNode->GetName()) + "_mask",
+                                                                segmentationNode);
   segmentationNode->SetName(name.c_str());
   return true;
 }
@@ -4361,7 +4866,40 @@ bool vtkSlicerAstroVolumeLogic::SetBeam(vtkMRMLAstroVolumeNode* volumeNode, cons
   volumeNode->SetAttribute("SlicerAstro.BMIN", DoubleToString(bmin).c_str());
   volumeNode->SetAttribute("SlicerAstro.BPA", DoubleToString(bpa).c_str());
   volumeNode->EndModify(wasModifying);
+  // the moment maps of a cube have its beam (e.g. a beam estimated or
+  // entered after the maps were computed)
+  for (int order = 0; order < 3; order++)
+    {
+    vtkMRMLAstroVolumeNode* map = vtkSlicerAstroVolumeLogic::GetMomentMap(volumeNode, order);
+    if (map && map != volumeNode)
+      {
+      const int wasModifyingMap = map->StartModify();
+      map->SetAttribute("SlicerAstro.BMAJ", DoubleToString(bmaj).c_str());
+      map->SetAttribute("SlicerAstro.BMIN", DoubleToString(bmin).c_str());
+      map->SetAttribute("SlicerAstro.BPA", DoubleToString(bpa).c_str());
+      map->EndModify(wasModifyingMap);
+      }
+    }
   return true;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::HasNoise(vtkMRMLAstroVolumeNode* volumeNode)
+{
+  if (!volumeNode)
+    {
+    return false;
+    }
+  const char* datamodel = volumeNode->GetAttribute("SlicerAstro.DATAMODEL");
+  if (datamodel && (!strcmp(datamodel, "FIRSTMOMENTMAP") || !strcmp(datamodel, "SECONDMOMENTMAP")))
+    {
+    return false;
+    }
+  const char* bunit = volumeNode->GetAttribute("SlicerAstro.BUNIT");
+  std::string unit = bunit ? bunit : "";
+  unit.erase(std::remove(unit.begin(), unit.end(), ' '), unit.end());
+  std::transform(unit.begin(), unit.end(), unit.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+  return unit != "km/s" && unit != "m/s" && unit != "km.s-1" && unit != "m.s-1";
 }
 
 //----------------------------------------------------------------------------
@@ -4706,7 +5244,7 @@ vtkMRMLSegmentationNode* vtkSlicerAstroVolumeLogic::GetContoursSegmentationForVo
     {
     vtkSmartPointer<vtkMRMLSegmentationNode> newContours = vtkSmartPointer<vtkMRMLSegmentationNode>::Take(
       vtkMRMLSegmentationNode::SafeDownCast(scene->CreateNodeByClass("vtkMRMLSegmentationNode")));
-    newContours->SetName(scene->GetUniqueNameByString(contoursName.c_str()));
+    newContours->SetName(vtkSlicerAstroVolumeLogic::GetFreeNodeName(scene, contoursName).c_str());
     // marked as contours before being added (never listed as a mask)
     newContours->SetAttribute(vtkSlicerAstroVolumeLogic::GetContoursAttributeName(), "true");
     scene->AddNode(newContours);
@@ -4783,7 +5321,7 @@ vtkMRMLSegmentationNode* vtkSlicerAstroVolumeLogic::GetMaskSegmentationForVolume
     {
     vtkSmartPointer<vtkMRMLSegmentationNode> newMask = vtkSmartPointer<vtkMRMLSegmentationNode>::Take(
       vtkMRMLSegmentationNode::SafeDownCast(scene->CreateNodeByClass("vtkMRMLSegmentationNode")));
-    newMask->SetName(scene->GetUniqueNameByString((std::string(volumeNode->GetName()) + "_mask").c_str()));
+    newMask->SetName(vtkSlicerAstroVolumeLogic::GetFreeNodeName(scene, std::string(volumeNode->GetName()) + "_mask").c_str());
     scene->AddNode(newMask);
     newMask->CreateDefaultDisplayNodes();
     if (newMask->GetDisplayNode())
@@ -4797,6 +5335,13 @@ vtkMRMLSegmentationNode* vtkSlicerAstroVolumeLogic::GetMaskSegmentationForVolume
   if (mask && volumeNode->GetNodeReference(maskRole) != mask)
     {
     volumeNode->SetNodeReferenceID(maskRole, mask->GetID());
+    // one mask per dataset, named after it ("<data>_mask"; the names of a
+    // scene are kept)
+    const std::string maskName = std::string(volumeNode->GetName() ? volumeNode->GetName() : "") + "_mask";
+    if (!scene->IsImporting() && volumeNode->GetName() && (!mask->GetName() || maskName != mask->GetName()))
+      {
+      mask->SetName(vtkSlicerAstroVolumeLogic::GetFreeNodeName(scene, maskName, mask).c_str());
+      }
     }
   return mask;
 }
@@ -5256,50 +5801,8 @@ bool vtkSlicerAstroVolumeLogic::ComputeHistogramInRange(vtkMRMLVolumeNode* volum
 bool vtkSlicerAstroVolumeLogic::ComputeClippedWindow(vtkMRMLVolumeNode* volume, double percentage, double window[2],
                                                      vtkIdType maxSamples)
 {
-  std::vector<double> values = SampleFiniteVoxels(volume, maxSamples);
-  if (values.empty())
-    {
-    return false;
-    }
-  std::vector<double> negative, positive;
-  for (double value : values)
-    {
-    if (value < 0.)
-      {
-      negative.push_back(value);
-      }
-    else if (value > 0.)
-      {
-      positive.push_back(value);
-      }
-    }
-  const std::pair<std::vector<double>::iterator, std::vector<double>::iterator> range =
-    std::minmax_element(values.begin(), values.end());
-  window[0] = *range.first;
-  window[1] = *range.second;
-  const double fraction = std::max(0., std::min(percentage / 100., 1.));
-  if (fraction >= 1.)
-    {
-    return true;
-    }
-  // quantiles with linear interpolation (as numpy.quantile)
-  const std::function<double(std::vector<double>&, double)> quantile = [](std::vector<double>& data, double q)
-    {
-    std::sort(data.begin(), data.end());
-    const double position = q * (data.size() - 1);
-    const size_t lower = static_cast<size_t>(std::floor(position));
-    const size_t upper = std::min(lower + 1, data.size() - 1);
-    return data[lower] + (position - lower) * (data[upper] - data[lower]);
-    };
-  if (!negative.empty())
-    {
-    window[0] = quantile(negative, 1. - fraction);
-    }
-  if (!positive.empty())
-    {
-    window[1] = quantile(positive, fraction);
-    }
-  return true;
+  return vtkMRMLAstroVolumeNode::ComputeClippedWindow(volume ? volume->GetImageData() : nullptr, percentage, window,
+                                                      maxSamples);
 }
 
 //----------------------------------------------------------------------------
@@ -5403,7 +5906,7 @@ vtkMRMLSegmentationNode* vtkSlicerAstroVolumeLogic::CreateThresholdMask(vtkMRMLA
     }
   vtkSmartPointer<vtkMRMLSegmentationNode> maskNode = vtkSmartPointer<vtkMRMLSegmentationNode>::Take(
     vtkMRMLSegmentationNode::SafeDownCast(scene->CreateNodeByClass("vtkMRMLSegmentationNode")));
-  maskNode->SetName(scene->GetUniqueNameByString((std::string(data->GetName()) + "_mask").c_str()));
+  maskNode->SetName(vtkSlicerAstroVolumeLogic::GetFreeNodeName(scene, std::string(data->GetName()) + "_mask").c_str());
   maskNode->SetAttribute(vtkSlicerAstroVolumeLogic::GetThresholdMaskAttributeName(), data->GetID());
   scene->AddNode(maskNode);
   maskNode->CreateDefaultDisplayNodes();
@@ -6253,6 +6756,250 @@ int vtkSlicerAstroVolumeLogic::AttachMasksToVolume(vtkMRMLAstroVolumeNode* volum
 }
 
 //----------------------------------------------------------------------------
+namespace
+{
+struct OpticalLine
+{
+  const char* Name;
+  /// rest wavelength in vacuum, Angstrom (SDSS line list)
+  double Wavelength;
+};
+const OpticalLine OpticalLines[] = {
+  {"Ly\u03B1", 1215.67},
+  {"[OII] 3727", 3727.09},
+  {"[OII] 3730", 3729.88},
+  {"H\u03B4", 4102.89},
+  {"H\u03B3", 4341.68},
+  {"H\u03B2", 4862.68},
+  {"[OIII] 4960", 4960.30},
+  {"[OIII] 5008", 5008.24},
+  {"HeI 5877", 5877.29},
+  {"[OI] 6302", 6302.05},
+  {"[NII] 6550", 6549.86},
+  {"H\u03B1", 6564.61},
+  {"[NII] 6585", 6585.27},
+  {"[SII] 6718", 6718.29},
+  {"[SII] 6733", 6732.67},
+  {"[SIII] 9071", 9071.10},
+  {"[SIII] 9533", 9533.20},
+  {"Pa\u03B2", 12821.59},
+  {"Pa\u03B1", 18756.13},
+  {"Br\u03B3", 21661.20},
+};
+} // end of anonymous namespace
+
+//----------------------------------------------------------------------------
+int vtkSlicerAstroVolumeLogic::GetNumberOfOpticalLines()
+{
+  return static_cast<int>(sizeof(OpticalLines) / sizeof(OpticalLines[0]));
+}
+
+//----------------------------------------------------------------------------
+std::string vtkSlicerAstroVolumeLogic::GetOpticalLineName(int index)
+{
+  return index >= 0 && index < GetNumberOfOpticalLines() ? OpticalLines[index].Name : "";
+}
+
+//----------------------------------------------------------------------------
+double vtkSlicerAstroVolumeLogic::GetOpticalLineWavelength(int index)
+{
+  return index >= 0 && index < GetNumberOfOpticalLines() ? OpticalLines[index].Wavelength * 1.e-10 : 0.;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::IsWavelengthAxis(vtkMRMLAstroVolumeNode* volume)
+{
+  vtkMRMLAstroVolumeDisplayNode* displayNode = volume ? volume->GetAstroVolumeDisplayNode() : nullptr;
+  return displayNode && displayNode->IsWavelengthAxis();
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::SetRestWavelength(vtkMRMLAstroVolumeNode* volume, double restWavelength)
+{
+  vtkMRMLAstroVolumeDisplayNode* displayNode = volume ? volume->GetAstroVolumeDisplayNode() : nullptr;
+  if (!displayNode || !displayNode->IsWavelengthAxis() || !(restWavelength > 0.))
+    {
+    return false;
+    }
+  struct wcsprm* wcs = displayNode->GetWCSStruct();
+  const double speedOfLight = 299792458.;
+  const double restFrequency = speedOfLight / restWavelength;
+  // the line, then the optical velocity (as the reader for data with a rest
+  // wavelength)
+  vtkFITSReader::ConvertCDMatrixToPC(wcs);
+  wcs->restwav = restWavelength;
+  wcs->restfrq = 0.;
+  wcs->flag = 0;
+  if (wcsset(wcs) || !displayNode->SetOpticalVelocityDefinition(false))
+    {
+    vtkGenericWarningMacro("SetRestWavelength: the spectral axis of " << (volume->GetName() ? volume->GetName() : "")
+                  << " could not be converted to optical velocities.");
+    return false;
+    }
+  displayNode->SetSpaceQuantity(2, "velocity");
+  // the attributes of the spectral axis, as after loading
+  volume->SetAttribute("SlicerAstro.RESTFREQ", DoubleToString(restFrequency).c_str());
+  volume->SetAttribute("SlicerAstro.CTYPE3", wcs->ctype[2]);
+  volume->SetAttribute("SlicerAstro.CUNIT3", wcs->cunit[2]);
+  volume->SetAttribute("SlicerAstro.CRVAL3", DoubleToString(wcs->crval[2]).c_str());
+  volume->SetAttribute("SlicerAstro.CDELT3", DoubleToString(wcs->cdelt[2]).c_str());
+  volume->SetAttribute("SlicerAstro.CRPIX3", DoubleToString(wcs->crpix[2]).c_str());
+  if (wcs->naxis == 3)
+    {
+    volume->SetAttribute("SlicerAstro.PC3_3", DoubleToString(wcs->pc[8]).c_str());
+    }
+  // saved with the axis of the file and the line (RESTFRQ)
+  vtkMRMLAstroVolumeStorageNode::RecordRestFrequency(volume, restFrequency);
+  displayNode->Modified();
+  volume->Modified();
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::GetFITSDataDescription(const char* fileName, int hduNumber, int dimensions[3],
+                                                       int* bytesPerVoxel, vtkDoubleArray* spectralValues,
+                                                       std::string* spectralUnit)
+{
+  dimensions[0] = dimensions[1] = dimensions[2] = 1;
+  if (spectralValues)
+    {
+    spectralValues->Reset();
+    }
+  if (spectralUnit)
+    {
+    spectralUnit->clear();
+    }
+  if (!fileName || !*fileName)
+    {
+    return false;
+    }
+  // the header only (UpdateInformation reads no voxels)
+  vtkNew<vtkFITSReader> reader;
+  reader->SetFileName(fileName);
+  reader->SetHDUNumber(hduNumber);
+  if (!reader->CanReadFile(fileName))
+    {
+    return false;
+    }
+  reader->UpdateInformation();
+  int extent[6] = {0, -1, 0, -1, 0, -1};
+  reader->GetDataExtent(extent);
+  for (int axis = 0; axis < 3; axis++)
+    {
+    dimensions[axis] = std::max(1, extent[2 * axis + 1] - extent[2 * axis] + 1);
+    }
+  if (bytesPerVoxel)
+    {
+    *bytesPerVoxel = vtkDataArray::GetDataTypeSize(reader->GetDataScalarType());
+    }
+  struct wcsprm* wcs = reader->GetWCSStruct();
+  if (!spectralValues || !wcs || reader->GetWCSStatus() != 0 || wcs->naxis < 3 || dimensions[2] < 2)
+    {
+    return true;
+    }
+  // the spectral coordinate of each channel at the centre of the field
+  const int count = dimensions[2];
+  std::vector<double> pixels(static_cast<size_t>(count) * wcs->naxis, 0.);
+  for (int channel = 0; channel < count; channel++)
+    {
+    pixels[channel * wcs->naxis + 0] = 0.5 * (dimensions[0] + 1);
+    pixels[channel * wcs->naxis + 1] = 0.5 * (dimensions[1] + 1);
+    pixels[channel * wcs->naxis + 2] = channel + 1;
+    for (int axis = 3; axis < wcs->naxis; axis++)
+      {
+      pixels[channel * wcs->naxis + axis] = 1.;
+      }
+    }
+  std::vector<double> intermediate(pixels.size()), world(pixels.size());
+  std::vector<double> phi(count), theta(count);
+  std::vector<int> status(count);
+  if (wcsp2s(wcs, count, wcs->naxis, pixels.data(), intermediate.data(), phi.data(), theta.data(), world.data(),
+             status.data()))
+    {
+    return true;
+    }
+  // velocities in km/s, wavelengths (m for WCSLIB) in Angstrom, other
+  // spectral types in their units
+  const std::string unit = wcs->cunit[2];
+  const double scale = (unit == "m/s") ? 0.001 : (unit == "m" ? 1.e10 : 1.);
+  for (int channel = 0; channel < count; channel++)
+    {
+    spectralValues->InsertNextValue(world[channel * wcs->naxis + 2] * scale);
+    }
+  if (spectralUnit)
+    {
+    *spectralUnit = unit == "m/s" ? std::string("km/s") : (unit == "m" ? std::string("\u00C5") : unit);
+    }
+  return true;
+}
+
+//----------------------------------------------------------------------------
+std::string vtkSlicerAstroVolumeLogic::GetFreeNodeName(vtkMRMLScene* scene, const std::string& baseName,
+                                                       vtkMRMLNode* except)
+{
+  if (!scene)
+    {
+    return baseName;
+    }
+  for (int index = 0; ; index++)
+    {
+    const std::string candidate = index == 0 ? baseName : baseName + "_" + std::to_string(index);
+    bool used = false;
+    vtkSmartPointer<vtkCollection> nodes = vtkSmartPointer<vtkCollection>::Take(
+      scene->GetNodesByName(candidate.c_str()));
+    for (int item = 0; nodes && item < nodes->GetNumberOfItems(); item++)
+      {
+      vtkMRMLNode* node = vtkMRMLNode::SafeDownCast(nodes->GetItemAsObject(item));
+      if (node && node != except)
+        {
+        used = true;
+        break;
+        }
+      }
+    if (!used)
+      {
+      return candidate;
+      }
+    }
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::IsMaskCopyTarget(vtkMRMLAstroVolumeNode* sourceVolume,
+                                                 vtkMRMLAstroVolumeNode* targetVolume)
+{
+  if (!sourceVolume || !targetVolume || sourceVolume == targetVolume || !sourceVolume->GetImageData() ||
+      !targetVolume->GetImageData())
+    {
+    return false;
+    }
+  const int sourceAxes = StringToInt(sourceVolume->GetAttribute("SlicerAstro.NAXIS"));
+  const int targetAxes = StringToInt(targetVolume->GetAttribute("SlicerAstro.NAXIS"));
+  if (sourceAxes != targetAxes && !(sourceAxes == 3 && targetAxes == 2))
+    {
+    return false;
+    }
+  int offset[3] = {0, 0, 0};
+  if (!vtkSlicerAstroVolumeLogic::GetGridOffset(sourceVolume, targetVolume, offset))
+    {
+    return false;
+    }
+  // the grids overlap (a projection on a 2D map ignores the channels)
+  int sourceDimensions[3] = {0, 0, 0};
+  int targetDimensions[3] = {0, 0, 0};
+  sourceVolume->GetImageData()->GetDimensions(sourceDimensions);
+  targetVolume->GetImageData()->GetDimensions(targetDimensions);
+  const int axes = (sourceAxes == 3 && targetAxes == 2) ? 2 : 3;
+  for (int axis = 0; axis < axes; axis++)
+    {
+    if (offset[axis] >= targetDimensions[axis] || offset[axis] + sourceDimensions[axis] <= 0)
+      {
+      return false;
+      }
+    }
+  return true;
+}
+
+//----------------------------------------------------------------------------
 vtkMRMLSegmentationNode* vtkSlicerAstroVolumeLogic::CopyMaskSegmentsToVolume(
   vtkMRMLSegmentationNode* segmentationNode, vtkStringArray* segmentIDsArray,
   vtkMRMLAstroVolumeNode* targetVolume, bool move)
@@ -6298,6 +7045,13 @@ vtkMRMLSegmentationNode* vtkSlicerAstroVolumeLogic::CopyMaskSegmentsToVolume(
     this->LastMaskCopyError = "the mask has no segments.";
     return nullptr;
     }
+  if (!vtkSlicerAstroVolumeLogic::IsMaskCopyTarget(sourceVolume, targetVolume))
+    {
+    this->LastMaskCopyError = std::string(targetVolume->GetName()) + " is not on the grid of " +
+      sourceVolume->GetName() + ": segments are copied only to data on the same voxel grid (reproject the data "
+      "first).";
+    return nullptr;
+    }
   vtkMRMLSegmentationNode* targetMask = this->GetMaskSegmentationForVolume(targetVolume, true);
   if (!targetMask)
     {
@@ -6324,152 +7078,49 @@ vtkMRMLSegmentationNode* vtkSlicerAstroVolumeLogic::CopyMaskSegmentsToVolume(
   // the masks of the segments on the grid of the target volume
   std::vector<std::vector<unsigned char> > targetMasks(segmentIDs.size());
   int offset[3] = {0, 0, 0};
-  const bool lattice = vtkSlicerAstroVolumeLogic::GetGridOffset(sourceVolume, targetVolume, offset);
-  if (lattice && (sourceAxes == targetAxes || (sourceAxes == 3 && targetAxes == 2)))
+  vtkSlicerAstroVolumeLogic::GetGridOffset(sourceVolume, targetVolume, offset);
+  // same voxel lattice (offset), or projection along the channels on a 2D
+  // image of the same sky grid (IsMaskCopyTarget)
+  const bool projection = sourceAxes == 3 && targetAxes == 2;
+  for (size_t index = 0; index < segmentIDs.size(); index++)
     {
-    // same voxel lattice (offset), or projection along the channels on a 2D
-    // image of the same sky grid
-    const bool projection = sourceAxes == 3 && targetAxes == 2;
-    for (size_t index = 0; index < segmentIDs.size(); index++)
+    vtkNew<vtkImageData> sourceMask;
+    std::string error;
+    if (!vtkSlicerAstroVolumeLogic::CreateSegmentMask(segmentationNode, segmentIDs[index].c_str(), sourceVolume,
+                                                      sourceMask, error))
       {
-      vtkNew<vtkImageData> sourceMask;
-      std::string error;
-      if (!vtkSlicerAstroVolumeLogic::CreateSegmentMask(segmentationNode, segmentIDs[index].c_str(), sourceVolume,
-                                                        sourceMask, error))
+      this->LastMaskCopyError = error;
+      return nullptr;
+      }
+    const unsigned char* source = static_cast<unsigned char*>(sourceMask->GetScalarPointer());
+    std::vector<unsigned char>& target = targetMasks[index];
+    target.assign(static_cast<size_t>(targetSize), 0);
+    for (int k = 0; k < sourceDimensions[2]; k++)
+      {
+      const int tk = projection ? 0 : k + offset[2];
+      if (tk < 0 || tk >= targetDimensions[2])
         {
-        this->LastMaskCopyError = error;
-        return nullptr;
+        continue;
         }
-      const unsigned char* source = static_cast<unsigned char*>(sourceMask->GetScalarPointer());
-      std::vector<unsigned char>& target = targetMasks[index];
-      target.assign(static_cast<size_t>(targetSize), 0);
-      for (int k = 0; k < sourceDimensions[2]; k++)
+      for (int j = 0; j < sourceDimensions[1]; j++)
         {
-        const int tk = projection ? 0 : k + offset[2];
-        if (tk < 0 || tk >= targetDimensions[2])
+        const int tj = j + offset[1];
+        if (tj < 0 || tj >= targetDimensions[1])
           {
           continue;
           }
-        for (int j = 0; j < sourceDimensions[1]; j++)
+        const unsigned char* row = source + (static_cast<vtkIdType>(k) * sourceDimensions[1] + j) * sourceDimensions[0];
+        unsigned char* targetRow = target.data() + tk * targetSlice + static_cast<vtkIdType>(tj) * targetDimensions[0];
+        for (int i = 0; i < sourceDimensions[0]; i++)
           {
-          const int tj = j + offset[1];
-          if (tj < 0 || tj >= targetDimensions[1])
+          const int ti = i + offset[0];
+          if (row[i] && ti >= 0 && ti < targetDimensions[0])
             {
-            continue;
-            }
-          const unsigned char* row = source + (static_cast<vtkIdType>(k) * sourceDimensions[1] + j) * sourceDimensions[0];
-          unsigned char* targetRow = target.data() + tk * targetSlice + static_cast<vtkIdType>(tj) * targetDimensions[0];
-          for (int i = 0; i < sourceDimensions[0]; i++)
-            {
-            const int ti = i + offset[0];
-            if (row[i] && ti >= 0 && ti < targetDimensions[0])
-              {
-              targetRow[ti] = 1;
-              }
+            targetRow[ti] = 1;
             }
           }
         }
       }
-    }
-  else
-    {
-    // another grid: the segments (labels 1, 2, ...) reprojected with the WCS
-    if (sourceAxes != targetAxes)
-      {
-      this->LastMaskCopyError = std::string("the mask of ") + sourceVolume->GetName() + " (" +
-        std::to_string(sourceAxes) + "D) can not be copied to " + targetVolume->GetName() + " (" +
-        std::to_string(targetAxes) + "D) on another sky grid.";
-      return nullptr;
-      }
-    if (!this->ReprojectFunction)
-      {
-      this->LastMaskCopyError = "the grids differ and the reprojection (AstroReproject module) is not available.";
-      return nullptr;
-      }
-    vtkMRMLAstroVolumeNode* labelVolume = this->CloneAstroVolume(scene, sourceVolume, nullptr, "_masklabels",
-      (std::string(sourceVolume->GetName()) + "_masklabels").c_str(), true);
-    if (!labelVolume || !labelVolume->GetImageData())
-      {
-      this->LastMaskCopyError = "the labels of the mask could not be prepared.";
-      return nullptr;
-      }
-    vtkNew<vtkImageData> labels;
-    labels->SetExtent(sourceVolume->GetImageData()->GetExtent());
-    labels->AllocateScalars(VTK_FLOAT, 1);
-    float* labelVoxels = static_cast<float*>(labels->GetScalarPointer());
-    std::fill(labelVoxels, labelVoxels + labels->GetNumberOfPoints(), 0.f);
-    for (size_t index = 0; index < segmentIDs.size(); index++)
-      {
-      vtkNew<vtkImageData> sourceMask;
-      std::string error;
-      if (!vtkSlicerAstroVolumeLogic::CreateSegmentMask(segmentationNode, segmentIDs[index].c_str(), sourceVolume,
-                                                        sourceMask, error))
-        {
-        scene->RemoveNode(labelVolume);
-        this->LastMaskCopyError = error;
-        return nullptr;
-        }
-      const unsigned char* source = static_cast<unsigned char*>(sourceMask->GetScalarPointer());
-      for (vtkIdType voxel = 0; voxel < labels->GetNumberOfPoints(); voxel++)
-        {
-        if (source[voxel])
-          {
-          labelVoxels[voxel] = static_cast<float>(index + 1);
-          }
-        }
-      }
-    labelVolume->SetAndObserveImageData(labels);
-    labelVolume->SetAttribute("SlicerAstro.BITPIX", "-32");
-
-    vtkNew<vtkMRMLAstroReprojectParametersNode> reprojectParameters;
-    reprojectParameters->SetInputVolumeNodeID(labelVolume->GetID());
-    reprojectParameters->SetInputVolumeNodeIDs(labelVolume->GetID());
-    reprojectParameters->SetReferenceVolumeNodeID(targetVolume->GetID());
-    reprojectParameters->SetSpatialGridMode(vtkMRMLAstroReprojectParametersNode::SpatialReference);
-    reprojectParameters->SetSpectralGridMode(targetAxes > 2 ? vtkMRMLAstroReprojectParametersNode::SpectralReference :
-                                                              vtkMRMLAstroReprojectParametersNode::SpectralInput);
-    reprojectParameters->SetInterpolationOrder(vtkMRMLAstroReprojectParametersNode::NearestNeighbour);
-    reprojectParameters->SetSpectralMethod(vtkMRMLAstroReprojectParametersNode::SpectralNearest);
-    const bool reprojected = this->Reproject(reprojectParameters);
-    scene->RemoveNode(labelVolume);
-    vtkMRMLAstroVolumeNode* outputVolume = vtkMRMLAstroVolumeNode::SafeDownCast(
-      reprojectParameters->GetOutputVolumeNodeID() ? scene->GetNodeByID(reprojectParameters->GetOutputVolumeNodeID()) : nullptr);
-    if (!reprojected || !outputVolume || !outputVolume->GetImageData())
-      {
-      if (outputVolume)
-        {
-        scene->RemoveNode(outputVolume);
-        }
-      this->LastMaskCopyError = "the reprojection of the mask failed: " + this->GetLastReprojectError();
-      return nullptr;
-      }
-    int outputDimensions[3] = {0, 0, 0};
-    outputVolume->GetImageData()->GetDimensions(outputDimensions);
-    vtkDataArray* outputScalars = outputVolume->GetImageData()->GetPointData()->GetScalars();
-    if (!outputScalars || outputDimensions[0] != targetDimensions[0] || outputDimensions[1] != targetDimensions[1] ||
-        outputDimensions[2] != targetDimensions[2])
-      {
-      scene->RemoveNode(outputVolume);
-      this->LastMaskCopyError = "the reprojected mask is not on the grid of the target volume.";
-      return nullptr;
-      }
-    for (size_t index = 0; index < segmentIDs.size(); index++)
-      {
-      targetMasks[index].assign(static_cast<size_t>(targetSize), 0);
-      }
-    for (vtkIdType voxel = 0; voxel < targetSize; voxel++)
-      {
-      const double value = outputScalars->GetComponent(voxel, 0);
-      if (std::isfinite(value) && value > 0.5)
-        {
-        const size_t index = static_cast<size_t>(std::lround(value)) - 1;
-        if (index < targetMasks.size())
-          {
-          targetMasks[index][static_cast<size_t>(voxel)] = 1;
-          }
-        }
-      }
-    scene->RemoveNode(outputVolume);
     }
 
   // the segments in the mask of the target volume (names, colors, terminology)
@@ -6539,9 +7190,83 @@ bool vtkSlicerAstroVolumeLogic::ReplaceEmptyMaskOfReferenceVolume(vtkMRMLSegment
     {
     return false;
     }
+  // one mask per dataset, named "<data>_mask"
+  const std::string name = currentMask->GetName() ? currentMask->GetName() : "";
   volumeNode->SetNodeReferenceID(maskRole, segmentationNode->GetID());
   scene->RemoveNode(currentMask);
+  if (!name.empty())
+    {
+    segmentationNode->SetName(name.c_str());
+    }
   return true;
+}
+
+//----------------------------------------------------------------------------
+vtkMRMLSegmentationNode* vtkSlicerAstroVolumeLogic::GetConflictingMask(vtkMRMLSegmentationNode* loadedMask)
+{
+  if (!vtkSlicerAstroVolumeLogic::IsMaskSegmentation(loadedMask))
+    {
+    return nullptr;
+    }
+  vtkMRMLAstroVolumeNode* volumeNode = vtkMRMLAstroVolumeNode::SafeDownCast(loadedMask->GetNodeReference(
+    vtkMRMLSegmentationNode::GetReferenceImageGeometryReferenceRole().c_str()));
+  vtkMRMLSegmentationNode* currentMask = volumeNode ? vtkMRMLSegmentationNode::SafeDownCast(
+    volumeNode->GetNodeReference(vtkSlicerAstroVolumeLogic::GetMaskReferenceRole())) : nullptr;
+  if (!currentMask || currentMask == loadedMask || !currentMask->GetSegmentation() ||
+      currentMask->GetSegmentation()->GetNumberOfSegments() == 0)
+    {
+    return nullptr;
+    }
+  return currentMask;
+}
+
+//----------------------------------------------------------------------------
+vtkMRMLSegmentationNode* vtkSlicerAstroVolumeLogic::ResolveMaskConflict(vtkMRMLSegmentationNode* loadedMask,
+                                                                        int resolution)
+{
+  vtkMRMLScene* scene = loadedMask ? loadedMask->GetScene() : nullptr;
+  vtkMRMLSegmentationNode* currentMask = vtkSlicerAstroVolumeLogic::GetConflictingMask(loadedMask);
+  if (!scene || !currentMask)
+    {
+    return loadedMask;
+    }
+  vtkMRMLAstroVolumeNode* volumeNode = vtkMRMLAstroVolumeNode::SafeDownCast(loadedMask->GetNodeReference(
+    vtkMRMLSegmentationNode::GetReferenceImageGeometryReferenceRole().c_str()));
+  if (resolution == MaskConflictReplace)
+    {
+    const std::string name = currentMask->GetName() ? currentMask->GetName() : "";
+    volumeNode->SetNodeReferenceID(vtkSlicerAstroVolumeLogic::GetMaskReferenceRole(), loadedMask->GetID());
+    scene->RemoveNode(currentMask);
+    if (!name.empty())
+      {
+      loadedMask->SetName(name.c_str());
+      }
+    return loadedMask;
+    }
+  if (resolution == MaskConflictMerge)
+    {
+    vtkSegmentation* target = currentMask->GetSegmentation();
+    vtkSegmentation* source = loadedMask->GetSegmentation();
+    std::vector<std::string> segmentIDs;
+    source->GetSegmentIDs(segmentIDs);
+    {
+    MRMLNodeModifyBlocker blocker(currentMask);
+    for (const std::string& segmentID : segmentIDs)
+      {
+      vtkNew<vtkSegment> segment;
+      segment->DeepCopy(source->GetSegment(segmentID));
+      target->AddSegment(segment, target->GenerateUniqueSegmentID(segmentID));
+      }
+    }
+    }
+  // merged or cancelled: the loaded mask (and its storage) leaves the scene
+  vtkMRMLStorageNode* storageNode = loadedMask->GetStorageNode();
+  scene->RemoveNode(loadedMask);
+  if (storageNode && storageNode->GetScene())
+    {
+    scene->RemoveNode(storageNode);
+    }
+  return currentMask;
 }
 
 //----------------------------------------------------------------------------

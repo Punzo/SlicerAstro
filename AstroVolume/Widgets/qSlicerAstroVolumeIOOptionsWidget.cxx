@@ -208,7 +208,10 @@ void qSlicerAstroVolumeIOOptionsWidget::updateColorSelector()
       }
     else
       {
-      d->ColorTableComboBox->setCurrentNodeID(appLogic->GetColorLogic()->GetDefaultVolumeColorNodeID());
+      // the SlicerAstro default colours (Observatory)
+      vtkMRMLNode* observatory = this->mrmlScene()->GetFirstNodeByName("Observatory");
+      d->ColorTableComboBox->setCurrentNodeID(observatory ? QString::fromUtf8(observatory->GetID()) :
+        QString::fromUtf8(appLogic->GetColorLogic()->GetDefaultVolumeColorNodeID()));
       }
     }
 }

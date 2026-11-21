@@ -59,6 +59,10 @@ public slots:
   void applyPercentage(int index);
   /// Updates the widgets from the volume and its display node
   void updateFromVolume();
+  /// The lines of the histogram dragged: the window (2D colour function)
+  /// and the noise (3D colour function) applied while dragging
+  void onHistogramWindowDragged(double minimum, double maximum);
+  void onHistogramNoiseDragged(double noise);
 
 protected slots:
   void onColorTableActivated(int index);
@@ -68,6 +72,7 @@ protected slots:
   void onFieldsEdited();
   void onWindowChanging(double minimum, double maximum);
   void onNoiseChanging(double noise);
+  void applyPendingNoise();
   void onViewRangeChanged(double minimum, double maximum);
   void onVolumeModified(vtkObject* caller);
 

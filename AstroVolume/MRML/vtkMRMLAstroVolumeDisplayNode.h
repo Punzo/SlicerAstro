@@ -148,6 +148,10 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeDisplayNode : public vtkMRMLScalar
   /// Get the velocity definition currently in use
   virtual std::string GetVelocityDefinition();
 
+  /// Whether the spectral axis is a wavelength (WAVE, AWAV: optical data
+  /// without a rest wavelength, no velocities)
+  bool IsWavelengthAxis();
+
   /// Get WCS Coordinates from IJK
   virtual bool GetReferenceSpace(const double ijk[3],
                                  double SpaceCoordinates[3]);

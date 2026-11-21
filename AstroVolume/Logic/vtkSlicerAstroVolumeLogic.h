@@ -163,6 +163,14 @@ public:
   /// 1: Doppler, 2: Ember)
   static const char* GetMomentMapColorTableName(int order);
 
+  /// Default 2D colour table of astronomical data: Doppler for velocity
+  /// fields (moment 1), Ember for dispersions (moment 2), Observatory for the
+  /// other data (cubes, images, moment 0)
+  static const char* GetDefaultColorTableName(vtkMRMLVolumeNode* volumeNode);
+  /// The default 2D colour table set on a volume (false if the table is not
+  /// in the scene)
+  static bool SetDefaultColorTable(vtkMRMLVolumeNode* volumeNode);
+
   /// Volume Rendering module logic (set by the AstroVolume module): used to
   /// create the volume rendering nodes and the cropping box of the volumes
   void SetVolumeRenderingLogic(vtkSlicerVolumeRenderingLogic* volumeRenderingLogic);
@@ -218,6 +226,65 @@ public:
   /// when shown); centerCameras points the cameras of the views showing it
   /// at the cube along the velocity axis, north up
   bool SetVolumeRenderingVisibility(vtkMRMLAstroVolumeNode* volumeNode, bool visible, bool centerCameras = true);
+
+  /// A product of a dataset (smoothed, blanked or cropped cube, model,
+  /// moment map...) shown in place of the dataset, which stays the active
+  /// volume. A cube replaces the dataset in all the views showing it (slice
+  /// views and 3D views); a 2D map is shown in one channel-map view (the one
+  /// already showing a map of the dataset, otherwise the yellow view if it is
+  /// in the layout, otherwise the red one). Data on the sky grid of the
+  /// dataset keep the zoom, pan, channel and 3D cameras of the views; other
+  /// data are fitted. Used by the Show buttons of the panels and the
+  /// Workbench. Returns false if nothing was shown.
+  bool ShowProductInViews(vtkMRMLAstroVolumeNode* product, vtkMRMLAstroVolumeNode* dataset);
+  /// The dataset (or what the view showed before a map) back in place of a
+  /// product shown by ShowProductInViews.
+  bool HideProductInViews(vtkMRMLAstroVolumeNode* product);
+  /// ShowProductInViews, or HideProductInViews if the product is shown.
+  bool ToggleProductInViews(vtkMRMLAstroVolumeNode* product, vtkMRMLAstroVolumeNode* dataset);
+  /// Every product of a dataset shown by ShowProductInViews: the dataset back.
+  void HideProductsInViews(vtkMRMLAstroVolumeNode* dataset);
+  /// True if a product is shown in place of its dataset (ShowProductInViews)
+  static bool IsProductShownInViews(vtkMRMLAstroVolumeNode* product);
+
+  /// True if two volumes share their pixels on the sky (the same columns and
+  /// rows; they may differ along the spectral axis, e.g. a cube and its
+  /// moment maps); sameVoxels: also the same channels (e.g. a cube and its
+  /// smoothed or blanked copy).
+  static bool IsOnSameSkyGrid(vtkMRMLVolumeNode* volume, vtkMRMLVolumeNode* other, bool sameVoxels = false);
+
+  /// The first free node name for baseName: baseName itself, then
+  /// baseName_1, baseName_2, ... (the lowest index not used by another node
+  /// than except). Unlike vtkMRMLScene::GenerateUniqueName, the numbering
+  /// restarts when the nodes with the name are deleted.
+  /// The data of an image HDU of a FITS file (0: the first image HDU with
+  /// data), from the header only: dimensions (1 for missing axes), bytes per
+  /// voxel when loaded (4: float, 8: double, 2 or 4: masks) and the spectral
+  /// coordinate of each channel at the centre of the field (WCS; empty if the
+  /// data have no spectral axis) with its unit (e.g. km/s). False if the
+  /// header can not be read.
+  static bool GetFITSDataDescription(const char* fileName, int hduNumber, int dimensions[3],
+                                     int* bytesPerVoxel, vtkDoubleArray* spectralValues,
+                                     std::string* spectralUnit);
+
+  /// Common optical and near-infrared emission lines (names, e.g. "Halpha",
+  /// and rest wavelengths in vacuum, in m), to choose the line of optical
+  /// data in wavelengths
+  static int GetNumberOfOpticalLines();
+  static std::string GetOpticalLineName(int index);
+  static double GetOpticalLineWavelength(int index);
+
+  /// Whether the spectral axis of a volume is in wavelengths (optical data
+  /// without a rest wavelength: no velocities)
+  static bool IsWavelengthAxis(vtkMRMLAstroVolumeNode* volume);
+  /// Sets the line of a volume whose spectral axis is in wavelengths: rest
+  /// wavelength in vacuum (m); the spectral axis becomes an optical velocity
+  /// (views, readouts, modules) and the file keeps its axis with RESTFRQ when
+  /// saved. False if the axis is not in wavelengths or the conversion fails.
+  static bool SetRestWavelength(vtkMRMLAstroVolumeNode* volume, double restWavelength);
+
+  static std::string GetFreeNodeName(vtkMRMLScene* scene, const std::string& baseName,
+                                     vtkMRMLNode* except = nullptr);
 
   /// Shift (data units), stretch (data units added to the distance of the
   /// outer points from the centre) and opacity shift of the 3D color
@@ -368,6 +435,11 @@ public:
   /// positive.
   static bool SetBeam(vtkMRMLAstroVolumeNode* volumeNode, const double beam[3]);
 
+  /// True if the noise σ of the data has a meaning (intensities: cubes,
+  /// images, moment-0 maps); false for maps of velocities (moment 1, moment
+  /// 2, data in km/s or m/s), whose σ is not a noise of the sky.
+  static bool HasNoise(vtkMRMLAstroVolumeNode* volumeNode);
+
   /// Velocity definition of the coordinates of a cube (readouts, axes):
   /// optical or radio. The slice views are updated. Returns false if the
   /// definition can not be changed (e.g. no velocity axis).
@@ -443,6 +515,25 @@ public:
   /// Returns true if replaced.
   bool ReplaceEmptyMaskOfReferenceVolume(vtkMRMLSegmentationNode* segmentationNode);
 
+  /// A loaded mask attached to a volume whose mask already has segments:
+  /// each dataset has one mask, so the loaded mask replaces it, is merged
+  /// into it, or is not loaded.
+  enum MaskConflictResolution
+    {
+    MaskConflictReplace = 0,
+    MaskConflictMerge,
+    MaskConflictCancel
+    };
+  /// The mask of the reference volume of a loaded mask, if it is another
+  /// mask with segments (nullptr: no conflict)
+  static vtkMRMLSegmentationNode* GetConflictingMask(vtkMRMLSegmentationNode* loadedMask);
+  /// Replace: the loaded mask becomes the mask of the volume, with the name
+  /// of the previous one (removed from the scene). Merge: the segments of
+  /// the loaded mask are added to the mask of the volume (unique IDs) and
+  /// the loaded mask is removed. Cancel: the loaded mask is removed.
+  /// Returns the mask of the volume afterwards.
+  static vtkMRMLSegmentationNode* ResolveMaskConflict(vtkMRMLSegmentationNode* loadedMask, int resolution);
+
   /// True if the segmentation has the geometry (voxel grid) of the volume.
   static bool HasGeometryOfVolume(vtkMRMLSegmentationNode* segmentationNode, vtkMRMLVolumeNode* volumeNode);
 
@@ -491,14 +582,20 @@ public:
   /// attached to it (AttachMaskToVolume). Returns the number of masks.
   int AttachMasksToVolume(vtkMRMLAstroVolumeNode* volumeNode);
 
+  /// True if segments of a mask of sourceVolume can be copied to the mask of
+  /// targetVolume: both on the same voxel grid (e.g. a smoothed copy, a
+  /// cutout: the same voxel lattice with an offset, overlapping) or
+  /// targetVolume a 2D image on the same sky grid as the cube (e.g. a moment
+  /// map: projection along the channels). Data on another grid must be
+  /// reprojected first.
+  static bool IsMaskCopyTarget(vtkMRMLAstroVolumeNode* sourceVolume, vtkMRMLAstroVolumeNode* targetVolume);
+
   /// Copy (move: copy, then remove from the mask) segments of a mask (all if
   /// segmentIDs is empty) to the mask of another volume. The mask must have
-  /// an astronomical reference volume. The segments are placed voxel by
-  /// voxel when the volumes are on the same voxel lattice (e.g. a smoothed
-  /// copy, a cutout), projected along the channels onto a 2D image on the
-  /// same sky grid (e.g. a moment map), otherwise reprojected with the WCS
-  /// (AstroReproject, nearest neighbour). On failure the reason is in
-  /// GetLastMaskCopyError. Returns the mask of the target volume.
+  /// an astronomical reference volume and the target volume must be on its
+  /// grid (IsMaskCopyTarget): the segments are placed voxel by voxel, or
+  /// projected along the channels onto a 2D image. On failure the reason is
+  /// in GetLastMaskCopyError. Returns the mask of the target volume.
   vtkMRMLSegmentationNode* CopyMaskSegmentsToVolume(vtkMRMLSegmentationNode* segmentationNode,
                                                     vtkStringArray* segmentIDs,
                                                     vtkMRMLAstroVolumeNode* targetVolume, bool move);

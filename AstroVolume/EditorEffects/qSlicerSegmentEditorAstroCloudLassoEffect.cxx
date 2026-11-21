@@ -39,7 +39,12 @@
 #include <vtkSegmentation.h>
 
 // Qt includes
+#include <QButtonGroup>
 #include <QCheckBox>
+#include <QFrame>
+#include <QGridLayout>
+#include <QHBoxLayout>
+#include <QToolButton>
 #include <QDebug>
 #include <QKeySequence>
 #include <QLabel>
@@ -103,6 +108,33 @@ struct LassoDecoration
 };
 
 //-----------------------------------------------------------------------------
+namespace
+{
+//-----------------------------------------------------------------------------
+/// A row of exclusive choices (styled as a segmented control by the theme of
+/// SlicerAstro: frame role "segmented")
+QFrame* SegmentedChoices(const QStringList& texts, const QStringList& toolTips, QButtonGroup* group)
+{
+  QFrame* frame = new QFrame();
+  frame->setProperty("astroRole", "segmented");
+  QHBoxLayout* layout = new QHBoxLayout(frame);
+  layout->setContentsMargins(2, 2, 2, 2);
+  layout->setSpacing(2);
+  for (int index = 0; index < texts.size(); index++)
+    {
+    QToolButton* button = new QToolButton(frame);
+    button->setText(texts[index]);
+    button->setToolTip(toolTips.value(index));
+    button->setCheckable(true);
+    button->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    group->addButton(button, index);
+    layout->addWidget(button);
+    }
+  group->setExclusive(true);
+  return frame;
+}
+} // end of anonymous namespace
+
 class qSlicerSegmentEditorAstroCloudLassoEffectPrivate
 {
 public:
@@ -111,6 +143,13 @@ public:
 
   QIcon CloudLassoIcon{ QIcon(":Icons/AstroCloudLasso.png") };
   QCheckBox* AutomaticThresholdCheckBox{ nullptr };
+  /// options of SlicerAstro (aligned rows, segmented choices) writing the
+  /// parameters of the Scissors effect, whose own widgets are hidden
+  QButtonGroup* FillGroup{ nullptr };
+  QButtonGroup* SideGroup{ nullptr };
+  QButtonGroup* ShapeGroup{ nullptr };
+  QCheckBox* CenteredCheckBox{ nullptr };
+  QCheckBox* ApplyToAllCheckBox{ nullptr };
 
   /// Editable intensity range of the Segment Editor when the effect was activated
   bool IntensityMaskEnabledBeforeActivation{ false };
@@ -251,16 +290,83 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::setupOptionsFrame()
       }
     }
 
+  // the options of the Scissors effect are replaced by aligned rows
+  for (QWidget* widget : this->optionsFrame()->findChildren<QWidget*>())
+    {
+    widget->hide();
+    }
+  QWidget* options = new QWidget();
+  options->setObjectName("CloudLassoOptions");
+  QGridLayout* grid = new QGridLayout(options);
+  grid->setContentsMargins(0, 0, 0, 0);
+  grid->setHorizontalSpacing(10);
+  grid->setVerticalSpacing(8);
+  grid->setColumnStretch(1, 1);
+  QLabel* operationLabel = new QLabel(tr("Operation"), options);
+  operationLabel->setToolTip(tr("Fill or erase the voxels inside or outside the lasso"));
+  d->FillGroup = new QButtonGroup(options);
+  d->SideGroup = new QButtonGroup(options);
+  QHBoxLayout* operationRow = new QHBoxLayout();
+  operationRow->setSpacing(6);
+  operationRow->addWidget(SegmentedChoices(QStringList() << tr("Fill") << tr("Erase"),
+    QStringList() << tr("Add the voxels to the segment") << tr("Remove the voxels from the segment"),
+    d->FillGroup), 1);
+  operationRow->addWidget(SegmentedChoices(QStringList() << tr("Inside") << tr("Outside"),
+    QStringList() << tr("The voxels inside the lasso") << tr("The voxels outside the lasso"), d->SideGroup), 1);
+  grid->addWidget(operationLabel, 0, 0);
+  grid->addLayout(operationRow, 0, 1);
+  QLabel* shapeLabel = new QLabel(tr("Shape"), options);
+  shapeLabel->setToolTip(tr("Shape of the lasso"));
+  d->ShapeGroup = new QButtonGroup(options);
+  grid->addWidget(shapeLabel, 1, 0);
+  grid->addWidget(SegmentedChoices(QStringList() << tr("Free-form") << tr("Circle") << tr("Rectangle"),
+    QStringList() << tr("Draw the outline freely") << tr("A circle (drag its radius)")
+                  << tr("A rectangle (drag its corner)"), d->ShapeGroup), 1, 1);
+  d->CenteredCheckBox = new QCheckBox(tr("Drawn from the centre"), options);
+  d->CenteredCheckBox->setToolTip(tr("Circles and rectangles are drawn from their centre"));
+  grid->addWidget(d->CenteredCheckBox, 2, 1);
+  d->ApplyToAllCheckBox = new QCheckBox(tr("Apply to all visible segments"), options);
+  d->ApplyToAllCheckBox->setToolTip(tr("The lasso changes all the visible segments, not only the selected one"));
+  grid->addWidget(d->ApplyToAllCheckBox, 3, 0, 1, 2);
+
   // The intensity range of the lasso is the editable intensity range of the
   // Masking section of the Segment Editor (no duplicated threshold widget)
-  d->AutomaticThresholdCheckBox = new QCheckBox("Update the last lasso with the intensity range");
+  d->AutomaticThresholdCheckBox = new QCheckBox(tr("Update the last lasso with the intensity range"), options);
   d->AutomaticThresholdCheckBox->setToolTip(
-    "Draw a lasso, then tune the selection: when the Editable intensity range of the Masking "
-    "section changes (slider or keys n/m/k/l), the last lasso is applied again with the new "
-    "range, replacing its previous result. Only for Fill. Shortcut key: c.");
-  this->addOptionsWidget(d->AutomaticThresholdCheckBox);
+    tr("Draw a lasso, then tune the selection: when the Editable intensity range of the Masking "
+       "section changes (slider or keys n/m/k/l), the last lasso is applied again with the new "
+       "range, replacing its previous result. Only for Fill. Shortcut key: c."));
+  grid->addWidget(d->AutomaticThresholdCheckBox, 4, 0, 1, 2);
+  this->addOptionsWidget(options);
   QObject::connect(d->AutomaticThresholdCheckBox, SIGNAL(toggled(bool)),
                    this, SLOT(onAutomaticThresholdModeChanged(bool)));
+  // the choices write the parameters of the Scissors effect
+  for (QButtonGroup* group : {d->FillGroup, d->SideGroup, d->ShapeGroup})
+    {
+    QObject::connect(group, &QButtonGroup::idClicked, this, [this](int) { this->onOptionsChanged(); });
+    }
+  for (QCheckBox* checkBox : {d->CenteredCheckBox, d->ApplyToAllCheckBox})
+    {
+    QObject::connect(checkBox, &QCheckBox::toggled, this, [this](bool) { this->onOptionsChanged(); });
+    }
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerSegmentEditorAstroCloudLassoEffect::onOptionsChanged()
+{
+  Q_D(qSlicerSegmentEditorAstroCloudLassoEffect);
+  if (!this->parameterSetNode() || !d->FillGroup)
+    {
+    return;
+    }
+  const bool fill = d->FillGroup->checkedId() != 1;
+  const bool inside = d->SideGroup->checkedId() != 1;
+  this->setParameter("Operation", QString(fill ? "Fill" : "Erase") + (inside ? "Inside" : "Outside"));
+  const char* shapes[3] = {"FreeForm", "Circle", "Rectangle"};
+  const int shape = d->ShapeGroup->checkedId();
+  this->setParameter("Shape", QString(shapes[shape >= 0 && shape < 3 ? shape : 0]));
+  this->setParameter("ShapeDrawCentered", d->CenteredCheckBox->isChecked() ? 1 : 0);
+  this->setParameter("ApplyToAllVisibleSegments", d->ApplyToAllCheckBox->isChecked() ? 1 : 0);
 }
 
 //-----------------------------------------------------------------------------
@@ -360,6 +466,28 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::updateGUIFromMRML()
     return;
     }
 
+  // the options of SlicerAstro from the parameters
+  if (d->FillGroup)
+    {
+    const QString operation = this->parameter("Operation");
+    const QString shape = this->parameter("Shape");
+    const QList<QObject*> blocked = {d->FillGroup, d->SideGroup, d->ShapeGroup, d->CenteredCheckBox,
+                                     d->ApplyToAllCheckBox};
+    for (QObject* object : blocked)
+      {
+      object->blockSignals(true);
+      }
+    d->FillGroup->button(operation.startsWith("Erase") ? 1 : 0)->setChecked(true);
+    d->SideGroup->button(operation.endsWith("Outside") ? 1 : 0)->setChecked(true);
+    d->ShapeGroup->button(shape == "Circle" ? 1 : (shape == "Rectangle" ? 2 : 0))->setChecked(true);
+    d->CenteredCheckBox->setChecked(this->integerParameter("ShapeDrawCentered") != 0);
+    d->CenteredCheckBox->setEnabled(shape == "Circle" || shape == "Rectangle");
+    d->ApplyToAllCheckBox->setChecked(this->integerParameter("ApplyToAllVisibleSegments") != 0);
+    for (QObject* object : blocked)
+      {
+      object->blockSignals(false);
+      }
+    }
   const bool fill = this->fillOperation();
   const bool wasBlocked = d->AutomaticThresholdCheckBox->blockSignals(true);
   d->AutomaticThresholdCheckBox->setChecked(this->integerParameter("AutomaticThresholdUpdating") != 0);

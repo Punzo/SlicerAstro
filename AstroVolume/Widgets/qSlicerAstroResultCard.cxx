@@ -18,11 +18,14 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QMessageBox>
+#include <QCoreApplication>
 #include <QPushButton>
 #include <QToolButton>
 #include <QVBoxLayout>
 
 // MRML includes
+#include <vtkMRMLAstroVolumeNode.h>
+#include <vtkCommand.h>
 #include <vtkMRMLScene.h>
 #include <vtkMRMLSegmentationDisplayNode.h>
 #include <vtkMRMLSegmentationNode.h>
@@ -114,7 +117,9 @@ void qSlicerAstroResultCard::setSubtitle(const QString& subtitle)
 //-----------------------------------------------------------------------------
 void qSlicerAstroResultCard::setVolume(vtkMRMLVolumeNode* volume)
 {
+  this->qvtkReconnect(this->Volume, volume, vtkCommand::ModifiedEvent, this, SLOT(updateShowButton()));
   this->Volume = volume;
+  this->updateShowButton();
   this->Mask = volume ? vtkSlicerAstroVolumeLogic::GetThresholdMaskOf(volume->GetScene(), volume) : nullptr;
   vtkMRMLDisplayNode* maskDisplay = this->Mask ? this->Mask->GetDisplayNode() : nullptr;
   this->MaskButton->setVisible(maskDisplay != nullptr);
@@ -195,7 +200,7 @@ void qSlicerAstroResultCard::onDeleteClicked()
                   tr("Delete %1? It is removed from the scene.").arg(QString::fromUtf8(this->Volume->GetName())),
                   QMessageBox::Yes | QMessageBox::No, this->window());
   box.setDefaultButton(QMessageBox::No);
-  qSlicerAstroTheme::instance()->applyTo(&box);
+  qSlicerAstroTheme::instance()->applyToDialog(&box);
   if (box.exec() == QMessageBox::Yes)
     {
     this->deleteResult();
@@ -214,4 +219,40 @@ void qSlicerAstroResultCard::deleteResult()
     scene->RemoveNode(volume);
     }
   emit this->deleted();
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroResultCard::setCardsVisible(const QList<qSlicerAstroResultCard*>& cards, const QList<bool>& visible)
+{
+  bool changed = false;
+  for (int i = 0; i < cards.size() && i < visible.size(); i++)
+    {
+    if (cards[i] && cards[i]->isVisibleTo(cards[i]->parentWidget()) != visible[i])
+      {
+      cards[i]->setVisible(visible[i]);
+      changed = true;
+      }
+    }
+  if (!changed)
+    {
+    return;
+    }
+  // the layout requests travel up one parent per round
+  for (int round = 0; round < 8; round++)
+    {
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::LayoutRequest);
+    }
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroResultCard::updateShowButton()
+{
+  const bool shown = vtkSlicerAstroVolumeLogic::IsProductShownInViews(
+    vtkMRMLAstroVolumeNode::SafeDownCast(this->Volume));
+  this->ShowButton->setText(shown ? tr("Hide") : tr("Show"));
+  this->ShowButton->setToolTip(shown ?
+    tr("Shown in place of its dataset: click to show the dataset again in the views.") :
+    tr("Show in place of its dataset in the views showing the dataset (a cube: the channel maps, position-velocity "
+       "and 3D views; a map: one channel-map view). Zoom, channel and 3D camera are kept; the dataset stays "
+       "active. Clicked again: the dataset back. The same as clicking the product in the dataset card."));
 }

@@ -17,6 +17,9 @@
 // Qt includes
 #include <QAbstractItemView>
 #include <QApplication>
+#include <QComboBox>
+#include <QDoubleSpinBox>
+#include <QVariantList>
 #include <QFileInfo>
 #include <QFrame>
 #include <QGridLayout>
@@ -37,6 +40,7 @@
 
 // MRML includes
 #include <vtkMRMLAstroVolumeNode.h>
+#include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLStorageNode.h>
 
 // Logic includes
@@ -47,6 +51,14 @@
 #include <vector>
 
 #include "qSlicerAstroInfoSection.h"
+#include "qSlicerAstroSubCubeDialog.h"
+#include <qSlicerCoreIOManager.h>
+#include <qSlicerCoreApplication.h>
+#include <vtkSlicerApplicationLogic.h>
+#include <vtkMRMLSelectionNode.h>
+#include <vtkMRMLAstroVolumeStorageNode.h>
+#include <vtkNew.h>
+#include <vtkCollection.h>
 #include "qSlicerAstroSegmentedButton.h"
 #include "qSlicerAstroTheme.h"
 #include "qSlicerAstroValueField.h"
@@ -108,13 +120,23 @@ public:
   qSlicerAstroSegmentedButton* RightAscension{nullptr};
   qSlicerAstroSegmentedButton* Velocity{nullptr};
   QToolButton* VelocityLabel{nullptr};
+  // the line of optical data in wavelengths
+  QToolButton* LineLabel{nullptr};
+  QWidget* LineRow{nullptr};
+  QComboBox* Line{nullptr};
+  QDoubleSpinBox* LineWavelength{nullptr};
+  QPushButton* LineApply{nullptr};
   qSlicerAstroValueField* Beam[3] = {nullptr, nullptr, nullptr};
   QPushButton* EstimateButton{nullptr};
+  QString EstimateToolTip;
   QPushButton* ApplyButton{nullptr};
   QLabel* BeamStatus{nullptr};
   QToolButton* HeaderToggle{nullptr};
   QLineEdit* Filter{nullptr};
   QTableWidget* Table{nullptr};
+  QWidget* FileRow{nullptr};
+  QLabel* ExtensionLabel{nullptr};
+  QComboBox* Extension{nullptr};
 };
 
 //-----------------------------------------------------------------------------
@@ -165,6 +187,25 @@ qSlicerAstroInfoSection::qSlicerAstroInfoSection(QWidget* parent)
   facts->setColumnStretch(1, 1);
   layout->addWidget(factsCard);
 
+  // the file: its image extensions (HDUs), a part of the data
+  d->FileRow = new QWidget(this);
+  QHBoxLayout* fileRow = new QHBoxLayout(d->FileRow);
+  fileRow->setContentsMargins(0, 0, 0, 0);
+  fileRow->setSpacing(8);
+  const QString extensionToolTip = tr("Image extensions (HDUs) of the file. Choosing another one loads its data "
+                                      "as a new dataset (or shows it if it is loaded), e.g. the variance of a "
+                                      "MUSE cube.");
+  d->ExtensionLabel = RowLabel(tr("Extension"), extensionToolTip, this);
+  d->Extension = new QComboBox(this);
+  d->Extension->setObjectName("InfoExtension");
+  d->Extension->setToolTip(extensionToolTip);
+  d->Extension->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+  d->Extension->setMinimumContentsLength(8);
+  QObject::connect(d->Extension, SIGNAL(activated(int)), this, SLOT(onExtensionActivated(int)));
+  fileRow->addWidget(d->ExtensionLabel);
+  fileRow->addWidget(d->Extension, 1);
+  layout->addWidget(d->FileRow);
+
   // coordinate conventions of the readouts and axes: one row each, an icon
   // and a label, the choices across the width
   QGridLayout* conventions = new QGridLayout();
@@ -183,6 +224,19 @@ qSlicerAstroInfoSection::qSlicerAstroInfoSection(QWidget* parent)
   d->Velocity->addButton(tr("radio"), tr("Radio velocities: v = c (f0 − f) / f0."));
   d->Velocity->addButton(tr("optical"), tr("Optical velocities: v = c (f0 − f) / f."));
   QObject::connect(d->Velocity, SIGNAL(currentIndexChanged(int)), this, SLOT(onVelocityDefinitionChanged(int)));
+  // an icon on each choice: sexagesimal time (clock) or degrees; radio
+  // (dish) or optical (telescope) definition
+  const char* conventionIcons[4] = {"clock", "degree", "dish", "telescope"};
+  qSlicerAstroSegmentedButton* conventionButtons[2] = {d->RightAscension, d->Velocity};
+  for (int i = 0; i < 4; i++)
+    {
+    QToolButton* choice = conventionButtons[i / 2]->button(i % 2);
+    if (choice)
+      {
+      choice->setIcon(qSlicerAstroTheme::instance()->icon(conventionIcons[i], "text"));
+      choice->setIconSize(QSize(14, 14));
+      }
+    }
   QToolButton* rightAscensionLabel = ConventionLabel(tr("Right ascension"), "globe",
                                                      d->RightAscension->toolTip(), this);
   d->VelocityLabel = ConventionLabel(tr("Velocity"), "spectrum", d->Velocity->toolTip(), this);
@@ -198,6 +252,47 @@ qSlicerAstroInfoSection::qSlicerAstroInfoSection(QWidget* parent)
       segmented->button(index)->setMinimumWidth(48);
       }
     }
+  // the line of optical data whose spectral axis is in wavelengths (no rest
+  // wavelength in the file): its velocities once the line is set
+  const QString lineToolTip = tr("Line of the data: the spectral axis is in wavelengths because the file has no "
+                                 "rest wavelength. Set the line to see velocities (views, readouts, modules); it "
+                                 "is saved in the file (RESTFRQ).");
+  d->LineLabel = ConventionLabel(tr("Line"), "spectrum", lineToolTip, this);
+  d->LineRow = new QWidget(this);
+  QHBoxLayout* lineLayout = new QHBoxLayout(d->LineRow);
+  lineLayout->setContentsMargins(0, 0, 0, 0);
+  lineLayout->setSpacing(6);
+  d->Line = new QComboBox(d->LineRow);
+  d->Line->setObjectName("InfoLine");
+  d->Line->setToolTip(tr("Emission line (rest wavelength in vacuum)."));
+  for (int index = 0; index < vtkSlicerAstroVolumeLogic::GetNumberOfOpticalLines(); index++)
+    {
+    const double wavelength = vtkSlicerAstroVolumeLogic::GetOpticalLineWavelength(index);
+    d->Line->addItem(QString("%1 · %2 %3").arg(QString::fromStdString(vtkSlicerAstroVolumeLogic::GetOpticalLineName(index)))
+                       .arg(wavelength * 1.e10, 0, 'f', 2).arg(QString::fromUtf8("Å")), wavelength);
+    }
+  d->Line->addItem(tr("Other wavelength…"), 0.);
+  d->Line->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+  d->Line->setMinimumContentsLength(8);
+  d->LineWavelength = new QDoubleSpinBox(d->LineRow);
+  d->LineWavelength->setObjectName("InfoLineWavelength");
+  d->LineWavelength->setToolTip(tr("Rest wavelength of the line in vacuum, Angstrom."));
+  d->LineWavelength->setRange(100., 1.e6);
+  d->LineWavelength->setDecimals(2);
+  d->LineWavelength->setSuffix(QString::fromUtf8(" Å"));
+  d->LineWavelength->setValue(6564.61);
+  d->LineWavelength->hide();
+  QObject::connect(d->Line, SIGNAL(currentIndexChanged(int)), this, SLOT(onLineChanged(int)));
+  d->LineApply = new QPushButton(tr("Apply"), d->LineRow);
+  d->LineApply->setObjectName("InfoApplyLine");
+  d->LineApply->setIcon(qSlicerAstroTheme::instance()->icon("check", "text"));
+  d->LineApply->setToolTip(tr("Set this line: the spectral axis becomes an optical velocity."));
+  QObject::connect(d->LineApply, SIGNAL(clicked()), this, SLOT(applyLine()));
+  lineLayout->addWidget(d->Line, 1);
+  lineLayout->addWidget(d->LineWavelength, 1);
+  lineLayout->addWidget(d->LineApply);
+  conventions->addWidget(d->LineLabel, 2, 0);
+  conventions->addWidget(d->LineRow, 2, 1);
   conventions->setColumnStretch(1, 1);
   layout->addLayout(conventions);
 
@@ -236,6 +331,7 @@ qSlicerAstroInfoSection::qSlicerAstroInfoSection(QWidget* parent)
   d->EstimateButton->setObjectName("InfoEstimateBeam");
   d->EstimateButton->setToolTip(tr("Estimate the beam from the noise (spatial autocorrelation of the first and last "
                                    "channels) into the fields; then apply it."));
+  d->EstimateToolTip = d->EstimateButton->toolTip();
   QObject::connect(d->EstimateButton, &QPushButton::clicked, this, [this]() { this->estimateBeam(); });
   d->ApplyButton = new QPushButton(qSlicerAstroTheme::instance()->icon("check", "text"), tr("Apply"), this);
   d->ApplyButton->setObjectName("InfoApplyBeam");
@@ -285,6 +381,154 @@ qSlicerAstroInfoSection::qSlicerAstroInfoSection(QWidget* parent)
   layout->addStretch(1);
   this->setHeaderVisible(false);
   this->setEnabled(false);
+}
+
+//-----------------------------------------------------------------------------
+QString qSlicerAstroInfoSection::fileName() const
+{
+  Q_D(const qSlicerAstroInfoSection);
+  vtkMRMLStorageNode* storage = d->Volume ? d->Volume->GetStorageNode() : nullptr;
+  const char* file = storage ? storage->GetFileName() : nullptr;
+  return file && *file ? QString::fromUtf8(file) : QString();
+}
+
+//-----------------------------------------------------------------------------
+int qSlicerAstroInfoSection::hduNumber() const
+{
+  Q_D(const qSlicerAstroInfoSection);
+  vtkMRMLAstroVolumeStorageNode* storage = d->Volume ?
+    vtkMRMLAstroVolumeStorageNode::SafeDownCast(d->Volume->GetStorageNode()) : nullptr;
+  return storage ? storage->GetHDUNumber() : 0;
+}
+
+//-----------------------------------------------------------------------------
+QStringList qSlicerAstroInfoSection::extensionNames() const
+{
+  Q_D(const qSlicerAstroInfoSection);
+  QStringList names;
+  for (int index = 0; index < d->Extension->count(); index++)
+    {
+    names << d->Extension->itemText(index);
+    }
+  return names;
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroInfoSection::updateExtensions()
+{
+  Q_D(qSlicerAstroInfoSection);
+  const QString file = this->fileName();
+  const QSignalBlocker blocker(d->Extension);
+  d->Extension->clear();
+  d->FileRow->setVisible(!file.isEmpty());
+  if (file.isEmpty())
+    {
+    return;
+    }
+  // the image HDUs of the file (headers only)
+  QList<int> numbers;
+  QStringList texts;
+  qSlicerAstroSubCubeDialog::imageExtensions(file, numbers, texts);
+  const int current = this->hduNumber();
+  for (int index = 0; index < numbers.size(); index++)
+    {
+    d->Extension->addItem(texts[index], numbers[index]);
+    if (numbers[index] == current || (current <= 0 && index == 0))
+      {
+      d->Extension->setCurrentIndex(index);
+      }
+    }
+  // the list shows the whole descriptions, also when the box is narrower
+  QAbstractItemView* view = d->Extension->view();
+  view->setTextElideMode(Qt::ElideNone);
+  view->setMinimumWidth(view->sizeHintForColumn(0) + 2 * view->frameWidth() + 16);
+  // the choice of the extension only for files with several images
+  const bool several = numbers.size() > 1;
+  d->Extension->setVisible(several);
+  d->ExtensionLabel->setVisible(several);
+}
+
+//-----------------------------------------------------------------------------
+vtkMRMLNode* qSlicerAstroInfoSection::loadedData(const QString& file, int hdu) const
+{
+  Q_D(const qSlicerAstroInfoSection);
+  vtkMRMLScene* scene = d->Volume ? d->Volume->GetScene() : nullptr;
+  if (!scene)
+    {
+    return nullptr;
+    }
+  std::vector<vtkMRMLNode*> volumes;
+  scene->GetNodesByClass("vtkMRMLAstroVolumeNode", volumes);
+  const int firstHDU = d->Extension->count() > 0 ? d->Extension->itemData(0).toInt() : 1;
+  for (vtkMRMLNode* node : volumes)
+    {
+    vtkMRMLAstroVolumeStorageNode* storage = vtkMRMLAstroVolumeStorageNode::SafeDownCast(
+      vtkMRMLStorableNode::SafeDownCast(node)->GetStorageNode());
+    if (!storage || !storage->GetFileName() || storage->GetUseSubExtent() ||
+        QString::fromUtf8(storage->GetFileName()) != file)
+      {
+      continue;
+      }
+    const int nodeHDU = storage->GetHDUNumber() > 0 ? storage->GetHDUNumber() : firstHDU;
+    if (nodeHDU == (hdu > 0 ? hdu : firstHDU))
+      {
+      return node;
+      }
+    }
+  return nullptr;
+}
+
+//-----------------------------------------------------------------------------
+vtkMRMLNode* qSlicerAstroInfoSection::loadExtension(int hdu)
+{
+  const QString file = this->fileName();
+  if (file.isEmpty())
+    {
+    return nullptr;
+    }
+  vtkMRMLNode* node = this->loadedData(file, hdu);
+  if (!node)
+    {
+    qSlicerCoreApplication* app = qSlicerCoreApplication::application();
+    vtkNew<vtkCollection> loaded;
+    qSlicerIO::IOProperties properties;
+    properties["fileName"] = file;
+    properties["hdu"] = hdu;
+    if (app && app->coreIOManager() &&
+        app->coreIOManager()->loadNodes("AstroVolumeFile", properties, loaded))
+      {
+      node = vtkMRMLNode::SafeDownCast(loaded->GetItemAsObject(0));
+      }
+    }
+  this->activate(node);
+  return node;
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroInfoSection::onExtensionActivated(int index)
+{
+  Q_D(qSlicerAstroInfoSection);
+  const int hdu = d->Extension->itemData(index).toInt();
+  const int current = this->hduNumber() > 0 ? this->hduNumber() :
+    (d->Extension->count() > 0 ? d->Extension->itemData(0).toInt() : 0);
+  if (hdu != current)
+    {
+    this->loadExtension(hdu);
+    }
+  // the section shows its data: the choice back on its extension
+  this->updateExtensions();
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroInfoSection::activate(vtkMRMLNode* node)
+{
+  qSlicerCoreApplication* app = qSlicerCoreApplication::application();
+  vtkMRMLSelectionNode* selection = app && app->applicationLogic() ? app->applicationLogic()->GetSelectionNode() :
+                                                                      nullptr;
+  if (node && selection)
+    {
+    selection->SetActiveVolumeID(node->GetID());
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -370,11 +614,20 @@ void qSlicerAstroInfoSection::updateFromVolume()
     if (width > 0.)
       {
       const QString spectralUnit = Attribute(volume, "CUNIT3");
-      const QString shown = spectralUnit.isEmpty() || spectralUnit.compare("m/s", Qt::CaseInsensitive) == 0 ||
-        spectralUnit.compare("km/s", Qt::CaseInsensitive) == 0 ? QString("km/s") : spectralUnit;
-      values["Channel width"] = QString("%1 %2").arg(width, 0, 'g', 3).arg(shown);
+      if (spectralUnit == "m")
+        {
+        // wavelengths (optical data without a line): Angstrom
+        values["Channel width"] = QString("%1 %2").arg(width * 1.e10, 0, 'g', 3).arg(QString::fromUtf8("Å"));
+        }
+      else
+        {
+        const QString shown = spectralUnit.isEmpty() || spectralUnit.compare("m/s", Qt::CaseInsensitive) == 0 ||
+          spectralUnit.compare("km/s", Qt::CaseInsensitive) == 0 ? QString("km/s") : spectralUnit;
+        values["Channel width"] = QString("%1 %2").arg(width, 0, 'g', 3).arg(shown);
+        }
       }
-    const double noise = volume->GetDisplayThreshold();
+    // maps of velocities (moment 1 and 2): no noise of the sky
+    const double noise = vtkSlicerAstroVolumeLogic::HasNoise(volume) ? volume->GetDisplayThreshold() : 0.;
     values["Noise (σ)"] = noise > 0. ? qSlicerAstroTheme::formatFlux(noise, unit) : QString();
     if (naxis >= 3)
       {
@@ -391,13 +644,14 @@ void qSlicerAstroInfoSection::updateFromVolume()
         }
       values["Spectral axis"] = parts.join(QString::fromUtf8(" · "));
       }
-    vtkMRMLStorageNode* storage = volume->GetStorageNode();
-    if (storage && storage->GetFileName())
+    const QString file = this->fileName();
+    if (!file.isEmpty())
       {
-      values["File"] = QFileInfo(QString::fromUtf8(storage->GetFileName())).fileName();
-      d->Facts["File"]->setToolTip(QString::fromUtf8(storage->GetFileName()));
+      values["File"] = QFileInfo(file).fileName();
+      d->Facts["File"]->setToolTip(file);
       }
     }
+  this->updateExtensions();
   for (QMap<QString, QLabel*>::const_iterator it = d->Facts.constBegin(); it != d->Facts.constEnd(); ++it)
     {
     const QString value = values.value(it.key());
@@ -412,10 +666,25 @@ void qSlicerAstroInfoSection::updateFromVolume()
     d->RightAscension->setCurrentIndex(vtkSlicerAstroVolumeLogic::IsRightAscensionSexagesimal(volume) ? 0 : 1);
     d->Velocity->setCurrentIndex(vtkSlicerAstroVolumeLogic::IsOpticalVelocityDefinition(volume) ? 1 : 0);
     }
-  d->Velocity->setVisible(cube);
-  d->VelocityLabel->setVisible(cube);
+  // data in wavelengths (no line): the line instead of the velocity definition
+  const bool wavelengths = cube && vtkSlicerAstroVolumeLogic::IsWavelengthAxis(volume);
+  d->Velocity->setVisible(cube && !wavelengths);
+  d->VelocityLabel->setVisible(cube && !wavelengths);
+  d->LineLabel->setVisible(wavelengths);
+  d->LineRow->setVisible(wavelengths);
+  if (wavelengths)
+    {
+    this->preselectLine();
+    }
 
-  // beam: the fields keep an edit (or an estimate) not applied yet
+  // beam: the fields keep an edit (or an estimate) not applied yet. A
+  // moment map has the beam of its cube: no estimate from its pixels (they
+  // are not noise of the sky)
+  const QString datamodel = Attribute(volume, "DATAMODEL");
+  const bool momentMap = volume && datamodel.endsWith("MOMENTMAP");
+  d->EstimateButton->setEnabled(volume && !momentMap);
+  d->EstimateButton->setToolTip(momentMap ?
+    tr("A moment map has the beam of its cube: estimate the beam on the cube.") : d->EstimateToolTip);
   const QString status = d->BeamStatus->text();
   const bool pending = status.startsWith(tr("Beam ESTIMATED")) || status.startsWith(tr("Beam edited"));
   double beam[3] = {0., 0., 0.};
@@ -429,7 +698,9 @@ void qSlicerAstroInfoSection::updateFromVolume()
       }
     if (volume && !defined)
       {
-      d->BeamStatus->setText(tr("No beam: estimate it or enter it, then apply"));
+      d->BeamStatus->setText(momentMap ?
+        tr("No beam: estimate or enter it on the cube of this map (the maps of the cube take it)") :
+        tr("No beam: estimate it or enter it, then apply"));
       }
     else if (status.startsWith(tr("No beam")))
       {
@@ -577,4 +848,77 @@ void qSlicerAstroInfoSection::fillKeywords()
     d->Table->setItem(row, 1, valueItem);
     }
   d->Table->resizeColumnToContents(0);
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroInfoSection::preselectLine()
+{
+  Q_D(qSlicerAstroInfoSection);
+  vtkMRMLAstroVolumeNode* volume = vtkMRMLAstroVolumeNode::SafeDownCast(d->Volume);
+  vtkMRMLAstroVolumeDisplayNode* displayNode = volume ? volume->GetAstroVolumeDisplayNode() : nullptr;
+  if (!displayNode)
+    {
+    return;
+    }
+  // wavelengths of the first and last channels (m)
+  const int channels = Attribute(volume, "NAXIS3").toInt();
+  double ijk[3] = {0., 0., 0.};
+  double first[3] = {0., 0., 0.};
+  double last[3] = {0., 0., 0.};
+  displayNode->GetReferenceSpace(ijk, first);
+  ijk[2] = std::max(0, channels - 1);
+  displayNode->GetReferenceSpace(ijk, last);
+  const double minimum = std::min(first[2], last[2]);
+  const double maximum = std::max(first[2], last[2]);
+  // the line seen in the data at a redshift up to 0.2: Halpha first, then
+  // the first of the list
+  int choice = -1;
+  for (int index = 0; index < vtkSlicerAstroVolumeLogic::GetNumberOfOpticalLines(); index++)
+    {
+    const double wavelength = vtkSlicerAstroVolumeLogic::GetOpticalLineWavelength(index);
+    if (wavelength <= maximum && wavelength * 1.2 >= minimum)
+      {
+      const bool halpha = std::fabs(wavelength - 6564.61e-10) < 1.e-12;
+      if (choice < 0 || halpha)
+        {
+        choice = index;
+        }
+      }
+    }
+  if (choice >= 0)
+    {
+    const QSignalBlocker blocker(d->Line);
+    d->Line->setCurrentIndex(choice);
+    d->LineWavelength->hide();
+    }
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroInfoSection::onLineChanged(int index)
+{
+  Q_D(qSlicerAstroInfoSection);
+  // "Other wavelength…": a field for the wavelength
+  d->LineWavelength->setVisible(d->Line->itemData(index).toDouble() <= 0.);
+}
+
+//-----------------------------------------------------------------------------
+double qSlicerAstroInfoSection::selectedLineWavelength() const
+{
+  Q_D(const qSlicerAstroInfoSection);
+  const double wavelength = d->Line->currentData().toDouble();
+  return wavelength > 0. ? wavelength : d->LineWavelength->value() * 1.e-10;
+}
+
+//-----------------------------------------------------------------------------
+bool qSlicerAstroInfoSection::applyLine()
+{
+  Q_D(qSlicerAstroInfoSection);
+  vtkMRMLAstroVolumeNode* volume = vtkMRMLAstroVolumeNode::SafeDownCast(d->Volume);
+  const bool applied = vtkSlicerAstroVolumeLogic::SetRestWavelength(volume, this->selectedLineWavelength());
+  this->updateFromVolume();
+  if (applied)
+    {
+    emit this->spectralAxisChanged();
+    }
+  return applied;
 }

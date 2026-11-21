@@ -4,13 +4,21 @@ set(KIT ${PROJECT_NAME})
 
 set(${KIT}_EXPORT_DIRECTIVE "Q_SLICERASTRO_QTMODULES_${MODULE_NAME_UPPER}_WIDGETS_EXPORT")
 
+# the Segment Editor effects (options of the effects of the Masks section)
+list(GET qSlicerSegmentationsModuleWidgets_INCLUDE_DIRS 0 _astro_editor_effects_dir)
+list(GET qSlicerSegmentationsModuleWidgets_INCLUDE_DIRS 1 _astro_editor_effects_binary_dir)
+
 set(${KIT}_INCLUDE_DIRECTORIES
+    ${_astro_editor_effects_dir}/../EditorEffects
+    ${_astro_editor_effects_binary_dir}/../EditorEffects
     ${CMAKE_CURRENT_SOURCE_DIR}/../MRML
     ${CMAKE_CURRENT_BINARY_DIR}/../MRML
     ${CMAKE_CURRENT_SOURCE_DIR}/../Logic
     ${CMAKE_CURRENT_BINARY_DIR}/../Logic
     ${MRMLCore_INCLUDE_DIRS}
     ${WCSLIB_INCLUDE_DIR}
+    ${CFITSIO_INCLUDE_DIR}
+    ${vtkFits_INCLUDE_DIRS}
     ${qSlicerSegmentationsModuleWidgets_INCLUDE_DIRS}
     ${vtkSlicerSegmentationsModuleLogic_INCLUDES_DIRS}
     ${vtkSlicerSegmentationsModuleMRML_INCLUDES_DIRS}
@@ -38,6 +46,14 @@ set(${KIT}_SRCS
   qSlicerAstroContoursSection.cxx
   qSlicerAstroMasksSection.cxx
   qSlicerAstroMasksSection.h
+  qSlicerAstroColorPicker.cxx
+  qSlicerAstroColorPicker.h
+  qSlicerAstroSegmentDialog.cxx
+  qSlicerAstroSegmentDialog.h
+  qSlicerAstroSegmentsTableStyler.cxx
+  qSlicerAstroSegmentsTableStyler.h
+  qSlicerAstroSubCubeDialog.cxx
+  qSlicerAstroSubCubeDialog.h
   qSlicerAstroRenderingSection.cxx
   qSlicerAstroRenderingSection.h
   qSlicerAstroInfoSection.cxx
@@ -98,6 +114,10 @@ set(${KIT}_MOC_SRCS
   qSlicerAstroDisplaySection.h
   qSlicerAstroContoursSection.h
   qSlicerAstroMasksSection.h
+  qSlicerAstroColorPicker.h
+  qSlicerAstroSegmentDialog.h
+  qSlicerAstroSegmentsTableStyler.h
+  qSlicerAstroSubCubeDialog.h
   qSlicerAstroRenderingSection.h
   qSlicerAstroInfoSection.h
   qSlicerAstroSourcesSection.h
@@ -140,6 +160,7 @@ set(${KIT}_TARGET_LIBRARIES
    ${_astro_qt_svg}
    MRMLCore
    qSlicerSegmentationsModuleWidgets
+   qSlicerSegmentationsEditorEffects
    qSlicerTerminologiesModuleWidgets
    qSlicerVolumeRenderingModuleWidgets
    vtkSlicer${MODULE_NAME}ModuleLogic

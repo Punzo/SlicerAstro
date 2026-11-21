@@ -19,6 +19,7 @@
 
 // Qt includes
 #include <QAbstractButton>
+#include <QList>
 #include <QStringList>
 
 // CTK includes
@@ -26,6 +27,7 @@
 
 #include "qSlicerAstroVolumeModuleWidgetsExport.h"
 
+class QAction;
 class vtkMRMLNode;
 class vtkMRMLScene;
 class vtkObject;
@@ -34,7 +36,9 @@ class vtkObject;
 /// Selector of the input data of a panel: preview (moment-0 map of a cube),
 /// name and a summary line (dimensions and unit, or what the panel needs,
 /// e.g. "σ 0.62 mJy/beam · 2.58 km/s"). Clicking opens the list of the data
-/// in the scene with their previews.
+/// in the scene with their previews. Other nodes (e.g. masks) are shown
+/// with an icon (nodeIcon) and a summary (number of segments); extra
+/// actions (e.g. "New mask") close the list.
 class Q_SLICERASTRO_QTMODULES_ASTROVOLUME_WIDGETS_EXPORT qSlicerAstroDatasetSelector
   : public QAbstractButton
 {
@@ -44,6 +48,7 @@ class Q_SLICERASTRO_QTMODULES_ASTROVOLUME_WIDGETS_EXPORT qSlicerAstroDatasetSele
   Q_PROPERTY(int requiredDimensions READ requiredDimensions WRITE setRequiredDimensions)
   Q_PROPERTY(QString subtitle READ subtitle WRITE setSubtitle)
   Q_PROPERTY(QString noneText READ noneText WRITE setNoneText)
+  Q_PROPERTY(QString nodeIcon READ nodeIcon WRITE setNodeIcon)
 
 public:
   explicit qSlicerAstroDatasetSelector(QWidget* parent = nullptr);
@@ -61,6 +66,11 @@ public:
   void setSubtitle(const QString& subtitle);
   QString noneText() const;
   void setNoneText(const QString& text);
+  /// Theme icon of the nodes that are not volumes (no preview), e.g. "lasso"
+  QString nodeIcon() const;
+  void setNodeIcon(const QString& iconName);
+  /// Actions at the end of the list, after a separator (e.g. "New mask")
+  Q_INVOKABLE void addExtraAction(QAction* action);
   /// Only these nodes (IDs) can be selected (e.g. a dataset and its
   /// products); empty: any node of the types
   Q_INVOKABLE QStringList nodeIDFilter() const;
@@ -102,6 +112,8 @@ protected:
   QString Subtitle;
   QString NoneText;
   QStringList NodeIDFilter;
+  QString NodeIcon;
+  QList<QAction*> ExtraActions;
 };
 
 #endif

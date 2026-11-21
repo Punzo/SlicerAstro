@@ -17,12 +17,27 @@
 // Qt includes
 #include <QAbstractItemView>
 #include <QApplication>
-#include <QComboBox>
 #include <QDir>
 #include <QFileDialog>
+#include <QFrame>
+#include <QGridLayout>
+#include <QHeaderView>
+#include <QItemSelectionModel>
+#include <QStyle>
+#include <QTableView>
+#include <QAction>
 #include <QHBoxLayout>
+#include <QInputDialog>
 #include <QLabel>
+#include <QCursor>
+#include <QMap>
+#include <QPainter>
+#include <QPainterPath>
+#include <QPixmap>
 #include <QMessageBox>
+#include <QPointer>
+#include <QDoubleSpinBox>
+#include <QFormLayout>
 #include <QPushButton>
 #include <QSignalBlocker>
 #include <QTimer>
@@ -30,6 +45,8 @@
 #include <QVBoxLayout>
 
 // VTK includes
+#include <vtkCommand.h>
+#include <vtkImageData.h>
 #include <vtkNew.h>
 #include <vtkStringArray.h>
 #include <vtkWeakPointer.h>
@@ -44,10 +61,11 @@
 #include <vtkSegmentation.h>
 
 // Segmentations includes
-#include <qMRMLNodeComboBox.h>
 #include <qMRMLSegmentEditorWidget.h>
+#include <qSlicerSegmentEditorAbstractEffect.h>
+#include <qMRMLSegmentsModel.h>
 #include <qMRMLSegmentsTableView.h>
-#include <qMRMLSortFilterProxyModel.h>
+#include <qMRMLSortFilterSegmentsProxyModel.h>
 
 // Logic includes
 #include <vtkSlicerAstroVolumeLogic.h>
@@ -56,10 +74,19 @@
 #include <qSlicerAbstractCoreModule.h>
 #include <qSlicerApplication.h>
 #include <qSlicerModuleManager.h>
+#include <qSlicerLayoutManager.h>
+#include <qMRMLSliceView.h>
+#include <qMRMLSliceWidget.h>
+#include <qMRMLThreeDView.h>
+#include <qMRMLThreeDWidget.h>
 
+#include <algorithm>
+#include <cmath>
 #include <vector>
 
+#include "qSlicerAstroDatasetSelector.h"
 #include "qSlicerAstroMasksSection.h"
+#include "qSlicerAstroSegmentsTableStyler.h"
 #include "qSlicerAstroTheme.h"
 
 namespace
@@ -109,6 +136,59 @@ QLabel* RowLabel(const QString& text, const QString& toolTip, QWidget* parent)
   label->setToolTip(toolTip);
   return label;
 }
+//----------------------------------------------------------------------------
+/// Theme icon of a Segment Editor effect (empty: Slicer's icon is kept)
+QString EffectIconName(const QString& effectName)
+{
+  static const QMap<QString, QString> icons = {
+    {"NULL", "pointer"}, {"Threshold", "effectThreshold"}, {"Paint", "effectPaint"}, {"Draw", "effectDraw"},
+    {"Erase", "effectErase"}, {"Level tracing", "effectLevelTracing"}, {"Grow from seeds", "effectGrowFromSeeds"},
+    {"Fill between slices", "effectFillBetweenSlices"}, {"Margin", "effectMargin"}, {"Hollow", "effectHollow"},
+    {"Smoothing", "smoothing"}, {"Scissors", "crop"}, {"Islands", "effectIslands"},
+    {"Logical operators", "effectLogicalOperators"}, {"Mask volume", "effectMaskVolume"},
+    {"AstroCloudLasso", "lasso"}};
+  return icons.value(effectName);
+}
+
+//----------------------------------------------------------------------------
+/// The layout (root or nested) that holds the widget
+QLayout* LayoutContaining(QLayout* root, QWidget* widget)
+{
+  if (!root)
+    {
+    return nullptr;
+    }
+  if (root->indexOf(widget) >= 0)
+    {
+    return root;
+    }
+  for (int index = 0; index < root->count(); index++)
+    {
+    QLayout* found = LayoutContaining(root->itemAt(index)->layout(), widget);
+    if (found)
+      {
+      return found;
+      }
+    }
+  return nullptr;
+}
+
+/// Lengths of the effects of the Segment Editor shown in pixels: effect,
+/// parameter, index of Slicer's spin box in the options, decimals
+struct PixelParameter
+{
+  const char* Effect;
+  const char* Parameter;
+  int SpinBoxIndex;
+  int Decimals;
+};
+const PixelParameter PixelParameters[] = {
+  {"Margin", "MarginSizeMm", 0, 0}, {"Hollow", "ShellThicknessMm", 0, 0},
+  {"Smoothing", "KernelSizeMm", 0, 0}, {"Smoothing", "GaussianStandardDeviationMm", 1, 1}};
+const int PixelParameterCount = 4;
+
+/// Effects per row of the effects bar
+const int EffectColumns = 7;
 } // end of anonymous namespace
 
 //-----------------------------------------------------------------------------
@@ -120,25 +200,33 @@ public:
   vtkWeakPointer<vtkMRMLAstroVolumeNode> Volume;
   vtkWeakPointer<vtkMRMLScene> Scene;
   vtkWeakPointer<vtkMRMLSegmentationNode> ObservedMask;
-  qMRMLNodeComboBox* MaskSelector{nullptr};
+  vtkWeakPointer<vtkMRMLSegmentationNode> Mask;
   qMRMLSegmentsTableView* Table{nullptr};
   QLabel* Empty{nullptr};
-  QToolButton* ShowButton{nullptr};
+  QToolButton* EyeButton{nullptr};
   QPushButton* EditButton{nullptr};
-  QToolButton* SaveButton{nullptr};
-  QComboBox* Target{nullptr};
+  QPushButton* SaveButton{nullptr};
+  qSlicerAstroDatasetSelector* Target{nullptr};
   QPushButton* CopyButton{nullptr};
+  QWidget* CopyRow{nullptr};
+  QWidget* SegmentsHeader{nullptr};
+  QToolButton* AddButton{nullptr};
+  QToolButton* RemoveButton{nullptr};
+  QFrame* EffectsBar{nullptr};
+  bool SyncingSelection{false};
   QPushButton* MoveButton{nullptr};
   QLabel* Status{nullptr};
   QVBoxLayout* EditorHolder{nullptr};
   qMRMLSegmentEditorWidget* Editor{nullptr};
   QTimer* UpdateTimer{nullptr};
+  vtkWeakPointer<vtkMRMLSegmentEditorNode> EditorNode;
+  QString ActiveEffect;
 };
 
 //-----------------------------------------------------------------------------
 vtkMRMLSegmentationNode* qSlicerAstroMasksSectionPrivate::mask() const
 {
-  return vtkMRMLSegmentationNode::SafeDownCast(this->MaskSelector->currentNode());
+  return this->Mask;
 }
 
 //-----------------------------------------------------------------------------
@@ -153,30 +241,44 @@ qSlicerAstroMasksSection::qSlicerAstroMasksSection(QWidget* parent)
   layout->setContentsMargins(0, 0, 0, 0);
   layout->setSpacing(6);
 
-  QHBoxLayout* maskRow = new QHBoxLayout();
-  maskRow->setSpacing(8);
-  d->MaskSelector = new qMRMLNodeComboBox(this);
-  d->MaskSelector->setObjectName("MasksSelector");
-  d->MaskSelector->setNodeTypes(QStringList() << "vtkMRMLSegmentationNode");
-  d->MaskSelector->setNoneEnabled(true);
-  d->MaskSelector->setAddEnabled(true);
-  d->MaskSelector->setRemoveEnabled(false);
-  d->MaskSelector->setRenameEnabled(true);
-  d->MaskSelector->setToolTip(tr("Mask of the data: its own mask, a mask loaded from a FITS file (e.g. SoFiA) or "
-                                 "a new one. The chosen mask becomes the mask of the data."));
-  QObject::connect(d->MaskSelector, qOverload<vtkMRMLNode*>(&qMRMLNodeComboBox::currentNodeChanged),
-                   this, &qSlicerAstroMasksSection::onMaskSelected);
-  maskRow->addWidget(RowLabel(tr("Mask"), d->MaskSelector->toolTip(), this));
-  maskRow->addWidget(d->MaskSelector, 1);
-  layout->addLayout(maskRow);
+
+  // segments: title, and Add / Remove while editing
+  d->SegmentsHeader = new QWidget(this);
+  QHBoxLayout* segmentsHeader = new QHBoxLayout(d->SegmentsHeader);
+  segmentsHeader->setContentsMargins(0, 4, 0, 0);
+  segmentsHeader->setSpacing(2);
+  QLabel* segmentsTitle = new QLabel(tr("SEGMENTS"), d->SegmentsHeader);
+  qSlicerAstroTheme::setLabelRole(segmentsTitle, "overline");
+  segmentsHeader->addWidget(segmentsTitle, 1);
+  d->EyeButton = IconButton("eye", tr("Show or hide all the segments of the mask."), "MasksShowAll", false,
+                            d->SegmentsHeader);
+  QObject::connect(d->EyeButton, SIGNAL(clicked()), this, SLOT(toggleAllSegments()));
+  segmentsHeader->addWidget(d->EyeButton);
+  d->AddButton = IconButton("plus", tr("Add a segment to the mask (it becomes the segment being edited)."),
+                            "MasksAddSegment", false, d->SegmentsHeader);
+  d->RemoveButton = IconButton("trash", tr("Remove the selected segment from the mask."), "MasksRemoveSegment",
+                               false, d->SegmentsHeader);
+  QObject::connect(d->AddButton, SIGNAL(clicked()), this, SLOT(addSegment()));
+  QObject::connect(d->RemoveButton, SIGNAL(clicked()), this, SLOT(removeSelectedSegments()));
+  segmentsHeader->addWidget(d->AddButton);
+  segmentsHeader->addWidget(d->RemoveButton);
+  d->AddButton->hide();
+  d->RemoveButton->hide();
+  layout->addWidget(d->SegmentsHeader);
 
   d->Table = new qMRMLSegmentsTableView(this);
   d->Table->setObjectName("MasksTable");
   d->Table->setSelectionMode(QAbstractItemView::ExtendedSelection);
   d->Table->setMinimumHeight(110);
-  d->Table->setMaximumHeight(170);
-  d->Table->setToolTip(tr("Segments of the mask: visibility, colour, name. Select segments to copy or move "
-                          "them."));
+  d->Table->setMaximumHeight(200);
+  d->Table->setToolTip(tr("Segments of the mask: visibility, colour and name (double-click to rename). The "
+                          "selected segment is the one edited."));
+  // a plain list (visibility, colour, name), eyes of the theme, the segment
+  // dialog of SlicerAstro on the colour swatch
+  qSlicerAstroSegmentsTableStyler* styler = qSlicerAstroSegmentsTableStyler::styleTable(d->Table);
+  QObject::connect(styler, SIGNAL(segmentEdited(QString)), this, SLOT(updateFromMask()));
+  QObject::connect(d->Table, SIGNAL(selectionChanged(QItemSelection,QItemSelection)),
+                   this, SLOT(onTableSelectionChanged()));
   layout->addWidget(d->Table);
   d->Empty = new QLabel(tr("No segments"), this);
   d->Empty->setObjectName("MasksEmpty");
@@ -186,30 +288,33 @@ qSlicerAstroMasksSection::qSlicerAstroMasksSection(QWidget* parent)
 
   QHBoxLayout* buttons = new QHBoxLayout();
   buttons->setSpacing(4);
-  d->ShowButton = IconButton("eye", tr("Show or hide the mask in the views."), "MasksShow", true, this);
-  QObject::connect(d->ShowButton, SIGNAL(toggled(bool)), this, SLOT(setMaskVisible(bool)));
   d->EditButton = TextButton(tr("Edit"), "lasso", tr("Draw, erase and threshold segments (Segment Editor)."),
                              "MasksEdit", this);
   d->EditButton->setCheckable(true);
   QObject::connect(d->EditButton, SIGNAL(toggled(bool)), this, SLOT(setEditing(bool)));
-  d->SaveButton = IconButton("download", tr("Save the mask as a FITS mask (integer cube, one label value per "
-                                            "segment, with the WCS of the data)."), "MasksSave", false, this);
+  d->SaveButton = TextButton(tr("Export"), "download", tr("Export the mask as a FITS mask file (integer cube, one "
+                                                         "label value per segment, with the WCS of the data)."),
+                             "MasksSave", this);
   QObject::connect(d->SaveButton, SIGNAL(clicked()), this, SLOT(onSaveClicked()));
-  buttons->addWidget(d->ShowButton);
   buttons->addWidget(d->EditButton, 1);
   buttons->addWidget(d->SaveButton);
   layout->addLayout(buttons);
 
-  QHBoxLayout* copyRow = new QHBoxLayout();
+  // copy / move of segments to the mask of data on the same grid: kept for
+  // scripts and tests, hidden in the panel for now
+  d->CopyRow = new QWidget(this);
+  d->CopyRow->setObjectName("MasksCopyRow");
+  QHBoxLayout* copyRow = new QHBoxLayout(d->CopyRow);
+  copyRow->setContentsMargins(0, 0, 0, 0);
   copyRow->setSpacing(4);
-  d->Target = new QComboBox(this);
+  d->Target = new qSlicerAstroDatasetSelector(d->CopyRow);
   d->Target->setObjectName("MasksCopyTarget");
-  d->Target->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
-  d->Target->setMinimumContentsLength(8);
-  d->Target->setToolTip(tr("Data whose mask receives the selected segments (all if none is selected): voxel by "
-                           "voxel on the same voxel grid (e.g. a smoothed copy or a cutout), projected along the "
-                           "channels on a 2D image of the same sky grid (e.g. a moment map), otherwise reprojected "
-                           "with the WCS (nearest neighbour)."));
+  d->Target->setNodeTypes(QStringList() << "vtkMRMLAstroVolumeNode");
+  d->Target->setNoneText(tr("No data on the same grid"));
+  d->Target->setToolTip(tr("Data whose mask receives the selected segments (all if none is selected). Only data "
+                           "on the same voxel grid are listed (e.g. a smoothed copy or a cutout: voxel by voxel; "
+                           "a 2D map of the same sky grid such as a moment map: projected along the channels). "
+                           "Reproject other data first."));
   d->CopyButton = TextButton(tr("Copy"), "copy", tr("Copy the segments to the mask of the chosen data."),
                              "MasksCopy", this);
   d->MoveButton = TextButton(tr("Move"), QString(), tr("Move the segments to the mask of the chosen data (they are "
@@ -220,7 +325,12 @@ qSlicerAstroMasksSection::qSlicerAstroMasksSection(QWidget* parent)
   copyRow->addWidget(d->Target, 1);
   copyRow->addWidget(d->CopyButton);
   copyRow->addWidget(d->MoveButton);
-  layout->addLayout(copyRow);
+  for (QPushButton* button : {d->CopyButton, d->MoveButton})
+    {
+    button->setFixedHeight(d->Target->sizeHint().height());
+    }
+  layout->addWidget(d->CopyRow);
+  d->CopyRow->hide();
 
   d->Status = new QLabel(this);
   d->Status->setObjectName("MasksStatus");
@@ -228,6 +338,16 @@ qSlicerAstroMasksSection::qSlicerAstroMasksSection(QWidget* parent)
   d->Status->setWordWrap(true);
   d->Status->setToolTip(tr("Result of the last action on the mask."));
   layout->addWidget(d->Status);
+  // the effects of the Segment Editor (moved here from the editor: a row
+  // above its options, full width) and the editor
+  d->EffectsBar = new QFrame(this);
+  d->EffectsBar->setObjectName("MasksEffects");
+  d->EffectsBar->setProperty("astroRole", "card");
+  QHBoxLayout* effectsLayout = new QHBoxLayout(d->EffectsBar);
+  effectsLayout->setContentsMargins(6, 6, 6, 6);
+  effectsLayout->setSpacing(6);
+  d->EffectsBar->hide();
+  layout->addWidget(d->EffectsBar);
   d->EditorHolder = new QVBoxLayout();
   d->EditorHolder->setContentsMargins(0, 0, 0, 0);
   layout->addLayout(d->EditorHolder);
@@ -256,6 +376,13 @@ QString qSlicerAstroMasksSection::status() const
 {
   Q_D(const qSlicerAstroMasksSection);
   return d->Status->text();
+}
+
+//-----------------------------------------------------------------------------
+vtkMRMLNode* qSlicerAstroMasksSection::maskNode() const
+{
+  Q_D(const qSlicerAstroMasksSection);
+  return d->mask();
 }
 
 //-----------------------------------------------------------------------------
@@ -296,8 +423,8 @@ void qSlicerAstroMasksSection::setVolumeNode(vtkMRMLNode* node)
     this->qvtkReconnect(d->Scene, scene, vtkMRMLScene::NodeAddedEvent, this, SLOT(onSceneNodeAddedOrRemoved()));
     this->qvtkReconnect(d->Scene, scene, vtkMRMLScene::NodeRemovedEvent, this, SLOT(onSceneNodeAddedOrRemoved()));
     d->Scene = scene;
-    d->MaskSelector->setMRMLScene(scene);
     d->Table->setMRMLScene(scene);
+    d->Target->setMRMLScene(scene);
     if (d->Editor)
       {
       d->Editor->setMRMLScene(scene);
@@ -309,21 +436,17 @@ void qSlicerAstroMasksSection::setVolumeNode(vtkMRMLNode* node)
     }
   d->Volume = volume;
   this->setEnabled(volume != nullptr);
-  this->updateMaskSelector();
+  // the mask of the data (one per dataset, "<data>_mask"; created when the
+  // data are loaded, or by Edit / Add)
   vtkSlicerAstroVolumeLogic* logic = AstroVolumeLogic();
   vtkMRMLSegmentationNode* mask = (logic && volume) ? logic->GetMaskSegmentationForVolume(volume, false) : nullptr;
-    {
-    const QSignalBlocker blocker(d->MaskSelector);
-    d->MaskSelector->setCurrentNode(mask);
-    }
   this->onMaskSelected(mask);
 }
 
 //-----------------------------------------------------------------------------
 void qSlicerAstroMasksSection::setMaskNode(vtkMRMLNode* node)
 {
-  Q_D(qSlicerAstroMasksSection);
-  d->MaskSelector->setCurrentNode(node);
+  this->onMaskSelected(node);
 }
 
 //-----------------------------------------------------------------------------
@@ -357,6 +480,7 @@ void qSlicerAstroMasksSection::onMaskSelected(vtkMRMLNode* node)
   this->qvtkReconnect(d->ObservedMask, mask, vtkMRMLDisplayableNode::DisplayModifiedEvent, d->UpdateTimer,
                       SLOT(start()));
   d->ObservedMask = mask;
+  d->Mask = mask;
   d->Table->setSegmentationNode(mask);
   if (d->Editor && d->EditButton->isChecked())
     {
@@ -374,65 +498,58 @@ void qSlicerAstroMasksSection::updateFromMask()
   const int count = this->segmentCount();
   d->Table->setVisible(count > 0);
   d->Empty->setVisible(count == 0);
+  // the eye of all the segments: open when the mask and a segment are shown
+  bool anyVisible = false;
+  vtkMRMLSegmentationDisplayNode* displayNode = mask ?
+    vtkMRMLSegmentationDisplayNode::SafeDownCast(mask->GetDisplayNode()) : nullptr;
+  if (displayNode && displayNode->GetVisibility())
     {
-    const QSignalBlocker blocker(d->ShowButton);
-    d->ShowButton->setChecked(mask && mask->GetDisplayNode() && mask->GetDisplayNode()->GetVisibility());
+    std::vector<std::string> segmentIDs;
+    mask->GetSegmentation()->GetSegmentIDs(segmentIDs);
+    for (const std::string& segmentID : segmentIDs)
+      {
+      anyVisible = anyVisible || displayNode->GetSegmentVisibility(segmentID);
+      }
     }
-  d->ShowButton->setEnabled(count > 0);
+  d->EyeButton->setIcon(qSlicerAstroTheme::instance()->icon(anyVisible ? "eye" : "eyeOff", "muted"));
+  d->EyeButton->setToolTip(anyVisible ? tr("Hide all the segments of the mask.") :
+                                        tr("Show all the segments of the mask."));
+  d->EyeButton->setEnabled(count > 0);
   const bool hasVoxels = vtkSlicerAstroVolumeLogic::HasNonEmptySegments(mask);
   d->SaveButton->setEnabled(hasVoxels);
   this->updateTargets();
-  d->CopyButton->setEnabled(count > 0 && d->Target->count() > 0);
-  d->MoveButton->setEnabled(count > 0 && d->Target->count() > 0);
-  d->Target->setEnabled(count > 0 && d->Target->count() > 0);
+  const bool hasTarget = d->Target->currentNode() != nullptr;
+  d->CopyButton->setEnabled(count > 0 && hasTarget);
+  d->MoveButton->setEnabled(count > 0 && hasTarget);
+  d->Target->setEnabled(count > 0 && hasTarget);
 }
 
 //-----------------------------------------------------------------------------
 void qSlicerAstroMasksSection::updateTargets()
 {
   Q_D(qSlicerAstroMasksSection);
-  const QString current = d->Target->currentData().toString();
-  const QSignalBlocker blocker(d->Target);
-  d->Target->clear();
-  if (!d->Scene || !d->Volume)
+  // only the data on the grid of the volume (IsMaskCopyTarget)
+  const QString current = d->Target->currentNodeID();
+  QStringList targetIDs;
+  if (d->Scene && d->Volume)
     {
-    return;
-    }
-  std::vector<vtkMRMLNode*> volumes;
-  d->Scene->GetNodesByClass("vtkMRMLAstroVolumeNode", volumes);
-  for (vtkMRMLNode* node : volumes)
-    {
-    vtkMRMLAstroVolumeNode* other = vtkMRMLAstroVolumeNode::SafeDownCast(node);
-    if (other && other != d->Volume.GetPointer() && other->GetImageData() && !other->GetHideFromEditors())
+    std::vector<vtkMRMLNode*> volumes;
+    d->Scene->GetNodesByClass("vtkMRMLAstroVolumeNode", volumes);
+    for (vtkMRMLNode* node : volumes)
       {
-      d->Target->addItem(QString::fromUtf8(other->GetName()), QString::fromUtf8(other->GetID()));
-      }
-    }
-  const int index = d->Target->findData(current);
-  d->Target->setCurrentIndex(index >= 0 ? index : 0);
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroMasksSection::updateMaskSelector()
-{
-  Q_D(qSlicerAstroMasksSection);
-  // only masks (binary labelmaps) in the selector: not the contours
-  QStringList hiddenNodeIDs;
-  if (d->Scene)
-    {
-    std::vector<vtkMRMLNode*> nodes;
-    d->Scene->GetNodesByClass("vtkMRMLSegmentationNode", nodes);
-    for (vtkMRMLNode* node : nodes)
-      {
-      vtkMRMLSegmentationNode* segmentationNode = vtkMRMLSegmentationNode::SafeDownCast(node);
-      if (segmentationNode && segmentationNode->GetID() && segmentationNode->GetSegmentation() &&
-          !vtkSlicerAstroVolumeLogic::IsMaskSegmentation(segmentationNode))
+      vtkMRMLAstroVolumeNode* other = vtkMRMLAstroVolumeNode::SafeDownCast(node);
+      if (other && other->GetID() && !other->GetHideFromEditors() &&
+          vtkSlicerAstroVolumeLogic::IsMaskCopyTarget(d->Volume, other))
         {
-        hiddenNodeIDs << QString::fromUtf8(segmentationNode->GetID());
+        targetIDs << QString::fromUtf8(other->GetID());
         }
       }
     }
-  d->MaskSelector->sortFilterProxyModel()->setHiddenNodeIDs(hiddenNodeIDs);
+  const QSignalBlocker blocker(d->Target);
+  // an empty filter lists everything: a filter that matches no node
+  d->Target->setNodeIDFilter(targetIDs.isEmpty() ? QStringList() << QString("None") : targetIDs);
+  d->Target->setCurrentNodeID(targetIDs.contains(current) ? current :
+                              (targetIDs.isEmpty() ? QString() : targetIDs.first()));
 }
 
 //-----------------------------------------------------------------------------
@@ -441,9 +558,422 @@ void qSlicerAstroMasksSection::onSceneNodeAddedOrRemoved()
   Q_D(qSlicerAstroMasksSection);
   if (d->Scene && !d->Scene->IsBatchProcessing() && !d->Scene->IsClosing())
     {
-    this->updateMaskSelector();
+    // the mask of the data created, replaced or removed
+    vtkSlicerAstroVolumeLogic* logic = AstroVolumeLogic();
+    vtkMRMLSegmentationNode* mask = (logic && d->Volume) ? logic->GetMaskSegmentationForVolume(d->Volume, false) :
+                                                            nullptr;
+    if (mask != d->Mask.GetPointer())
+      {
+      this->onMaskSelected(mask);
+      }
     d->UpdateTimer->start();
     }
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroMasksSection::restyleEditor()
+{
+  Q_D(qSlicerAstroMasksSection);
+  if (!d->Editor)
+    {
+    return;
+    }
+  qSlicerAstroTheme* theme = qSlicerAstroTheme::instance();
+  // the segments are listed by the section: the editor shows the effects
+  // (in the bar of the section) and their options, full width
+  for (const char* name : {"SegmentsTableResizableFrame", "AddSegmentButton", "RemoveSegmentButton"})
+    {
+    QWidget* widget = d->Editor->findChild<QWidget*>(name);
+    if (widget)
+      {
+      widget->hide();
+      }
+    }
+  // effects of no use on astronomical masks
+  const QStringList hiddenEffects = QStringList() << "Scissors" << "Mask volume" << "Level tracing" << "Draw";
+  d->Editor->setProperty("astroHiddenEffects", hiddenEffects);
+  QStringList order;
+  const QStringList available = d->Editor->availableEffectNames();
+  for (const QString& name : d->Editor->effectNameOrder() + available)
+    {
+    if (available.contains(name) && !hiddenEffects.contains(name) && !order.contains(name))
+      {
+      order << name;
+      }
+    }
+  if (order != d->Editor->effectNameOrder() || d->Editor->unorderedEffectsVisible())
+    {
+    d->Editor->setEffectNameOrder(order);
+    d->Editor->setUnorderedEffectsVisible(false);
+    }
+  this->adjustEffectOptions();
+  QFrame* effects = d->Editor->findChild<QFrame*>("EffectsGroupBox");
+  QFrame* undoRedo = d->Editor->findChild<QFrame*>("UndoRedoGroupBox");
+  QHBoxLayout* barLayout = qobject_cast<QHBoxLayout*>(d->EffectsBar->layout());
+  if (d->Editor->effectColumnCount() != EffectColumns)
+    {
+    d->Editor->setEffectColumnCount(EffectColumns);
+    }
+  for (QFrame* frame : {effects, undoRedo})
+    {
+    if (!frame || !barLayout)
+      {
+      continue;
+      }
+    frame->setFrameShape(QFrame::NoFrame);
+    frame->setStyleSheet(QString());
+    if (frame->layout())
+      {
+      frame->layout()->setContentsMargins(0, 0, 0, 0);
+      frame->layout()->setSpacing(2);
+      }
+    if (barLayout->indexOf(frame) < 0)
+      {
+      if (frame == undoRedo)
+        {
+        barLayout->addStretch(1);
+        }
+      frame->setParent(d->EffectsBar);
+      barLayout->addWidget(frame, 0, Qt::AlignTop);
+      frame->show();
+      }
+    }
+  // the icons of the theme on the effects, undo and redo
+  QList<QToolButton*> buttons;
+  if (effects)
+    {
+    buttons << effects->findChildren<QToolButton*>();
+    }
+  if (undoRedo)
+    {
+    buttons << undoRedo->findChildren<QToolButton*>();
+    }
+  for (QToolButton* button : buttons)
+    {
+    QString iconName = EffectIconName(button->objectName());
+    if (button->objectName() == "UndoButton")
+      {
+      iconName = "undo";
+      }
+    else if (button->objectName() == "RedoButton")
+      {
+      iconName = "redo";
+      }
+    button->setProperty("astroRole", "toolbar");
+    button->setAutoRaise(true);
+    button->setToolButtonStyle(Qt::ToolButtonIconOnly);
+    button->setIconSize(QSize(18, 18));
+    button->setFixedSize(32, 32);
+    if (!iconName.isEmpty())
+      {
+      button->setIcon(theme->icon(iconName, "muted"));
+      }
+    }
+  // the options of the effects without the frames of Slicer's group boxes
+  // (also the Masking group: editable area, intensity range, overwrite)
+  for (const char* name : {"OptionsGroupBox", "MaskingGroupBox"})
+    {
+    QWidget* group = d->Editor->findChild<QWidget*>(name);
+    if (group && group->property("astroRole").toString() != "plain")
+      {
+      group->setProperty("astroRole", "plain");
+      group->style()->unpolish(group);
+      group->style()->polish(group);
+      }
+    }
+  theme->applyTo(d->EffectsBar);
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroMasksSection::adjustEffectOptions()
+{
+  Q_D(qSlicerAstroMasksSection);
+  if (!d->Editor)
+    {
+    return;
+    }
+  // Threshold: decimals for the range of the data (e.g. mJy/beam in Jy/beam),
+  // no local histogram
+  qSlicerSegmentEditorAbstractEffect* threshold = d->Editor->effectByName("Threshold");
+  QFrame* thresholdOptions = threshold ? threshold->optionsFrame() : nullptr;
+  if (thresholdOptions)
+    {
+    int decimals = 2;
+    vtkImageData* image = d->Volume ? d->Volume->GetImageData() : nullptr;
+    if (image)
+      {
+      double range[2] = {0., 0.};
+      image->GetScalarRange(range);
+      const double step = (range[1] - range[0]) / 1000.;
+      if (step > 0. && std::isfinite(step))
+        {
+        decimals = std::max(2, std::min(8, static_cast<int>(std::ceil(-std::log10(step)))));
+        }
+      }
+    for (QWidget* widget : thresholdOptions->findChildren<QWidget*>())
+      {
+      if (widget->inherits("ctkRangeWidget"))
+        {
+        widget->setProperty("decimals", decimals);
+        }
+      else if (widget->inherits("ctkTransferFunctionView"))
+        {
+        // the group box of the local histogram
+        for (QWidget* parent = widget->parentWidget(); parent && parent != thresholdOptions;
+             parent = parent->parentWidget())
+          {
+          if (parent->inherits("ctkCollapsibleGroupBox"))
+            {
+            parent->hide();
+            break;
+            }
+          }
+        }
+      }
+    }
+  // Margin, Hollow and Smoothing: sizes in pixels (the voxels of
+  // astronomical volumes are 1 x 1 x 1 in the views, so Slicer's lengths
+  // are pixels): a spin box in pixels drives Slicer's one (hidden), without
+  // the "Actual: ... mm" lines
+  for (int index = 0; index < PixelParameterCount; index++)
+    {
+    const PixelParameter& entry = PixelParameters[index];
+    qSlicerSegmentEditorAbstractEffect* effect = d->Editor->effectByName(entry.Effect);
+    QFrame* options = effect ? effect->optionsFrame() : nullptr;
+    const QString pixelsName = QString("AstroPixels_%1").arg(entry.Parameter);
+    if (!options || options->findChild<QDoubleSpinBox*>(pixelsName))
+      {
+      continue;
+      }
+    // Slicer's spin boxes of the effect, in the order of creation
+    QList<QWidget*> slicerSpinBoxes;
+    for (QWidget* widget : options->findChildren<QWidget*>())
+      {
+      if (widget->inherits("qMRMLSpinBox"))
+        {
+        slicerSpinBoxes << widget;
+        }
+      QLabel* label = qobject_cast<QLabel*>(widget);
+      if (label && (label->toolTip().contains("pixel") || label->toolTip().contains("achievable thickness")))
+        {
+        label->hide();
+        }
+      }
+    QWidget* slicerSpinBox = slicerSpinBoxes.value(entry.SpinBoxIndex);
+    QBoxLayout* row = slicerSpinBox ? qobject_cast<QBoxLayout*>(LayoutContaining(options->layout(), slicerSpinBox))
+                                    : nullptr;
+    QFormLayout* form = (slicerSpinBox && !row) ?
+      qobject_cast<QFormLayout*>(LayoutContaining(options->layout(), slicerSpinBox)) : nullptr;
+    if (!row && !form)
+      {
+      continue;
+      }
+    QDoubleSpinBox* pixels = new QDoubleSpinBox(slicerSpinBox->parentWidget());
+    pixels->setObjectName(pixelsName);
+    pixels->setDecimals(entry.Decimals);
+    pixels->setSingleStep(entry.Decimals > 0 ? 0.5 : 1.);
+    pixels->setRange(entry.Decimals > 0 ? 0.1 : 1., 1000.);
+    pixels->setSuffix(tr(" px"));
+    pixels->setToolTip(slicerSpinBox->toolTip());
+    QPointer<QWidget> target(slicerSpinBox);
+    QObject::connect(pixels, qOverload<double>(&QDoubleSpinBox::valueChanged), pixels, [target](double value)
+      {
+      if (target)
+        {
+        target->setProperty("value", value);
+        }
+      });
+    if (row)
+      {
+      row->insertWidget(row->indexOf(slicerSpinBox), pixels);
+      }
+    else
+      {
+      // a row of a form: the spin box in pixels takes its place
+      int formRow = -1;
+      QFormLayout::ItemRole role = QFormLayout::FieldRole;
+      form->getWidgetPosition(slicerSpinBox, &formRow, &role);
+      form->removeWidget(slicerSpinBox);
+      QWidget* field = new QWidget(slicerSpinBox->parentWidget());
+      QHBoxLayout* fieldLayout = new QHBoxLayout(field);
+      fieldLayout->setContentsMargins(0, 0, 0, 0);
+      fieldLayout->addWidget(pixels, 1);
+      fieldLayout->addWidget(slicerSpinBox);
+      form->setWidget(formRow, role, field);
+      }
+    slicerSpinBox->hide();
+    }
+  this->syncPixelSpinBoxes();
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroMasksSection::syncPixelSpinBoxes()
+{
+  Q_D(qSlicerAstroMasksSection);
+  if (!d->Editor)
+    {
+    return;
+    }
+  for (int index = 0; index < PixelParameterCount; index++)
+    {
+    const PixelParameter& entry = PixelParameters[index];
+    qSlicerSegmentEditorAbstractEffect* effect = d->Editor->effectByName(entry.Effect);
+    QDoubleSpinBox* pixels = effect && effect->optionsFrame() ? effect->optionsFrame()->findChild<QDoubleSpinBox*>(
+      QString("AstroPixels_%1").arg(entry.Parameter)) : nullptr;
+    if (pixels)
+      {
+      const QSignalBlocker blocker(pixels);
+      pixels->setValue(std::fabs(effect->doubleParameter(entry.Parameter)));
+      }
+    }
+}
+
+//-----------------------------------------------------------------------------
+bool qSlicerAstroMasksSection::editSegment(const QString& segmentID)
+{
+  Q_D(qSlicerAstroMasksSection);
+  return qSlicerAstroSegmentsTableStyler::styleTable(d->Table)->editSegment(segmentID);
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroMasksSection::onTableSelectionChanged()
+{
+  Q_D(qSlicerAstroMasksSection);
+  d->RemoveButton->setEnabled(!d->Table->selectedSegmentIDs().isEmpty());
+  if (!d->Editor || !d->EditButton->isChecked() || d->SyncingSelection)
+    {
+    return;
+    }
+  // the segment edited by the Segment Editor: the selected one, otherwise
+  // the first of the mask
+  QStringList selected = d->Table->selectedSegmentIDs();
+  vtkMRMLSegmentationNode* mask = d->mask();
+  if (selected.isEmpty() && mask && mask->GetSegmentation() && mask->GetSegmentation()->GetNumberOfSegments() > 0)
+    {
+    selected << QString::fromStdString(mask->GetSegmentation()->GetNthSegmentID(0));
+    d->SyncingSelection = true;
+    d->Table->setSelectedSegmentIDs(selected);
+    d->SyncingSelection = false;
+    }
+  if (!selected.isEmpty() && d->Editor->currentSegmentID() != selected.first())
+    {
+    d->Editor->setCurrentSegmentID(selected.first());
+    }
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroMasksSection::onEditorSegmentChanged(const QString& segmentID)
+{
+  Q_D(qSlicerAstroMasksSection);
+  if (d->SyncingSelection || segmentID.isEmpty() || d->Table->selectedSegmentIDs().contains(segmentID))
+    {
+    return;
+    }
+  d->SyncingSelection = true;
+  d->Table->setSelectedSegmentIDs(QStringList() << segmentID);
+  d->SyncingSelection = false;
+}
+
+//-----------------------------------------------------------------------------
+QString qSlicerAstroMasksSection::addSegment()
+{
+  Q_D(qSlicerAstroMasksSection);
+  vtkSlicerAstroVolumeLogic* logic = AstroVolumeLogic();
+  if (!d->mask() && logic && d->Volume)
+    {
+    this->onMaskSelected(logic->GetMaskSegmentationForVolume(d->Volume, true));
+    }
+  vtkMRMLSegmentationNode* mask = d->mask();
+  if (!mask || !mask->GetSegmentation())
+    {
+    return QString();
+    }
+  QString segmentID;
+  QPushButton* editorAdd = d->Editor ? d->Editor->findChild<QPushButton*>("AddSegmentButton") : nullptr;
+  if (editorAdd && d->EditButton->isChecked())
+    {
+    // as the Segment Editor adds segments (default terminology and colour)
+    editorAdd->click();
+    segmentID = d->Editor->currentSegmentID();
+    }
+  else
+    {
+    segmentID = QString::fromStdString(mask->GetSegmentation()->AddEmptySegment());
+    }
+  if (!segmentID.isEmpty())
+    {
+    d->Table->setSelectedSegmentIDs(QStringList() << segmentID);
+    }
+  this->updateFromMask();
+  return segmentID;
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroMasksSection::removeSelectedSegments()
+{
+  Q_D(qSlicerAstroMasksSection);
+  vtkMRMLSegmentationNode* mask = d->mask();
+  const QStringList selected = d->Table->selectedSegmentIDs();
+  if (!mask || !mask->GetSegmentation() || selected.isEmpty())
+    {
+    return;
+    }
+  {
+  MRMLNodeModifyBlocker blocker(mask);
+  for (const QString& segmentID : selected)
+    {
+    mask->GetSegmentation()->RemoveSegment(segmentID.toStdString());
+    }
+  }
+  this->updateFromMask();
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroMasksSection::setAllSegmentsVisible(bool visible)
+{
+  Q_D(qSlicerAstroMasksSection);
+  vtkMRMLSegmentationNode* mask = d->mask();
+  vtkMRMLSegmentationDisplayNode* displayNode = mask ?
+    vtkMRMLSegmentationDisplayNode::SafeDownCast(mask->GetDisplayNode()) : nullptr;
+  if (!displayNode)
+    {
+    return;
+    }
+  {
+  MRMLNodeModifyBlocker blocker(displayNode);
+  if (visible)
+    {
+    displayNode->SetVisibility(true);
+    }
+  std::vector<std::string> segmentIDs;
+  mask->GetSegmentation()->GetSegmentIDs(segmentIDs);
+  for (const std::string& segmentID : segmentIDs)
+    {
+    displayNode->SetSegmentVisibility(segmentID, visible);
+    }
+  }
+  this->updateFromMask();
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroMasksSection::toggleAllSegments()
+{
+  Q_D(qSlicerAstroMasksSection);
+  // all shown if none is shown, otherwise all hidden
+  bool anyVisible = false;
+  vtkMRMLSegmentationNode* mask = d->mask();
+  vtkMRMLSegmentationDisplayNode* displayNode = mask ?
+    vtkMRMLSegmentationDisplayNode::SafeDownCast(mask->GetDisplayNode()) : nullptr;
+  if (displayNode && displayNode->GetVisibility())
+    {
+    std::vector<std::string> segmentIDs;
+    mask->GetSegmentation()->GetSegmentIDs(segmentIDs);
+    for (const std::string& segmentID : segmentIDs)
+      {
+      anyVisible = anyVisible || displayNode->GetSegmentVisibility(segmentID);
+      }
+    }
+  this->setAllSegmentsVisible(!anyVisible);
 }
 
 //-----------------------------------------------------------------------------
@@ -461,6 +991,7 @@ void qSlicerAstroMasksSection::setMaskVisible(bool visible)
 void qSlicerAstroMasksSection::setEditing(bool editing)
 {
   Q_D(qSlicerAstroMasksSection);
+  const bool wasEditing = d->EditButton->isChecked() && d->Editor && !d->Editor->isHidden();
   if (editing && !d->Editor && d->Scene)
     {
     d->Editor = new qMRMLSegmentEditorWidget(this);
@@ -475,36 +1006,189 @@ void qSlicerAstroMasksSection::setEditing(bool editing)
       editorNode = vtkMRMLSegmentEditorNode::SafeDownCast(d->Scene->AddNode(newEditorNode));
       }
     d->Editor->setMRMLSegmentEditorNode(editorNode);
+    // the active effect (its options need more width, see editorWidthHint)
+    this->qvtkReconnect(d->EditorNode, editorNode, vtkCommand::ModifiedEvent, this, SLOT(onEditorNodeModified()));
+    d->EditorNode = editorNode;
     d->Editor->setSegmentationNodeSelectorVisible(false);
     d->Editor->setSourceVolumeNodeSelectorVisible(false);
     d->Editor->setSwitchToSegmentationsButtonVisible(false);
     // masks are shown in 3D from the Masks section (no 3D surface button)
     d->Editor->setShow3DButtonVisible(false);
+    QObject::connect(d->Editor, SIGNAL(currentSegmentIDChanged(QString)), this,
+                     SLOT(onEditorSegmentChanged(QString)));
     d->EditorHolder->addWidget(d->Editor);
+    this->restyleEditor();
     }
   if (!d->Editor)
     {
     return;
     }
   d->Editor->setVisible(editing);
+  d->EffectsBar->setVisible(editing);
+  d->AddButton->setVisible(editing);
+  d->RemoveButton->setVisible(editing);
   if (editing)
     {
     vtkSlicerAstroVolumeLogic* logic = AstroVolumeLogic();
     if (!d->mask() && logic && d->Volume)
       {
-      d->MaskSelector->setCurrentNode(logic->GetMaskSegmentationForVolume(d->Volume, true));
+      this->onMaskSelected(logic->GetMaskSegmentationForVolume(d->Volume, true));
       }
     d->Editor->setSegmentationNode(d->mask());
     d->Editor->setSourceVolumeNode(d->Volume);
     d->Editor->setupViewObservations();
+    this->restyleEditor();
+    // the edited segment: the selected one, otherwise the first
+    this->onTableSelectionChanged();
     }
   else
     {
     d->Editor->setActiveEffect(nullptr);
     d->Editor->removeViewObservations();
     }
+  {
   const QSignalBlocker blocker(d->EditButton);
   d->EditButton->setChecked(editing);
+  }
+  this->onEditorNodeModified();
+  if (editing != wasEditing)
+    {
+    emit editingChanged(editing);
+    }
+}
+
+//-----------------------------------------------------------------------------
+bool qSlicerAstroMasksSection::isEditing() const
+{
+  Q_D(const qSlicerAstroMasksSection);
+  return d->EditButton->isChecked();
+}
+
+//-----------------------------------------------------------------------------
+QString qSlicerAstroMasksSection::activeEffect() const
+{
+  Q_D(const qSlicerAstroMasksSection);
+  return d->ActiveEffect;
+}
+
+//-----------------------------------------------------------------------------
+int qSlicerAstroMasksSection::editorWidthHint() const
+{
+  Q_D(const qSlicerAstroMasksSection);
+  // (hidden: not editing; not isVisible, which is false while the section
+  // itself is not on screen)
+  if (!d->Editor || d->Editor->isHidden())
+    {
+    return 0;
+    }
+  // the effect options (e.g. Paint: diameter, sphere brush, ...) set the width
+  int width = d->Editor->minimumSizeHint().width();
+  QWidget* options = d->Editor->findChild<QWidget*>("OptionsGroupBox");
+  if (options && !options->isHidden())
+    {
+    const QMargins margins = d->Editor->contentsMargins();
+    width = std::max(width, options->sizeHint().width() + margins.left() + margins.right());
+    }
+  return width;
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroMasksSection::onEditorNodeModified()
+{
+  Q_D(qSlicerAstroMasksSection);
+  QString effect;
+  if (d->Editor && d->EditButton->isChecked() && d->EditorNode && d->EditorNode->GetActiveEffectName())
+    {
+    effect = QString::fromUtf8(d->EditorNode->GetActiveEffectName());
+    }
+  // the pixel sizes of Margin and Hollow follow their parameters
+  this->syncPixelSpinBoxes();
+  if (effect != d->ActiveEffect)
+    {
+    d->ActiveEffect = effect;
+    this->adjustEffectOptions();
+    // after the Segment Editor has set its cursor on the views
+    QTimer::singleShot(0, this, SLOT(applyEffectCursor()));
+    emit activeEffectChanged(effect);
+    }
+}
+
+//-----------------------------------------------------------------------------
+QCursor qSlicerAstroMasksSection::effectCursor(const QString& effectName)
+{
+  qSlicerAstroTheme* theme = qSlicerAstroTheme::instance();
+  const QString iconName = EffectIconName(effectName);
+  const int size = 32;
+  const qreal ratio = 2.;
+  QPixmap pixmap(static_cast<int>(size * ratio), static_cast<int>(size * ratio));
+  pixmap.setDevicePixelRatio(ratio);
+  pixmap.fill(Qt::transparent);
+  QPainter painter(&pixmap);
+  painter.setRenderHint(QPainter::Antialiasing);
+  // the arrow: light with a dark outline, readable on the data and the sky
+  QPainterPath arrow;
+  arrow.moveTo(2., 2.);
+  arrow.lineTo(2., 19.5);
+  arrow.lineTo(6.6, 15.3);
+  arrow.lineTo(9.8, 22.3);
+  arrow.lineTo(12.6, 21.1);
+  arrow.lineTo(9.5, 14.2);
+  arrow.lineTo(15.6, 14.2);
+  arrow.closeSubpath();
+  painter.setPen(QPen(QColor("#070A12"), 1.4, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+  painter.setBrush(QColor("#F4F6FA"));
+  painter.drawPath(arrow);
+  if (!iconName.isEmpty())
+    {
+    // the badge of the effect: its icon on the theme colours, bottom right
+    const QRectF badge(14.5, 14.5, 16., 16.);
+    QPainterPath badgePath;
+    badgePath.addRoundedRect(badge, 4.5, 4.5);
+    painter.setPen(QPen(theme->color("accent"), 1.2));
+    painter.setBrush(QColor("#111726"));
+    painter.drawPath(badgePath);
+    theme->icon(iconName, "accent").paint(&painter, badge.adjusted(2., 2., -2., -2.).toRect());
+    }
+  painter.end();
+  return QCursor(pixmap, 2, 2);
+}
+
+//-----------------------------------------------------------------------------
+QPixmap qSlicerAstroMasksSection::effectCursorPixmap(const QString& effectName) const
+{
+  return qSlicerAstroMasksSection::effectCursor(effectName).pixmap();
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroMasksSection::applyEffectCursor()
+{
+  Q_D(qSlicerAstroMasksSection);
+  qSlicerApplication* app = qSlicerApplication::application();
+  qSlicerLayoutManager* layoutManager = app ? app->layoutManager() : nullptr;
+  if (!layoutManager || d->ActiveEffect.isEmpty() || EffectIconName(d->ActiveEffect).isEmpty())
+    {
+    // no effect: Slicer's default cursors (set by the Segment Editor)
+    return;
+    }
+  const QCursor cursor = qSlicerAstroMasksSection::effectCursor(d->ActiveEffect);
+  for (const QString& name : layoutManager->sliceViewNames())
+    {
+    qMRMLSliceWidget* sliceWidget = layoutManager->sliceWidget(name);
+    if (sliceWidget && sliceWidget->sliceView())
+      {
+      sliceWidget->sliceView()->setViewCursor(cursor);
+      sliceWidget->sliceView()->setDefaultViewCursor(cursor);
+      }
+    }
+  for (int index = 0; index < layoutManager->threeDViewCount(); index++)
+    {
+    qMRMLThreeDWidget* threeDWidget = layoutManager->threeDWidget(index);
+    if (threeDWidget && threeDWidget->threeDView())
+      {
+      threeDWidget->threeDView()->setViewCursor(cursor);
+      threeDWidget->threeDView()->setDefaultViewCursor(cursor);
+      }
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -546,14 +1230,14 @@ bool qSlicerAstroMasksSection::copySegments(const QString& targetID, bool move)
 void qSlicerAstroMasksSection::onCopyClicked()
 {
   Q_D(qSlicerAstroMasksSection);
-  this->copySegments(d->Target->currentData().toString(), false);
+  this->copySegments(d->Target->currentNodeID(), false);
 }
 
 //-----------------------------------------------------------------------------
 void qSlicerAstroMasksSection::onMoveClicked()
 {
   Q_D(qSlicerAstroMasksSection);
-  this->copySegments(d->Target->currentData().toString(), true);
+  this->copySegments(d->Target->currentNodeID(), true);
 }
 
 //-----------------------------------------------------------------------------
@@ -572,7 +1256,7 @@ bool qSlicerAstroMasksSection::saveMask(const QString& fileName)
     {
     return false;
     }
-  const QString title = tr("Save as FITS mask");
+  const QString title = tr("Export as FITS mask");
   QString path = fileName;
   if (path.isEmpty())
     {
@@ -607,7 +1291,7 @@ bool qSlicerAstroMasksSection::saveMask(const QString& fileName)
   if (saved)
     {
     const char* written = mask->GetStorageNode() ? mask->GetStorageNode()->GetFileName() : nullptr;
-    d->Status->setText(tr("Saved %1").arg(written ? QString::fromUtf8(written) : path));
+    d->Status->setText(tr("Exported %1").arg(written ? QString::fromUtf8(written) : path));
     }
   else
     {

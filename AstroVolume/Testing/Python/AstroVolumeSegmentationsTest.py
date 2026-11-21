@@ -58,6 +58,8 @@ class AstroVolumeSegmentationsTestTest(ScriptedLoadableModuleTest):
         self.test_CopyMoveMask()
         self.setUp()
         self.test_MasksSection()
+        self.setUp()
+        self.test_MaskImportConflict()
 
     def loadWEIN069(self):
         import AstroSampleData
@@ -308,8 +310,8 @@ class AstroVolumeSegmentationsTestTest(ScriptedLoadableModuleTest):
     def test_CopyMoveMask(self):
         """Segments of a mask copied or moved to the masks of other volumes:
         voxel by voxel on the same lattice (a copy, a cutout), projected on a
-        2D image of the same sky grid, reprojected (WCS, nearest neighbour)
-        on another grid; masks on another grid are refused as module inputs."""
+        2D image of the same sky grid; data on another grid are refused (copy
+        and module inputs: reproject the data first)."""
         import numpy as np
         import vtk
         from AstroFITSIOTest import celestialWCS, radioVelocityWCS, writeFITS
@@ -368,31 +370,20 @@ class AstroVolumeSegmentationsTestTest(ScriptedLoadableModuleTest):
         np.testing.assert_array_equal(segmentMask(targetMask, "Source", image)[0],
                                       source.any(axis=0).astype(np.uint8))
 
-        # another grid (pixels twice larger, same channels): reprojected
+        # another grid (pixels twice larger, same channels): refused
         rebinned = load("copy_rebinned", np.ones((12, 10, 12), dtype=np.float32),
-                        # shifted by 0.1 rebinned pixel: no ties of the nearest neighbour
                         celestialWCS(crpix=(6.6, 5.6), cdelt=(-0.002, 0.002)) + radioVelocityWCS(crpix=1.0))
         self.assertFalse(slicer.vtkSlicerAstroVolumeLogic.GetGridOffset(cube, rebinned, [0, 0, 0]))
+        self.assertFalse(slicer.vtkSlicerAstroVolumeLogic.IsMaskCopyTarget(cube, rebinned))
+        self.assertTrue(slicer.vtkSlicerAstroVolumeLogic.IsMaskCopyTarget(cube, cutout))
+        self.assertTrue(slicer.vtkSlicerAstroVolumeLogic.IsMaskCopyTarget(cube, image))
+        self.assertFalse(slicer.vtkSlicerAstroVolumeLogic.IsMaskCopyTarget(image, cube))
         # refused as module input
         self.assertIsNone(segmentMask(maskNode, "Source", rebinned))
-        targetMask = copy(rebinned, ["Source"])
-        computed = segmentMask(targetMask, "Source", rebinned)
-        # nearest voxel of the cube for each voxel of the rebinned cube (WCS)
-        expected = np.zeros(computed.shape, dtype=np.uint8)
-        targetDisplay = rebinned.GetAstroVolumeDisplayNode()
-        sourceDisplay = cube.GetAstroVolumeDisplayNode()
-        for k in range(computed.shape[0]):
-            for j in range(computed.shape[1]):
-                for i in range(computed.shape[2]):
-                    world = [0., 0., 0.]
-                    targetDisplay.GetReferenceSpace([float(i), float(j), float(k)], world)
-                    ijk = [0., 0., 0.]
-                    sourceDisplay.GetIJKSpace(world, ijk)
-                    si, sj, sk = (int(round(v)) for v in ijk)
-                    if 0 <= sk < shape[0] and 0 <= sj < shape[1] and 0 <= si < shape[2]:
-                        expected[k, j, i] = source[sk, sj, si]
-        self.assertGreater(np.count_nonzero(expected), 0)
-        np.testing.assert_array_equal(computed, expected)
+        array = vtk.vtkStringArray()
+        array.InsertNextValue("Source")
+        self.assertIsNone(self.logic.CopyMaskSegmentsToVolume(maskNode, array, rebinned, False))
+        self.assertIn("not on the grid", self.logic.GetLastMaskCopyError())
 
         # move (Copy and Move buttons of the Masks section of the AstroVolume
         # module): the segments leave the mask
@@ -411,7 +402,11 @@ class AstroVolumeSegmentationsTestTest(ScriptedLoadableModuleTest):
         # nothing selected: all the segments are copied
         slicer.util.findChild(widget, "MasksTable").setSelectedSegmentIDs([])
         target = slicer.util.findChild(widget, "MasksCopyTarget")
-        target.setCurrentIndex(target.findData(image.GetID()))
+        # only the data on the grid of the cube (not the rebinned cube)
+        targetIDs = [node.GetID() for node in target.nodes()]
+        self.assertIn(image.GetID(), targetIDs)
+        self.assertNotIn(rebinned.GetID(), targetIDs)
+        target.setCurrentNodeID(image.GetID())
         slicer.util.findChild(widget, "MasksCopy").click()
         imageMask = self.logic.GetMaskSegmentationForVolume(image, False)
         self.assertEqual(imageMask.GetSegmentation().GetNumberOfSegments(), 2)
@@ -454,10 +449,17 @@ class AstroVolumeSegmentationsTestTest(ScriptedLoadableModuleTest):
         section.setVolumeNode(cube)
         slicer.app.processEvents()
         self.assertEqual(section.segmentCount(), 2)
-        self.assertEqual(slicer.util.findChild(section, "MasksSelector").currentNode(), maskNode)
+        # one mask per dataset, no choice of the mask
+        self.assertEqual(section.maskNode(), maskNode)
+        # the eye of all the segments
+        section.setAllSegmentsVisible(False)
+        self.assertFalse(maskNode.GetDisplayNode().GetSegmentVisibility("Source"))
+        section.toggleAllSegments()
+        self.assertTrue(maskNode.GetDisplayNode().GetSegmentVisibility("Source"))
+        self.assertTrue(maskNode.GetDisplayNode().GetSegmentVisibility("Corner"))
         self.assertTrue(slicer.util.findChild(section, "MasksSave").enabled)
         target = slicer.util.findChild(section, "MasksCopyTarget")
-        self.assertEqual([target.itemText(i) for i in range(target.count)], [other.GetName()])
+        self.assertEqual([node.GetName() for node in target.nodes()], [other.GetName()])
 
         # move the selected segment, then copy all (nothing selected)
         table = slicer.util.findChild(section, "MasksTable")
@@ -479,8 +481,20 @@ class AstroVolumeSegmentationsTestTest(ScriptedLoadableModuleTest):
         self.assertIsNotNone(editor)
         self.assertEqual(editor.segmentationNode(), maskNode)
         self.assertEqual(editor.sourceVolumeNode(), cube)
+        self.assertTrue(section.isEditing())
+        # the active effect is reported (the Workbench widens its panel)
+        effects = []
+        section.connect("activeEffectChanged(QString)", lambda name: effects.append(name))
+        editor.setActiveEffectByName("Paint")
+        slicer.app.processEvents()
+        self.assertEqual(section.activeEffect(), "Paint")
+        self.assertGreater(section.editorWidthHint(), 0)
         section.setEditing(False)
         self.assertTrue(editor.isHidden())
+        self.assertFalse(section.isEditing())
+        self.assertEqual(section.activeEffect(), "")
+        self.assertEqual(effects[-1], "")
+        self.assertIn("Paint", effects)
 
         # save as FITS mask and load it again
         path = os.path.join(directory, "section_mask.fits")
@@ -488,7 +502,8 @@ class AstroVolumeSegmentationsTestTest(ScriptedLoadableModuleTest):
             os.remove(path)
         self.assertTrue(section.saveMask(path), section.status())
         self.assertTrue(os.path.exists(path))
-        loaded = slicer.util.loadSegmentation(path)
+        # (the mask of the cube has segments: the loaded one replaces it)
+        loaded = slicer.util.loadSegmentation(path, {"maskConflict": "replace"})
         self.assertEqual(loaded.GetSegmentation().GetNumberOfSegments(), 1)
         np.testing.assert_array_equal(segmentMask(loaded, loaded.GetSegmentation().GetNthSegmentID(0), cube),
                                       masks["Source"])
@@ -587,4 +602,73 @@ class AstroVolumeSegmentationsTestTest(ScriptedLoadableModuleTest):
                 self.assertAlmostEqual(rasToXY.MultiplyPoint(ras)[2], 0., places=3, msg=f"{name}: image on the slice")
             else:
                 self.assertEqual(after, before[name], f"{name}: unchanged")
+        self.delayDisplay("Test passed")
+
+    def test_MaskImportConflict(self):
+        """One mask per dataset: a FITS mask loaded for a cube whose mask has
+        segments is merged into it, replaces it (keeping its name) or is not
+        loaded (vtkSlicerAstroVolumeLogic.ResolveMaskConflict; the reader asks
+        the user, or follows the maskConflict property)."""
+        import numpy as np
+        from AstroFITSIOTest import celestialWCS, radioVelocityWCS, writeFITS
+
+        directory = os.path.join(slicer.app.temporaryPath, "AstroVolumeSegmentationsTest")
+        os.makedirs(directory, exist_ok=True)
+        shape = (8, 16, 20)
+        path = os.path.join(directory, "conflict_cube.fits")
+        writeFITS(path, np.ones(shape, dtype=np.float32), -32,
+                  celestialWCS(crpix=(10.5, 8.5)) + radioVelocityWCS(crpix=1.0) + [("BUNIT", "JY/BEAM")])
+        cube = slicer.util.loadVolume(path)
+        mask = self.logic.GetMaskSegmentationForVolume(cube, True)
+        maskName = mask.GetName()
+
+        def writeMask(name, segmentNames):
+            """A FITS mask of the cube with the given segments."""
+            node = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLSegmentationNode", name + "_tmp")
+            node.CreateDefaultDisplayNodes()
+            for index, segmentName in enumerate(segmentNames):
+                voxels = np.zeros(shape, dtype=np.uint8)
+                voxels[index:index + 2, 2:6, 3:8] = 1
+                segmentID = node.GetSegmentation().AddEmptySegment(segmentName, segmentName)
+                slicer.util.updateSegmentBinaryLabelmapFromArray(voxels, node, segmentID, cube)
+            filePath = os.path.join(directory, name + ".fits")
+            if os.path.exists(filePath):
+                os.remove(filePath)
+            self.assertTrue(self.logic.SaveFITSMask(node, cube, filePath), self.logic.GetLastMaskSaveError())
+            slicer.mrmlScene.RemoveNode(node)
+            return filePath
+
+        first = writeMask("conflict_first", ["A"])
+        second = writeMask("conflict_second", ["B", "C"])
+        # (the temporary masks on the grid of the cube replaced its empty mask
+        # and were removed: the cube gets its empty mask again)
+        mask = self.logic.GetMaskSegmentationForVolume(cube, True)
+        self.assertEqual(mask.GetName(), maskName)
+        segmentations = slicer.mrmlScene.GetNumberOfNodesByClass("vtkMRMLSegmentationNode")
+
+        def load(filePath, option):
+            return slicer.app.coreIOManager().loadNodes(
+                "SegmentationFile", {"fileName": filePath, "maskConflict": option})
+
+        # the mask of the cube is empty: the loaded mask becomes the mask
+        load(first, "merge")
+        mask = self.logic.GetMaskSegmentationForVolume(cube, False)
+        self.assertEqual(mask.GetSegmentation().GetNumberOfSegments(), 1)
+        # merge: the segments are added to the mask, no other mask stays
+        load(second, "merge")
+        self.assertIs(self.logic.GetMaskSegmentationForVolume(cube, False), mask)
+        self.assertEqual(mask.GetSegmentation().GetNumberOfSegments(), 3)
+        self.assertEqual(slicer.mrmlScene.GetNumberOfNodesByClass("vtkMRMLSegmentationNode"), segmentations)
+        # cancel: nothing changes
+        self.assertFalse(load(second, "cancel"))
+        self.assertIs(self.logic.GetMaskSegmentationForVolume(cube, False), mask)
+        self.assertEqual(mask.GetSegmentation().GetNumberOfSegments(), 3)
+        self.assertEqual(slicer.mrmlScene.GetNumberOfNodesByClass("vtkMRMLSegmentationNode"), segmentations)
+        # replace: the loaded mask is the mask, with the name of the mask
+        load(second, "replace")
+        replaced = self.logic.GetMaskSegmentationForVolume(cube, False)
+        self.assertIsNot(replaced, mask)
+        self.assertEqual(replaced.GetSegmentation().GetNumberOfSegments(), 2)
+        self.assertEqual(replaced.GetName(), maskName)
+        self.assertEqual(slicer.mrmlScene.GetNumberOfNodesByClass("vtkMRMLSegmentationNode"), segmentations)
         self.delayDisplay("Test passed")

@@ -43,6 +43,13 @@ SHORTCUTS = [
         ("t", "show or hide the foreground"),
         ("double-click", "maximize the view or restore the layout"),
     ]),
+    ("Colour-function tool (header)", [
+        ("2D view: left-drag ← →", "contrast: narrower or wider window of the 2D colour function"),
+        ("2D view: left-drag ↑ ↓", "brightness: the window moves along the data values"),
+        ("3D view: left-drag ← →", "move the 3D colour function along the data values (Shift in Inspect › Display › 3D rendering)"),
+        ("3D view: left-drag ↑ ↓", "more or less opaque (Opacity in Inspect › Display › 3D rendering)"),
+        ("pointer button", "back to navigation (Inspect shows the new values)"),
+    ]),
     ("3D views", [
         ("left-drag · arrows", "rotate"),
         ("right-drag · Ctrl+wheel · + -", "zoom"),
@@ -78,6 +85,19 @@ def paragraph(text, role="label"):
     label.setTextInteractionFlags(qt.Qt.TextBrowserInteraction)
     label.openExternalLinks = True
     return label
+
+
+def folderPaths():
+    """Folders of SlicerAstro: (name, path, tool tip)."""
+    from . import Workspaces
+    paths = [("Workspaces", Workspaces.workspacesDirectory(),
+              "Saved workspaces: one folder each, with the scene (scene.mrb), a preview and a description. "
+              f"Setting {Workspaces.SETTINGS_KEY}.")]
+    cacheManager = slicer.mrmlScene.GetCacheManager()
+    cache = cacheManager.GetRemoteCacheDirectory() if cacheManager is not None else ""
+    if cache:
+        paths.append(("Sample data", cache, "Downloaded sample data (cache of Slicer)."))
+    return paths
 
 
 def versions():
@@ -220,6 +240,25 @@ class AboutDialog(qt.QDialog):
         row.addWidget(copy)
         row.addStretch(1)
         layout.addLayout(row)
+        # where SlicerAstro keeps its files
+        layout.addWidget(overline("Folders"))
+        folders = qt.QGridLayout()
+        folders.setHorizontalSpacing(18)
+        folders.setVerticalSpacing(5)
+        for row, (name, path, toolTip) in enumerate(folderPaths()):
+            label = qt.QLabel(name)
+            label.setProperty("astroRole", "label")
+            label.toolTip = toolTip
+            text = qt.QLabel(path)
+            text.setProperty("astroRole", "mono")
+            text.setObjectName(f"AboutFolder_{name.replace(' ', '')}")
+            text.setTextInteractionFlags(qt.Qt.TextSelectableByMouse)
+            text.wordWrap = True
+            text.toolTip = toolTip
+            folders.addWidget(label, row, 0)
+            folders.addWidget(text, row, 1)
+        folders.setColumnStretch(1, 1)
+        layout.addLayout(folders)
         layout.addWidget(paragraph(
             "SlicerAstro is free software under the BSD 3-Clause licence. Its packages include "
             "libraries under other licences (see Credits)."))

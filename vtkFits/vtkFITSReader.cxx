@@ -51,6 +51,7 @@
 #include <vtkShortArray.h>
 #include <vtksys/SystemTools.hxx>
 #include <vtkStreamingDemandDrivenPipeline.h>
+#include <vtkStringArray.h>
 
 // Slicer includes
 
@@ -73,6 +74,24 @@
   }
 
 vtkStandardNewMacro(vtkFITSReader);
+
+namespace
+{
+//----------------------------------------------------------------------------
+/// Whether the third axis of a header is a wavelength (WAVE, AWAV)
+bool IsWavelengthAxis(const std::map<std::string, std::string>& header)
+{
+  const std::map<std::string, std::string>::const_iterator ctype = header.find("SlicerAstro.CTYPE3");
+  if (ctype == header.end())
+    {
+    return false;
+    }
+  std::string type = ctype->second;
+  type.erase(0, type.find_first_not_of(" '"));
+  type = type.substr(0, 4);
+  return type == "WAVE" || type == "AWAV";
+}
+} // end of anonymous namespace
 
 namespace
 {
@@ -249,14 +268,17 @@ public:
   FITSFileOpener(const FITSFileOpener&) = delete;
   FITSFileOpener& operator=(const FITSFileOpener&) = delete;
 
-  int Open(const char* fileName, bool headerOnly, int* status)
+  /// hdu: cfitsio absolute HDU number, 0: the first HDU with data
+  int Open(const char* fileName, bool headerOnly, int* status, int hdu = 0)
   {
     *this->File = nullptr;
     if (!IsGzipFileName(fileName))
       {
-      return fits_open_data(this->File, fileName, READONLY, status);
+      return OpenAt(fileName, hdu, status);
       }
-    if (headerOnly)
+    // another HDU of a gzip-compressed file: from the decompressed file
+    // (the headers are decompressed only up to the first HDU with data)
+    if (headerOnly && hdu <= 0)
       {
       if (!ReadGzipHeaders(fileName, this->Headers))
         {
@@ -289,7 +311,27 @@ public:
       *status = FILE_NOT_OPENED;
       return *status;
       }
-    return fits_open_data(this->File, this->TemporaryFileName.c_str(), READONLY, status);
+    return OpenAt(this->TemporaryFileName.c_str(), hdu, status);
+  }
+
+  /// Opens a (not gzip-compressed) file at an HDU (0: the first with data)
+  int OpenAt(const char* fileName, int hdu, int* status)
+  {
+    if (hdu <= 0)
+      {
+      return fits_open_data(this->File, fileName, READONLY, status);
+      }
+    int hduType = IMAGE_HDU;
+    if (fits_open_file(this->File, fileName, READONLY, status) ||
+        fits_movabs_hdu(*this->File, hdu, &hduType, status))
+      {
+      return *status;
+      }
+    if (hduType != IMAGE_HDU)
+      {
+      *status = NOT_IMAGE;
+      }
+    return *status;
   }
 
   int Close(int* status)
@@ -586,7 +628,7 @@ int vtkFITSReader::CanReadFile(const char* filename)
 bool vtkFITSReader::AstroExecuteInformation()
 {
   FITSFileOpener opener(&this->fptr);
-  if(opener.Open(this->GetFileName(), true, &this->ReadStatus))
+  if(opener.Open(this->GetFileName(), true, &this->ReadStatus, this->HDUNumber))
     {
     vtkErrorMacro("vtkFITSReader::AstroExecuteInformation: could not open "
                   << this->GetFileName() << ": " << vtkAstroFITSErrorMessage(this->ReadStatus));
@@ -598,6 +640,10 @@ bool vtkFITSReader::AstroExecuteInformation()
     {
     vtkErrorMacro("vtkFITSReader::AstroExecuteInformation: "
                   "Failed to allocateFitsHeader. The data will not be loaded.");
+    return false;
+    }
+  if (!this->ApplySubExtentToHeader())
+    {
     return false;
     }
 
@@ -686,7 +732,7 @@ void vtkFITSReader::ExecuteInformation()
   strcpy (this->CurrentFileName, this->GetFileName());
 
   FITSFileOpener opener(&this->fptr);
-  if(opener.Open(this->GetFileName(), true, &this->ReadStatus))
+  if(opener.Open(this->GetFileName(), true, &this->ReadStatus, this->HDUNumber))
     {
     vtkErrorMacro("vtkFITSReader::ExecuteInformation: could not open "
                   << this->GetFileName() << ": " << vtkAstroFITSErrorMessage(this->ReadStatus));
@@ -711,6 +757,10 @@ void vtkFITSReader::ExecuteInformation()
     vtkErrorMacro("vtkFITSReader::ExecuteInformation: Failed to allocateFitsHeader.");
     return;
     }
+  if (!this->ApplySubExtentToHeader())
+    {
+    return;
+    }
 
   // Push FITS header key/value pair data into std::map
   if(this->FixGipsyHeader() == 0)
@@ -724,6 +774,10 @@ void vtkFITSReader::ExecuteInformation()
     {
     this->WCSStatus = -1;
     vtkErrorMacro("vtkFITSReader::ExecuteInformation: Failed to allocateWCS.");
+    }
+  else
+    {
+    this->ApplySubExtentToWCS();
     }
 
   // Set type information
@@ -1827,6 +1881,15 @@ bool vtkFITSReader::AllocateHeader()
        {
        this->HeaderKeyValue["SlicerAstro.RESTFREQ"] = this->HeaderKeyValue.at("SlicerAstro.FREQ0");
        }
+     else if (n > 2 && IsWavelengthAxis(this->HeaderKeyValue))
+       {
+       // optical data (e.g. MUSE cubes) without a rest wavelength: no line
+       // is assumed, the spectral axis stays in wavelengths (the line can be
+       // set later, e.g. in the Info section of SlicerAstro)
+       vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderInformation, "The fits header has no rest wavelength "
+                       "(RESTWAV) or frequency (RESTFRQ): the spectral axis is kept in wavelengths.");
+       this->HeaderKeyValue["SlicerAstro.RESTFREQ"] = "0.";
+       }
      else if (n > 2)
        {
        std::string dunit3 = this->HeaderKeyValue.at("SlicerAstro.DUNIT3");
@@ -2303,6 +2366,31 @@ std::string vtkFITSReader::GetVelocityTypeForSpectralAxis(const std::string& cty
     }
   // wavelength (optical data), redshift, relativistic velocity: optical velocity
   return "VOPT";
+}
+
+//----------------------------------------------------------------------------
+void vtkFITSReader::ConvertCDMatrixToPC(struct wcsprm* wcs)
+{
+  // wcssptr loses the spectral pixel step of a CDi_j matrix (e.g. the MUSE
+  // cubes: CD3_3 without CDELT3): the velocity would be the same in all the
+  // channels. The matrix is given in the equivalent PCi_j and CDELTi form
+  // (CDELTi = CDi_i) before the conversion.
+  if (!wcs || !(wcs->altlin & 2) || (wcs->altlin & 1))
+    {
+    return;
+    }
+  const int n = wcs->naxis;
+  for (int i = 0; i < n; i++)
+    {
+    const double cdelt = fabs(wcs->cd[i * n + i]) > 0. ? wcs->cd[i * n + i] : 1.;
+    wcs->cdelt[i] = cdelt;
+    for (int j = 0; j < n; j++)
+      {
+      wcs->pc[i * n + j] = wcs->cd[i * n + j] / cdelt;
+      }
+    }
+  wcs->altlin = 1;
+  wcs->flag = 0;
 }
 
 //----------------------------------------------------------------------------
@@ -2945,31 +3033,21 @@ bool vtkFITSReader::AllocateWCS()
     {
     std::string ctype2 = this->WCS->ctype[2];
     std::string velocityType = this->GetVelocityTypeForSpectralAxis(ctype2);
-    if (ctype2.compare(0, 4, velocityType) &&
+    // a wavelength axis without a rest wavelength or frequency stays in
+    // wavelengths (no velocity without a line)
+    const bool wavelengthAxis = !ctype2.compare(0, 4, "WAVE") || !ctype2.compare(0, 4, "AWAV");
+    const bool restKnown = this->WCS->restfrq > 0. || this->WCS->restwav > 0.;
+    const bool convert = ctype2.compare(0, 4, velocityType) != 0 && (restKnown || !wavelengthAxis);
+    if (convert &&
         (this->WCS->altlin & 2) && !(this->WCS->altlin & 1))
       {
-      // wcssptr loses the spectral pixel step of a CDi_j matrix (e.g. the
-      // MUSE cubes: CD3_3 without CDELT3): the velocity would be the same in
-      // all the channels. The matrix is given in the equivalent PCi_j and
-      // CDELTi form (CDELTi = CDi_i) before the conversion.
-      const int n = this->WCS->naxis;
-      for (int i = 0; i < n; i++)
-        {
-        const double cdelt = fabs(this->WCS->cd[i * n + i]) > 0. ? this->WCS->cd[i * n + i] : 1.;
-        this->WCS->cdelt[i] = cdelt;
-        for (int j = 0; j < n; j++)
-          {
-          this->WCS->pc[i * n + j] = this->WCS->cd[i * n + j] / cdelt;
-          }
-        }
-      this->WCS->altlin = 1;
-      this->WCS->flag = 0;
+      vtkFITSReader::ConvertCDMatrixToPC(this->WCS);
       if ((this->WCSStatus = wcsset(this->WCS)))
         {
         vtkErrorMacro("vtkFITSReader::AllocateWCS: " << vtkAstroWCSErrorMessage("wcsset", this->WCSStatus, this->WCS));
         }
       }
-    if (ctype2.compare(0, 4, velocityType))
+    if (convert)
       {
       int index = 2;
       char ctypeS[9];
@@ -3275,7 +3353,7 @@ void vtkFITSReader::ExecuteDataWithInformation(vtkDataObject *output, vtkInforma
   // is decompressed to a temporary file (removed when the data are read):
   // cfitsio would decompress it in memory, doubling the memory used.
   FITSFileOpener opener(&this->fptr);
-  if(opener.Open(this->GetFileName(), false, &this->ReadStatus))
+  if(opener.Open(this->GetFileName(), false, &this->ReadStatus, this->HDUNumber))
     {
     vtkErrorMacro("vtkFITSReader::ExecuteDataWithInformation: "
                   "could not open "<< this->GetFileName() << ": " << vtkAstroFITSErrorMessage(this->ReadStatus));
@@ -3305,7 +3383,7 @@ void vtkFITSReader::ExecuteDataWithInformation(vtkDataObject *output, vtkInforma
   switch (this->DataType)
     {
     case VTK_DOUBLE:
-      if(fits_read_img(this->fptr, TDOUBLE, 1, numberOfElements, &nullDouble, ptr, &anynullptr, &this->ReadStatus))
+      if(this->ReadFITSVoxels(TDOUBLE, &nullDouble, ptr, numberOfElements, &anynullptr))
         {
         vtkErrorMacro("vtkFITSReader::ExecuteDataWithInformation: could not read the voxels of "
                       << this->GetFileName() << ": " << vtkAstroFITSErrorMessage(this->ReadStatus));
@@ -3314,7 +3392,7 @@ void vtkFITSReader::ExecuteDataWithInformation(vtkDataObject *output, vtkInforma
         }
       break;
     case VTK_FLOAT:
-      if(fits_read_img(this->fptr, TFLOAT, 1, numberOfElements, &nullptrval, ptr, &anynullptr, &this->ReadStatus))
+      if(this->ReadFITSVoxels(TFLOAT, &nullptrval, ptr, numberOfElements, &anynullptr))
         {
         vtkErrorMacro("vtkFITSReader::ExecuteDataWithInformation: could not read the voxels of "
                       << this->GetFileName() << ": " << vtkAstroFITSErrorMessage(this->ReadStatus));
@@ -3323,7 +3401,7 @@ void vtkFITSReader::ExecuteDataWithInformation(vtkDataObject *output, vtkInforma
         }
       break;
   case VTK_SHORT:
-    if(fits_read_img(this->fptr, TSHORT, 1, numberOfElements, &nullShort, ptr, &anynullptr, &this->ReadStatus))
+    if(this->ReadFITSVoxels(TSHORT, &nullShort, ptr, numberOfElements, &anynullptr))
       {
       vtkErrorMacro("vtkFITSReader::ExecuteDataWithInformation: could not read the voxels of "
                     << this->GetFileName() << ": " << vtkAstroFITSErrorMessage(this->ReadStatus));
@@ -3332,7 +3410,7 @@ void vtkFITSReader::ExecuteDataWithInformation(vtkDataObject *output, vtkInforma
       }
     break;
   case VTK_INT:
-    if(fits_read_img(this->fptr, TINT, 1, numberOfElements, &nullInt, ptr, &anynullptr, &this->ReadStatus))
+    if(this->ReadFITSVoxels(TINT, &nullInt, ptr, numberOfElements, &anynullptr))
       {
       vtkErrorMacro("vtkFITSReader::ExecuteDataWithInformation: could not read the voxels of "
                     << this->GetFileName() << ": " << vtkAstroFITSErrorMessage(this->ReadStatus));
@@ -3561,13 +3639,14 @@ std::vector<std::string> vtkFITSReader::GetSpectralAxisKeywords()
 
 //----------------------------------------------------------------------------
 std::map<std::string, std::string> vtkFITSReader::ReadHeaderKeywords(const char* fileName,
-                                                                     const std::vector<std::string>& keys)
+                                                                     const std::vector<std::string>& keys,
+                                                                     int hduNumber)
 {
   std::map<std::string, std::string> keywords;
   fitsfile* file = nullptr;
   FITSFileOpener opener(&file);
   int status = 0;
-  if (!fileName || opener.Open(fileName, true, &status))
+  if (!fileName || opener.Open(fileName, true, &status, hduNumber))
     {
     fits_clear_errmsg();
     return keywords;
@@ -3592,4 +3671,273 @@ std::map<std::string, std::string> vtkFITSReader::ReadHeaderKeywords(const char*
   opener.Close(&status);
   fits_clear_errmsg();
   return keywords;
+}
+
+//----------------------------------------------------------------------------
+bool vtkFITSReader::ApplySubExtentToHeader()
+{
+  this->SubExtentOffset[0] = this->SubExtentOffset[1] = this->SubExtentOffset[2] = 0;
+  if (!this->UseSubExtent)
+    {
+    return true;
+    }
+  if (this->HeaderKeyValue.count("SlicerAstro.DSS") && this->HeaderKeyValue.at("SlicerAstro.DSS") == "1")
+    {
+    vtkErrorMacro("vtkFITSReader: a part of " << (this->GetFileName() ? this->GetFileName() : "")
+                  << " can not be read: the plate solution of a DSS image is for the whole image.");
+    return false;
+    }
+  const int naxes = StringToInt(this->GetHeaderValue("SlicerAstro.NAXIS"));
+  for (int axis = 0; axis < naxes && axis < 3; axis++)
+    {
+    const std::string naxisKey = "SlicerAstro.NAXIS" + IntToString(axis + 1);
+    const std::string crpixKey = "SlicerAstro.CRPIX" + IntToString(axis + 1);
+    const int size = StringToInt(this->GetHeaderValue(naxisKey.c_str()));
+    // clamped to the data of the file
+    const int first = std::max(0, std::min(this->SubExtent[2 * axis], size - 1));
+    const int last = std::max(first, std::min(this->SubExtent[2 * axis + 1], size - 1));
+    this->SubExtentOffset[axis] = first;
+    this->HeaderKeyValue[naxisKey] = IntToString(last - first + 1);
+    if (this->HeaderKeyValue.count(crpixKey))
+      {
+      this->HeaderKeyValue[crpixKey] = DoubleToString(StringToDouble(this->HeaderKeyValue.at(crpixKey).c_str()) - first);
+      }
+    }
+  return true;
+}
+
+//----------------------------------------------------------------------------
+void vtkFITSReader::ApplySubExtentToWCS()
+{
+  if (!this->UseSubExtent || !this->WCS || this->WCSStatus != 0)
+    {
+    return;
+    }
+  for (int axis = 0; axis < this->WCS->naxis && axis < 3; axis++)
+    {
+    this->WCS->crpix[axis] -= this->SubExtentOffset[axis];
+    }
+  this->WCS->flag = 0;
+  if ((this->WCSStatus = wcsset(this->WCS)))
+    {
+    vtkErrorMacro(<< vtkAstroWCSErrorMessage("wcsset", this->WCSStatus, this->WCS));
+    }
+}
+
+//----------------------------------------------------------------------------
+int vtkFITSReader::ReadFITSVoxels(int fitsType, void* nullValue, void* buffer, long long numberOfElements,
+                                  int* anyNull)
+{
+  if (!this->UseSubExtent)
+    {
+    return fits_read_img(this->fptr, fitsType, 1, numberOfElements, nullValue, buffer, anyNull, &this->ReadStatus);
+    }
+  // the sub-cube: first and last pixels (1-based) on each axis of the file
+  int naxis = 0;
+  if (fits_get_img_dim(this->fptr, &naxis, &this->ReadStatus))
+    {
+    return this->ReadStatus;
+    }
+  std::vector<long> firstPixel(std::max(naxis, 1), 1);
+  std::vector<long> lastPixel(std::max(naxis, 1), 1);
+  std::vector<long> increment(std::max(naxis, 1), 1);
+  const int naxes = StringToInt(this->GetHeaderValue("SlicerAstro.NAXIS"));
+  for (int axis = 0; axis < naxis; axis++)
+    {
+    if (axis < naxes && axis < 3)
+      {
+      const int size = StringToInt(this->GetHeaderValue(("SlicerAstro.NAXIS" + IntToString(axis + 1)).c_str()));
+      firstPixel[axis] = this->SubExtentOffset[axis] + 1;
+      lastPixel[axis] = this->SubExtentOffset[axis] + size;
+      }
+    }
+  return fits_read_subset(this->fptr, fitsType, firstPixel.data(), lastPixel.data(), increment.data(), nullValue,
+                          buffer, anyNull, &this->ReadStatus);
+}
+
+//----------------------------------------------------------------------------
+int vtkFITSReader::GetImageHDUs(const char* fileName, vtkIntArray* numbers, vtkStringArray* names,
+                                vtkStringArray* descriptions)
+{
+  if (numbers)
+    {
+    numbers->Reset();
+    }
+  if (names)
+    {
+    names->Reset();
+    }
+  if (descriptions)
+    {
+    descriptions->Reset();
+    }
+  if (!fileName || !*fileName)
+    {
+    return -1;
+    }
+  int count = 0;
+  if (IsGzipFileName(fileName))
+    {
+    // the headers of the HDUs of the gzip stream (the data are skipped)
+    gzFile file = gzopen(fileName, "rb");
+    if (!file)
+      {
+      return -1;
+      }
+    std::vector<char> block(FITSBlockSize);
+    for (int hdu = 1; hdu < 10000; hdu++)
+      {
+      std::map<std::string, std::string> cards;
+      bool end = false;
+      bool first = true;
+      while (!end)
+        {
+        if (gzread(file, block.data(), static_cast<unsigned int>(FITSBlockSize)) != static_cast<int>(FITSBlockSize))
+          {
+          gzclose(file);
+          return count;
+          }
+        if (first && strncmp(block.data(), hdu == 1 ? "SIMPLE  =" : "XTENSION=", 9) != 0)
+          {
+          gzclose(file);
+          return count;
+          }
+        first = false;
+        for (size_t position = 0; position < FITSBlockSize; position += FITSCardSize)
+          {
+          const std::string card(block.data() + position, FITSCardSize);
+          const std::string key = card.substr(0, 8);
+          if (key == "END     ")
+            {
+            end = true;
+            break;
+            }
+          if (card.size() > 10 && card[8] == '=')
+            {
+            std::string value = card.substr(10);
+            const size_t slash = value.find('/', value.find('\'') != std::string::npos ? value.rfind('\'') : 0);
+            if (slash != std::string::npos)
+              {
+              value = value.substr(0, slash);
+              }
+            value.erase(std::remove(value.begin(), value.end(), '\''), value.end());
+            value.erase(0, value.find_first_not_of(' '));
+            value.erase(value.find_last_not_of(' ') + 1);
+            std::string trimmedKey = key;
+            trimmedKey.erase(trimmedKey.find_last_not_of(' ') + 1);
+            cards[trimmedKey] = value;
+            }
+          }
+        }
+      const long long bitpix = cards.count("BITPIX") ? std::llabs(std::atoll(cards["BITPIX"].c_str())) : 8;
+      const int naxis = cards.count("NAXIS") ? std::atoi(cards["NAXIS"].c_str()) : 0;
+      long long size = naxis > 0 ? 1 : 0;
+      std::string dimensions;
+      for (int axis = 1; axis <= naxis; axis++)
+        {
+        const std::string value = cards["NAXIS" + std::to_string(axis)];
+        size *= std::atoll(value.c_str());
+        dimensions += (axis > 1 ? " x " : "") + value;
+        }
+      const long long pcount = cards.count("PCOUNT") ? std::atoll(cards["PCOUNT"].c_str()) : 0;
+      const long long gcount = cards.count("GCOUNT") ? std::atoll(cards["GCOUNT"].c_str()) : 1;
+      const bool image = hdu == 1 || cards["XTENSION"] == "IMAGE";
+      if (image && naxis > 0 && size > 0)
+        {
+        count++;
+        if (numbers)
+          {
+          numbers->InsertNextValue(hdu);
+          }
+        if (names)
+          {
+          names->InsertNextValue(cards.count("EXTNAME") && !cards["EXTNAME"].empty() ? cards["EXTNAME"] :
+                                 (hdu == 1 ? std::string("PRIMARY") : "HDU " + std::to_string(hdu)));
+          }
+        if (descriptions)
+          {
+          descriptions->InsertNextValue(dimensions + (cards.count("BUNIT") && !cards["BUNIT"].empty() ?
+                                                      " · " + cards["BUNIT"] : std::string()));
+          }
+        }
+      // the data (and the extra bytes of tables), padded to the FITS blocks
+      const long long bytes = bitpix / 8 * gcount * (pcount + size);
+      const long long padded = (bytes + FITSBlockSize - 1) / FITSBlockSize * FITSBlockSize;
+      if (padded > 0 && gzseek(file, static_cast<z_off_t>(padded), SEEK_CUR) < 0)
+        {
+        break;
+        }
+      }
+    gzclose(file);
+    return count;
+    }
+
+  fitsfile* file = nullptr;
+  int status = 0;
+  if (fits_open_file(&file, fileName, READONLY, &status))
+    {
+    fits_clear_errmsg();
+    return -1;
+    }
+  int hdus = 0;
+  fits_get_num_hdus(file, &hdus, &status);
+  for (int hdu = 1; hdu <= hdus && status == 0; hdu++)
+    {
+    int hduType = ANY_HDU;
+    if (fits_movabs_hdu(file, hdu, &hduType, &status))
+      {
+      break;
+      }
+    int naxis = 0;
+    fits_get_img_dim(file, &naxis, &status);
+    if (hduType != IMAGE_HDU || naxis <= 0)
+      {
+      status = 0;
+      continue;
+      }
+    std::vector<LONGLONG> sizes(naxis, 0);
+    fits_get_img_sizell(file, naxis, sizes.data(), &status);
+    std::string dimensions;
+    bool empty = false;
+    for (int axis = 0; axis < naxis; axis++)
+      {
+      dimensions += (axis > 0 ? " x " : "") + std::to_string(sizes[axis]);
+      empty = empty || sizes[axis] <= 0;
+      }
+    char value[FLEN_VALUE] = "";
+    int keyStatus = 0;
+    std::string name = hdu == 1 ? "PRIMARY" : "HDU " + std::to_string(hdu);
+    if (!fits_read_key(file, TSTRING, "EXTNAME", value, nullptr, &keyStatus) && *value)
+      {
+      name = value;
+      }
+    keyStatus = 0;
+    std::string unit;
+    if (!fits_read_key(file, TSTRING, "BUNIT", value, nullptr, &keyStatus) && *value)
+      {
+      unit = value;
+      }
+    if (empty || status)
+      {
+      status = 0;
+      continue;
+      }
+    count++;
+    if (numbers)
+      {
+      numbers->InsertNextValue(hdu);
+      }
+    if (names)
+      {
+      names->InsertNextValue(name);
+      }
+    if (descriptions)
+      {
+      descriptions->InsertNextValue(dimensions + (unit.empty() ? std::string() : " · " + unit));
+      }
+    }
+  status = 0;
+  fits_close_file(file, &status);
+  fits_clear_errmsg();
+  return count;
 }

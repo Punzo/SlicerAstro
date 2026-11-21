@@ -77,10 +77,11 @@ namespace
 const char* OriginalKeywordPrefix = "FITSOriginal.";
 const char* ConvertedKeywordPrefix = "FITSConverted.";
 
-void StoreSpectralAxisKeywordsImpl(vtkMRMLNode* node, const std::string& fileName)
+void StoreSpectralAxisKeywordsImpl(vtkMRMLNode* node, const std::string& fileName, int hduNumber)
 {
   const std::vector<std::string> keys = vtkFITSReader::GetSpectralAxisKeywords();
-  const std::map<std::string, std::string> original = vtkFITSReader::ReadHeaderKeywords(fileName.c_str(), keys);
+  const std::map<std::string, std::string> original =
+    vtkFITSReader::ReadHeaderKeywords(fileName.c_str(), keys, hduNumber);
   for (const std::string& key : keys)
     {
     const std::map<std::string, std::string>::const_iterator originalValue = original.find(key);
@@ -134,12 +135,6 @@ template <typename T> std::string NumberToString(T V)
 }
 
 //----------------------------------------------------------------------------
-std::string DoubleToString(double Value)
-{
-  return NumberToString<double>(Value);
-}
-
-//----------------------------------------------------------------------------
 template <typename T> T StringToNumber(const char* num)
 {
   std::stringstream ss;
@@ -165,6 +160,15 @@ void vtkMRMLAstroVolumeStorageNode::WriteXML(ostream& of, int nIndent)
   std::stringstream ss;
   ss << this->CenterImage;
   of << indent << " centerImage=\"" << ss.str() << "\"";
+  if (this->HDUNumber > 0)
+    {
+    of << " hduNumber=\"" << this->HDUNumber << "\"";
+    }
+  if (this->UseSubExtent)
+    {
+    of << " subExtent=\"" << this->SubExtent[0] << " " << this->SubExtent[1] << " " << this->SubExtent[2] << " "
+       << this->SubExtent[3] << " " << this->SubExtent[4] << " " << this->SubExtent[5] << "\"";
+    }
 }
 
 //----------------------------------------------------------------------------
@@ -185,6 +189,22 @@ void vtkMRMLAstroVolumeStorageNode::ReadXMLAttributes(const char** atts)
       std::stringstream ss;
       ss << attValue;
       ss >> this->CenterImage;
+      }
+    else if (!strcmp(attName, "hduNumber"))
+      {
+      std::stringstream ss;
+      ss << attValue;
+      ss >> this->HDUNumber;
+      }
+    else if (!strcmp(attName, "subExtent"))
+      {
+      std::stringstream ss;
+      ss << attValue;
+      for (int index = 0; index < 6; index++)
+        {
+        ss >> this->SubExtent[index];
+        }
+      this->UseSubExtent = !ss.fail();
       }
     }
 
@@ -207,6 +227,9 @@ void vtkMRMLAstroVolumeStorageNode::Copy(vtkMRMLNode *anode)
   vtkMRMLAstroVolumeStorageNode *node = (vtkMRMLAstroVolumeStorageNode *) anode;
 
   this->SetCenterImage(node->CenterImage);
+  this->SetHDUNumber(node->HDUNumber);
+  this->SetSubExtent(node->SubExtent);
+  this->SetUseSubExtent(node->UseSubExtent);
 
   this->EndModify(disabledModify);
 }
@@ -277,6 +300,10 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
     }
 
   reader->SetFileName(fullName.c_str());
+  // the HDU and the part of the file with the data
+  reader->SetHDUNumber(this->HDUNumber);
+  reader->SetSubExtent(this->SubExtent);
+  reader->SetUseSubExtent(this->UseSubExtent);
 
   // Check if this is a FITS file that we can read
   if (!reader->CanReadFile(fullName.c_str()))
@@ -318,7 +345,7 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
       {
       volNode->SetAttribute((*kit).c_str(), reader->GetHeaderValue((*kit).c_str()));
       }
-    vtkMRMLAstroVolumeStorageNode::StoreSpectralAxisKeywords(volNode, fullName);
+    vtkMRMLAstroVolumeStorageNode::StoreSpectralAxisKeywords(volNode, fullName, this->HDUNumber);
     disNode->SetAttribute("SlicerAstro.NAXIS", reader->GetHeaderValue("SlicerAstro.NAXIS"));
 
     // parse WCS Status
@@ -335,6 +362,11 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
     if(!strcmp(disNode->GetVelocityDefinition().c_str() , "FREQ"))
       {
       disNode->SetSpaceQuantity(2,"frequency");
+      }
+    else if (disNode->IsWavelengthAxis())
+      {
+      // optical data without a rest wavelength: wavelengths (Angstrom)
+      disNode->SetSpaceQuantity(2, "wavelength");
       }
 
     if (!strcmp(reader->GetHeaderValue("SlicerAstro.BUNIT"), "W.U."))
@@ -512,6 +544,12 @@ int vtkMRMLAstroVolumeStorageNode::WriteDataInternal(vtkMRMLNode *refNode)
     }
 
   this->StageWriteData(refNode);
+  if (writeFlag)
+    {
+    // the written file has one HDU with all the data
+    this->HDUNumber = 0;
+    this->UseSubExtent = false;
+    }
 
   return writeFlag;
 }
@@ -543,11 +581,40 @@ void vtkMRMLAstroVolumeStorageNode::ConfigureForDataExchange()
 }
 
 //----------------------------------------------------------------------------
-void vtkMRMLAstroVolumeStorageNode::StoreSpectralAxisKeywords(vtkMRMLNode* node, const std::string& fileName)
+void vtkMRMLAstroVolumeStorageNode::StoreSpectralAxisKeywords(vtkMRMLNode* node, const std::string& fileName,
+                                                               int hduNumber)
 {
   if (node)
     {
-    StoreSpectralAxisKeywordsImpl(node, fileName);
+    StoreSpectralAxisKeywordsImpl(node, fileName, hduNumber);
+    }
+}
+
+//----------------------------------------------------------------------------
+void vtkMRMLAstroVolumeStorageNode::RecordRestFrequency(vtkMRMLNode* node, double restFrequency)
+{
+  if (!node)
+    {
+    return;
+    }
+  const std::vector<std::string> keys = vtkFITSReader::GetSpectralAxisKeywords();
+  bool stored = false;
+  for (const std::string& key : keys)
+    {
+    stored = stored || node->GetAttribute((ConvertedKeywordPrefix + key).c_str()) ||
+             node->GetAttribute((OriginalKeywordPrefix + key).c_str());
+    }
+  if (!stored)
+    {
+    return;
+    }
+  // the spectral axis of the file with the rest frequency (saved as it was
+  // read, plus RESTFRQ): the axis converted from it is the current one
+  node->SetAttribute((std::string(OriginalKeywordPrefix) + "RESTFRQ").c_str(), NumberToString(restFrequency).c_str());
+  node->SetAttribute((std::string(OriginalKeywordPrefix) + "RESTFREQ").c_str(), nullptr);
+  for (const std::string& key : keys)
+    {
+    node->SetAttribute((ConvertedKeywordPrefix + key).c_str(), node->GetAttribute(("SlicerAstro." + key).c_str()));
     }
 }
 
@@ -558,4 +625,53 @@ void vtkMRMLAstroVolumeStorageNode::RestoreSpectralAxisKeywords(vtkMRMLNode* nod
     {
     RestoreSpectralAxisKeywordsImpl(node, writer);
     }
+}
+
+//----------------------------------------------------------------------------
+namespace
+{
+struct NextReadOptions
+{
+  bool Set{false};
+  int HDUNumber{0};
+  int SubExtent[6]{0, -1, 0, -1, 0, -1};
+  bool UseSubExtent{false};
+};
+NextReadOptions& PendingReadOptions()
+{
+  static NextReadOptions options;
+  return options;
+}
+}
+
+//----------------------------------------------------------------------------
+void vtkMRMLAstroVolumeStorageNode::SetNextReadOptions(int hduNumber, const int subExtent[6], bool useSubExtent)
+{
+  NextReadOptions& options = PendingReadOptions();
+  options.Set = true;
+  options.HDUNumber = hduNumber;
+  for (int index = 0; index < 6; index++)
+    {
+    options.SubExtent[index] = subExtent ? subExtent[index] : (index % 2 ? -1 : 0);
+    }
+  options.UseSubExtent = useSubExtent && subExtent;
+}
+
+//----------------------------------------------------------------------------
+void vtkMRMLAstroVolumeStorageNode::ClearNextReadOptions()
+{
+  PendingReadOptions() = NextReadOptions();
+}
+
+//----------------------------------------------------------------------------
+void vtkMRMLAstroVolumeStorageNode::ApplyNextReadOptions(vtkMRMLAstroVolumeStorageNode* node)
+{
+  const NextReadOptions& options = PendingReadOptions();
+  if (!node || !options.Set)
+    {
+    return;
+    }
+  node->SetHDUNumber(options.HDUNumber);
+  node->SetSubExtent(const_cast<int*>(options.SubExtent));
+  node->SetUseSubExtent(options.UseSubExtent);
 }

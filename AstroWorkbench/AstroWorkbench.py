@@ -158,6 +158,10 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         self.setUp()
         self.test_InspectorWidth()
         self.setUp()
+        self.test_InspectSectionsOneOpen()
+        self.setUp()
+        self.test_MaskEditing()
+        self.setUp()
         self.test_DeleteDatasetWithEverything()
         self.setUp()
         self.test_Theme()
@@ -311,6 +315,9 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         self.assertGreater(slicer.util.findChild(inspector, "DisplayColourTable").count, 1)
 
         # Process: moment maps from the pipeline panel, listed as products
+        inspector.tabs["Process"].click()
+        inspector.stepGroup.button(2).click()
+        self.process(10)
         momentsPanel = slicer.util.findChild(inspector, "PipelinePanel_AstroMomentMaps")
         self.assertTrue(momentsPanel.visible)
         slicer.util.findChild(momentsPanel, "ApplyButton").click()
@@ -422,11 +429,18 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         entry = Workspaces.WorkspaceEntry(page, Workspaces.readDescription(folder))
         self.assertEqual(len(slicer.util.findChildren(entry, "WorkspaceRename")), 0)
         self.assertEqual(len(slicer.util.findChildren(entry, "WorkspaceExport")), 1)
-        entry.notesEdit.text = "edited in the card"
+        # notes: a fixed height (the card does not move while typing)
+        height = entry.notesEdit.maximumHeight
+        entry.notesEdit.setPlainText("edited in the card\nsecond line")
+        self.process()
+        self.assertEqual(entry.notesEdit.maximumHeight, height)
         entry.onNotesEdited()
-        self.assertEqual(Workspaces.readDescription(folder)["notes"], "edited in the card")
-        entry.titleEdit.text = "Renamed in the card"
-        entry.onTitleEdited()
+        self.assertEqual(Workspaces.readDescription(folder)["notes"], "edited in the card\nsecond line")
+        # a long name: elided in the card, the full name in the tooltip
+        entry.titleEdit.resize(120, 24)
+        entry.titleEdit.setFullText("A very long workspace name that does not fit in the card")
+        self.assertTrue(entry.titleEdit.text.endswith("…"))
+        entry.onTitleEdited("Renamed in the card")
         folder = entry.description["folder"]
         self.assertEqual(Workspaces.readDescription(folder)["name"], "Renamed in the card")
         # the logbook refresh scheduled by the rename runs; the widgets are
@@ -485,7 +499,7 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
                 self.assertScrollAreasFit(mainWindow, f"drawer {page}")
             workbench().rail.buttons["data"].click()
             inspector = workbench().inspector
-            for index, name in enumerate(("Inspect", "Process", "Model")):
+            for index, name in enumerate(("Inspect", "Mask", "Sources", "Process", "Model")):
                 inspector.tabs[name].click()
                 self.process(10)
                 self.assertScrollAreasFit(inspector, f"inspector {name}")
@@ -517,14 +531,18 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
             self.assertEqual(switch.currentIndex, index)
             self.assertEqual([button.checked for button in switch.buttons],
                              [i == index for i in range(switch.count())])
-        # the plot: empty (dark) until a profile of the cube is computed
+        # the plot: empty (the view colour of the theme) until a profile of
+        # the cube is computed
         plotWidget = layoutManager.plotWidget(0)
         self.assertIsNotNone(plotWidget)
         self.assertFalse(plotWidget.plotController().visible)
         self.assertIn("Plot0", workbench().views.bars)
         self.assertFalse(plotWidget.mrmlPlotViewNode().GetPlotChartNodeID())
         renderer = plotWidget.plotView().chart().GetScene().GetRenderer()
-        self.assertEqual(tuple(round(value * 255) for value in renderer.GetBackground()), (7, 10, 18))
+        from AstroWorkbenchLib.Views import viewColor
+        viewColour = qt.QColor(viewColor("view"))
+        self.assertEqual(tuple(round(value * 255) for value in renderer.GetBackground()),
+                         (viewColour.red(), viewColour.green(), viewColour.blue()))
         # a profile computed in Profiles: in the plot view
         slicer.util.selectModule("AstroProfiles")
         profiles = slicer.mrmlScene.GetFirstNodeByClass("vtkMRMLAstroProfilesParametersNode")
@@ -537,7 +555,8 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         self.assertIsNotNone(chart)
         self.assertEqual(chart.GetName(), "ProfileChart")
         background = plotWidget.plotView().chart().GetBackgroundBrush().GetColorObject()
-        self.assertEqual((background.GetRed(), background.GetGreen(), background.GetBlue()), (7, 10, 18))
+        self.assertEqual((background.GetRed(), background.GetGreen(), background.GetBlue()),
+                         (viewColour.red(), viewColour.green(), viewColour.blue()))
         # "Open in plot view" of Profiles: the layout with a plot (3 views)
         layoutManager.setLayout(slicer.vtkMRMLLayoutNode.SlicerLayoutFourUpView)
         self.process(20)
@@ -571,13 +590,125 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         right = mainWindow.findChild("QDockWidget", "WorkbenchInspector")
         mainWindow.resizeDocks([right], [inspector.minimumWidth], qt.Qt.Horizontal)
         self.process(20)
-        for name in ("Inspect", "Process", "Model"):
+        for name in ("Inspect", "Mask", "Sources", "Process", "Model"):
             inspector.tabs[name].click()
             self.process(30)
             self.assertLessEqual(inspector.minimumSizeHint.width(), inspector.minimumWidth + 1, name)
             for scroll in inspector.findChildren("QScrollArea"):
                 if scroll.isVisibleTo(inspector) and scroll.widget() is not None:
                     self.assertLessEqual(scroll.widget().width, scroll.viewport().width + 1, name)
+
+    def test_InspectSectionsOneOpen(self):
+        """Inspect shows one section at a time: opening Info, Display or
+        Contours collapses the other two (Display open at the start)."""
+        self.cube()
+        workbench().enter()
+        self.process(30)
+        inspector = workbench().inspector
+        folds = {"Info": inspector.infoFold, "Display": inspector.displayFold, "Contours": inspector.contoursFold}
+
+        def opened():
+            return [name for name, fold in folds.items() if not fold.collapsed]
+
+        self.assertLessEqual(len(opened()), 1, opened())
+        for name in ("Info", "Contours", "Display", "Info"):
+            folds[name].setCollapsed(False)
+            self.process(2)
+            self.assertEqual(opened(), [name])
+        # collapsing the open one leaves none open
+        folds["Info"].setCollapsed(True)
+        self.assertEqual(opened(), [])
+        # the 3D rendering inside Display is not one of them
+        folds["Display"].setCollapsed(False)
+        inspector.renderingFold.setCollapsed(False)
+        self.process(2)
+        self.assertEqual(opened(), ["Display"])
+        workbench().exit()
+
+    def test_MaskEditing(self):
+        """The Mask tab shows the Masks section (always there); Edit shows the
+        Segment Editor with the effects in a bar of the section and the
+        segments of the section only; an effect widens the panel for its
+        options and the width comes back without effect; leaving the tab
+        ends the editing."""
+        volume = self.cube()
+        workbench().enter()
+        self.process(30)
+        mainWindow = slicer.util.mainWindow()
+        inspector = workbench().inspector
+        dock = mainWindow.findChild("QDockWidget", "WorkbenchInspector")
+        mainWindow.resizeDocks([dock], [inspector.minimumWidth], qt.Qt.Horizontal)
+        self.process(20)
+        width = dock.width
+        masks = inspector.masksWidget
+        self.assertFalse(inspector.tabs["Mask"].isHidden())
+        inspector.tabs["Mask"].click()
+        self.process(10)
+        self.assertEqual(inspector.stack.currentIndex, 3)
+        self.assertTrue(inspector.stack.currentWidget().isAncestorOf(masks))
+        # the copy to other data is hidden for now
+        self.assertTrue(slicer.util.findChild(masks, "MasksCopyRow").isHidden())
+        slicer.util.findChild(masks, "MasksEdit").click()
+        self.process(20)
+        self.assertTrue(masks.isEditing())
+        editor = masks.segmentEditor()
+        effects = slicer.util.findChild(masks, "MasksEffects")
+        self.assertFalse(effects.isHidden())
+        # (the effect buttons are moved from the editor to the bar of the section)
+        self.assertTrue(effects.isAncestorOf(slicer.util.findChild(masks, "EffectsGroupBox")))
+        self.assertTrue(slicer.util.findChild(editor, "SegmentsTableResizableFrame").isHidden())
+        # effects of no use on masks are not offered; Threshold without the
+        # local histogram; Margin and Hollow in pixels
+        order = list(editor.effectNameOrder())
+        for name in ("Scissors", "Mask volume", "Level tracing"):
+            self.assertNotIn(name, order)
+        self.assertIn("Paint", order)
+        thresholdOptions = editor.effectByName("Threshold").optionsFrame()
+        histogram = thresholdOptions.findChildren("ctkTransferFunctionView")[0]
+        self.assertFalse(histogram.isVisibleTo(thresholdOptions))
+        self.assertGreaterEqual(thresholdOptions.findChildren("ctkRangeWidget")[0].decimals, 2)
+        for name, parameter in (("Margin", "MarginSizeMm"), ("Hollow", "ShellThicknessMm"),
+                                ("Smoothing", "KernelSizeMm"), ("Smoothing", "GaussianStandardDeviationMm")):
+            spinBox = slicer.util.findChild(editor.effectByName(name).optionsFrame(), f"AstroPixels_{parameter}")
+            self.assertEqual(spinBox.suffix, " px", name)
+            spinBox.value = 4
+            self.assertAlmostEqual(editor.effectByName(name).doubleParameter(parameter), 4.0)
+        for name in ("Draw",):
+            self.assertNotIn(name, order)
+        # a segment added by the section is the one edited
+        segmentID = masks.addSegment()
+        self.process(10)
+        self.assertEqual(editor.currentSegmentID(), segmentID)
+        # an effect with options wider than the panel widens it (Paint fits
+        # the minimum width of the panel: at least not narrower)
+        editor.setActiveEffectByName("Paint")
+        self.process(30)
+        self.assertGreaterEqual(dock.width, width)
+        editor.setActiveEffectByName("")
+        self.process(30)
+        self.assertLessEqual(abs(dock.width - width), 4)
+        # leaving the tab ends the editing
+        inspector.tabs["Inspect"].click()
+        self.process(10)
+        self.assertFalse(masks.isEditing())
+        self.assertFalse(inspector.tabs["Mask"].isHidden())
+
+        # the eye of a 3D view bar hides the volume rendering, not the mask
+        bar = workbench().views.bars.get("3D0")
+        rendering = bar.renderingDisplayNode() if bar is not None else None
+        self.assertIsNotNone(rendering)
+        rendering.SetVisibility(True)
+        self.process(20)
+        maskDisplay = slicer.modules.astrovolume.logic().GetMaskSegmentationForVolume(volume, False).GetDisplayNode()
+        viewID = bar.viewNode.GetID()
+        self.assertIn(viewID, list(maskDisplay.GetViewNodeIDs()))
+        bar.visibilityButton.click()
+        self.process(20)
+        self.assertFalse(rendering.GetVisibility())
+        self.assertIn(viewID, list(maskDisplay.GetViewNodeIDs()))
+        bar.visibilityButton.click()
+        self.process(20)
+        self.assertTrue(rendering.GetVisibility())
 
     def test_HeaderTools(self):
         """Placement tools: clicked again, placement ends; placement ended in
@@ -777,30 +908,57 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         position = list(camera.GetPosition())
         redFOV = list(red.GetFieldOfView())
 
-        # click: rendered in 3D in place of the dataset, the camera kept
+        # click: in place of the dataset in all the views showing it (channel
+        # maps, position-velocity, 3D); zoom, channel and camera kept; the
+        # dataset stays active
+        logic = slicer.modules.astrovolume.logic()
+        showing = [name for name in layoutManager.sliceViewNames()
+                   if layoutManager.sliceWidget(name).mrmlSliceCompositeNode().GetBackgroundVolumeID() == volume.GetID()]
+        self.assertGreaterEqual(len(showing), 2, showing)
+
+        def checkViews(shown):
+            for name in showing:
+                self.assertEqual(layoutManager.sliceWidget(name).mrmlSliceCompositeNode().GetBackgroundVolumeID(),
+                                 shown.GetID(), name)
+            # the zoom: the height of the field of view (its width follows the
+            # shape of the view, e.g. while the window is laid out)
+            self.assertAlmostEqual(red.GetFieldOfView()[1], redFOV[1], places=3)
+            self.assertEqual(Astro.channelOfSlice(shown, red), 20)
+            for a, b in zip(camera.GetPosition(), position):
+                self.assertAlmostEqual(a, b, places=3)
+            other = volume if shown is smoothed else smoothed
+            self.assertTrue(logic.GetVolumeRenderingDisplayNode(shown, False).GetVisibility())
+            otherRendering = logic.GetVolumeRenderingDisplayNode(other, False)
+            self.assertTrue(otherRendering is None or not otherRendering.GetVisibility())
+            self.assertIs(wb.activeVolume(), volume)
+
         wb.showProduct(smoothed.GetID())
         self.wait(0.4)
-        logic = slicer.modules.astrovolume.logic()
-        self.assertTrue(logic.GetVolumeRenderingDisplayNode(smoothed, False).GetVisibility())
-        for a, b in zip(camera.GetPosition(), position):
-            self.assertAlmostEqual(a, b, places=3)
-        self.assertIs(wb.activeVolume(), volume)
+        checkViews(smoothed)
+        self.assertTrue(logic.IsProductShownInViews(smoothed))
         bar = wb.views.bars["3D0"]
         bar.refresh()
         self.assertIn(smoothed.GetName(), bar.detail.text)
-        # second click: the dataset again, the camera kept
-        wb.showProduct(smoothed.GetID())
+        # the dataset card clicked: the dataset back in all its views
+        wb.onDatasetClicked(volume)
         self.wait(0.4)
-        for a, b in zip(camera.GetPosition(), position):
-            self.assertAlmostEqual(a, b, places=3)
+        checkViews(volume)
+        self.assertFalse(logic.IsProductShownInViews(smoothed))
+        # the product clicked twice: shown, then the dataset back (the Show
+        # buttons of the panels toggle the same way)
+        wb.showProduct(smoothed.GetID())
+        self.wait(0.3)
+        checkViews(smoothed)
+        logic.ToggleProductInViews(smoothed, volume)
+        self.wait(0.3)
+        checkViews(volume)
 
         # dropped on the red view: zoom and channel kept, dataset active
         wb.dropNode("Red", smoothed.GetID())
         self.wait(0.4)
         composite = layoutManager.sliceWidget("Red").mrmlSliceCompositeNode()
         self.assertEqual(composite.GetBackgroundVolumeID(), smoothed.GetID())
-        for a, b in zip(red.GetFieldOfView(), redFOV):
-            self.assertAlmostEqual(a, b, places=3)
+        self.assertAlmostEqual(red.GetFieldOfView()[1], redFOV[1], places=3)
         self.assertEqual(Astro.channelOfSlice(smoothed, red), 20)
         self.assertIs(wb.activeVolume(), volume)
         # the channel maps are linked: the cube in yellow follows the
@@ -813,6 +971,13 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         self.process()
         self.assertEqual(Astro.channelOfSlice(smoothed, red), 30)
         self.assertEqual(Astro.channelOfSlice(volume, yellow), 30)
+        # the dataset card clicked: the dataset in every view again (also in
+        # the view the product was dropped on), zoom and channel kept
+        wb.onDatasetClicked(volume)
+        self.wait(0.4)
+        self.assertEqual(composite.GetBackgroundVolumeID(), volume.GetID())
+        self.assertAlmostEqual(red.GetFieldOfView()[1], redFOV[1], places=3)
+        self.assertEqual(Astro.channelOfSlice(volume, red), 30)
 
         # Inspect: the dataset or one of its products, chosen in its selector
         inspector = wb.inspector
@@ -846,6 +1011,17 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         self.assertFalse(theme.dark)
         self.assertNotEqual(header.styleSheet, darkSheet)
         self.assertIn(theme.color("panel").name(), header.styleSheet.lower())
+        # the views follow: light bars and slice backgrounds, Slicer's
+        # gradient in the 3D views
+        sliceView = slicer.app.layoutManager().sliceWidget("Red").sliceView()
+        self.assertEqual(sliceView.backgroundColor.name(), theme.color("view").name())
+        viewNode = slicer.app.layoutManager().threeDWidget(0).mrmlViewNode()
+        self.assertAlmostEqual(viewNode.GetBackgroundColor()[2], 0.9098039215686275, places=6)
+        self.assertAlmostEqual(viewNode.GetBackgroundColor2()[2], 0.7450980392156863, places=6)
+        theme.setMode("dark")
+        self.process()
+        self.assertEqual(sliceView.backgroundColor.name(), "#070a12")
+        self.assertAlmostEqual(viewNode.GetBackgroundColor2()[2], 18 / 255.0, places=6)
         theme.setMode(mode)
 
     def test_ViewsInteraction(self):
@@ -972,11 +1148,11 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         self.assertIsNone(mainWindow.findChild("QShortcut", "WorkbenchShortcut_F1"))
 
     def test_HIContours(self):
-        """HI contours: drawn automatically over an optical image that
-        overlaps an HI cube (moment 0, levels in column density doubling up
-        to the peak, toggled by the chip of the image card); contours in
-        units of the noise from the Contours section."""
-        import numpy as np
+        """HI contours over an optical image: nothing is computed when the
+        two are loaded (no moment map, no contours); the user draws them
+        from the Contours section of the image (source: the HI cube); the
+        chip of the image card toggles them; contours in units of the noise
+        of a cube over itself."""
         import AstroSampleData
         from AstroWorkbenchLib import Contours
 
@@ -986,65 +1162,59 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         cube = logic.downloadSample("NGC2403")
         image = logic.downloadSample("NGC2403_DSS")
         workbench().refresh()
-        workbench().runAutomaticContours()
         self.process(30)
+        astroLogic = slicer.modules.astrovolume.logic()
 
-        # column density of the moment 0 (Jy/beam km/s, beam 29.6644" x
-        # 29.3027"): astropy brightness temperature x 1.8224e18 cm^-2
-        moment = next(node for node in slicer.util.getNodesByClass("vtkMRMLAstroVolumeNode")
-                      if node.GetAttribute("SlicerAstro.DATAMODEL") == "ZEROMOMENTMAP")
-        self.assertAlmostEqual(Contours.columnDensityFactor(moment) / 1.269960e21, 1.0, delta=1e-5)
+        # nothing automatic
+        moments = [node for node in slicer.util.getNodesByClass("vtkMRMLAstroVolumeNode")
+                   if node.GetAttribute("SlicerAstro.DATAMODEL") == "ZEROMOMENTMAP"]
+        self.assertEqual(moments, [])
+        contours = astroLogic.GetContoursSegmentationForVolume(image, False)
+        self.assertTrue(contours is None or contours.GetSegmentation().GetNumberOfSegments() == 0)
 
-        contours = slicer.modules.astrovolume.logic().GetContoursSegmentationForVolume(image, False)
-        self.assertIsNotNone(contours)
+        # drawn by the user: the HI cube over the image
+        workbench().activate(image)
+        self.process()
+        section = workbench().inspector.contoursWidget
+        section.setSourceNode(cube)
+        section.setLevels("3, 6", section.Sigma)
+        self.assertEqual(section.drawContours(), 2)
+        slicer.qSlicerAstroBackgroundRunner().waitForJobs()
+        self.process(20)
+        contours = astroLogic.GetContoursSegmentationForVolume(image, False)
         sources = Contours.contourSources(contours)
-        self.assertEqual(list(sources.keys()), [moment.GetID()])
-        levels = Contours.columnDensityLevels(moment, cube)
-        self.assertEqual(sources[moment.GetID()], len(levels))
-        self.assertEqual(len(levels), 8)
-        np.testing.assert_allclose(np.array(levels[1:]) / np.array(levels[:-1]), 2.0)
-        self.assertLess(levels[-1], Contours.columnDensityFactor(moment) * float(moment.GetAttribute("SlicerAstro.DATAMAX")))
-        # the contours are on the galaxy: the lowest level covers the centre
-        # of the image
-        segment = contours.GetSegmentation().GetNthSegment(0)
-        labelmap = segment.GetRepresentation("Binary labelmap")
-        dims = labelmap.GetDimensions()
-        self.assertEqual(labelmap.GetScalarComponentAsDouble(dims[0] // 2, dims[1] // 2, 0, 0), 1.0)
+        self.assertEqual(len(sources), 1)
+        sourceID = list(sources.keys())[0]
+        source = slicer.mrmlScene.GetNodeByID(sourceID)
+        self.assertTrue(Contours.isHIMap(source) or Contours.isHICube(source))
 
         # the chip of the image card toggles them
-        card = slicer.util.findChild(workbench().drawer, f"DatasetCard_{image.GetID()}")
-        self.assertEqual(card.actionChipCount(), 1)
-        chip = slicer.util.findChild(card, f"ActionChip_{moment.GetID()}")
-        self.assertIn("HI contours · NGC2403", chip.text)
-        self.assertTrue(chip.checked)
-        chip.click()
-        self.process()
-        self.assertFalse(slicer.vtkSlicerAstroVolumeLogic.GetContourSourceVisibility(contours, moment.GetID()))
         workbench().refresh()
         self.process()
         card = slicer.util.findChild(workbench().drawer, f"DatasetCard_{image.GetID()}")
-        self.assertFalse(slicer.util.findChild(card, f"ActionChip_{moment.GetID()}").checked)
-
-        # no second run for the same pair
-        self.assertEqual(workbench().automaticContours.candidates(), [])
+        self.assertEqual(card.actionChipCount(), 1)
+        chip = slicer.util.findChild(card, f"ActionChip_{sourceID}")
+        self.assertIn("HI contours", chip.text)
+        self.assertTrue(chip.checked)
+        chip.click()
+        self.process()
+        self.assertFalse(slicer.vtkSlicerAstroVolumeLogic.GetContourSourceVisibility(contours, sourceID))
 
         # Contours section: 3, 6 sigma of the cube over itself
         workbench().activate(cube)
         self.process()
-        section = workbench().inspector.contoursWidget
         section.setSourceNode(None)
         section.setLevels("3, 6", section.Sigma)
         self.assertEqual(section.drawContours(), 2)
         self.process()
-        own = Contours.contourSources(slicer.modules.astrovolume.logic().GetContoursSegmentationForVolume(cube, False))
+        own = Contours.contourSources(astroLogic.GetContoursSegmentationForVolume(cube, False))
         self.assertEqual(own.get(cube.GetID()), 2)
         self.assertIn("2 levels drawn", section.status())
-        # its source row toggles the contours of the cube
         eye = slicer.util.findChild(section, f"ContoursSourceShow_{cube.GetID()}")
         self.assertTrue(eye.checked)
         eye.click()
         self.assertFalse(slicer.vtkSlicerAstroVolumeLogic.GetContourSourceVisibility(
-            slicer.modules.astrovolume.logic().GetContoursSegmentationForVolume(cube, False), cube.GetID()))
+            astroLogic.GetContoursSegmentationForVolume(cube, False), cube.GetID()))
         self.delayDisplay("Test passed")
 
     def test_Sources(self):
@@ -1078,7 +1248,7 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         workbench().showProduct(table.GetID())
         self.process()
         section = workbench().inspector.sourcesWidget
-        self.assertFalse(workbench().inspector.sourcesFold.collapsed)
+        self.assertEqual(workbench().inspector.stack.currentIndex, 4)
         self.assertEqual(section.catalogueCount(), 1)
         self.assertEqual(section.sourceCount(), rows)
         tableView = slicer.util.findChild(section, "SourcesTable")
@@ -1118,7 +1288,7 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         self.assertTrue(os.path.exists(cataloguePath), cataloguePath)
         self.assertTrue(section.loadCatalogue(cataloguePath), section.status())
         self.assertEqual(section.catalogueCount(), 2)
-        self.assertEqual(section.status(), f"{rows} sources loaded")
+        self.assertEqual(section.status(), f"{rows} sources imported")
         self.assertFalse(section.loadCatalogue("/nonexistent/catalogue.txt"))
         self.assertNotEqual(section.status(), "")
         self.delayDisplay("Test passed")

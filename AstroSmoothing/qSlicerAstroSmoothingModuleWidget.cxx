@@ -348,7 +348,7 @@ void qSlicerAstroSmoothingModuleWidgetPrivate::init()
   this->AdvancedSection = new qSlicerAstroFoldSection(body);
   this->AdvancedSection->setObjectName("AdvancedSection");
   this->AdvancedSection->setTitle(qSlicerAstroSmoothingModuleWidget::tr("Advanced"));
-  this->AdvancedSection->setSummary(qSlicerAstroSmoothingModuleWidget::tr("rotation, accuracy, run on change, output"));
+  this->AdvancedSection->setSummary(qSlicerAstroSmoothingModuleWidget::tr("rotation, accuracy, run on change"));
   this->AdvancedSection->setSettingsKey("SlicerAstro/AstroSmoothing/AdvancedCollapsed");
   QWidget* advancedParent = this->AdvancedSection->contentWidget();
   this->RotationRow = new QWidget(advancedParent);
@@ -443,6 +443,9 @@ void qSlicerAstroSmoothingModuleWidgetPrivate::init()
     formFields[i]->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
     formFields[i]->setMinimumWidth(80);
     advancedLayout->addRow(formLabel, formFields[i]);
+    // output and parameter set: chosen by the module, not by the user
+    formLabel->hide();
+    formFields[i]->hide();
     }
   this->AdvancedSection->contentLayout()->addLayout(advancedLayout);
   bodyLayout->addWidget(this->AdvancedSection);
@@ -564,7 +567,8 @@ void qSlicerAstroSmoothingModuleWidgetPrivate::updateResult()
     {
     this->ResultCard->setVolume(output);
     }
-  this->ResultCard->setVisible(show);
+  qSlicerAstroResultCard::setCardsVisible(QList<qSlicerAstroResultCard*>() << this->ResultCard,
+                                          QList<bool>() << show);
 }
 
 //-----------------------------------------------------------------------------
@@ -1160,13 +1164,20 @@ void qSlicerAstroSmoothingModuleWidget::onShowResult()
 {
   Q_D(qSlicerAstroSmoothingModuleWidget);
 
-  vtkSlicerApplicationLogic* appLogic = this->module() ? this->module()->appLogic() : nullptr;
-  if (!d->parametersNode || !d->selectionNode || !appLogic || !d->parametersNode->GetOutputVolumeNodeID())
+  // the result in place of its input in the views (the input stays active);
+  // clicked again: the input back
+  vtkSlicerAstroVolumeLogic* astroVolumeLogic = d->logic() ? d->logic()->GetAstroVolumeLogic() : nullptr;
+  vtkMRMLScene* scene = this->mrmlScene();
+  if (!d->parametersNode || !astroVolumeLogic || !scene || !d->parametersNode->GetOutputVolumeNodeID() ||
+      !d->parametersNode->GetInputVolumeNodeID())
     {
     return;
     }
-  d->selectionNode->SetActiveVolumeID(d->parametersNode->GetOutputVolumeNodeID());
-  appLogic->PropagateVolumeSelection(0);
+  vtkMRMLAstroVolumeNode* output = vtkMRMLAstroVolumeNode::SafeDownCast(
+    scene->GetNodeByID(d->parametersNode->GetOutputVolumeNodeID()));
+  vtkMRMLAstroVolumeNode* input = vtkMRMLAstroVolumeNode::SafeDownCast(
+    scene->GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
+  astroVolumeLogic->ToggleProductInViews(output, input);
 }
 
 //-----------------------------------------------------------------------------

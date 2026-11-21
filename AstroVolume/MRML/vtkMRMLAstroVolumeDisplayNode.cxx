@@ -366,6 +366,16 @@ std::string vtkMRMLAstroVolumeDisplayNode::GetVelocityDefinition()
 }
 
 //----------------------------------------------------------------------------
+bool vtkMRMLAstroVolumeDisplayNode::IsWavelengthAxis()
+{
+  if (!this->WCS || this->WCS->naxis < 3 || !strcmp(this->Space, "IJK"))
+    {
+    return false;
+    }
+  return !strncmp(this->WCS->ctype[2], "WAVE", 4) || !strncmp(this->WCS->ctype[2], "AWAV", 4);
+}
+
+//----------------------------------------------------------------------------
 bool vtkMRMLAstroVolumeDisplayNode::GetReferenceSpace(const double ijk[3],
                                                       double SpaceCoordinates[3])
 {
@@ -524,7 +534,11 @@ double vtkMRMLAstroVolumeDisplayNode::GetFirstWcsTickAxisZ(const double worldA,
               this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
   if (selectionNode)
     {
-    vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(2).c_str());
+    // wavelengths have no unit node: the ticks are rounded as velocities
+    // (plain numbers, in the units of the WCS)
+    const std::string quantity = this->SpaceQuantities->GetValue(2) == "wavelength" ?
+      std::string("velocity") : this->SpaceQuantities->GetValue(2);
+    vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(quantity.c_str());
     return vtkMRMLAstroVolumeDisplayNode::GetFirstWcsTickAxis(worldA, worldB, wcsStep, unitNode);
     }
   return 0.;
@@ -718,7 +732,9 @@ double vtkMRMLAstroVolumeDisplayNode::GetWcsTickStepAxisZ(const double wcsLength
               this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
   if (selectionNode)
     {
-    vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(2).c_str());
+    const std::string quantity = this->SpaceQuantities->GetValue(2) == "wavelength" ?
+      std::string("velocity") : this->SpaceQuantities->GetValue(2);
+    vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(quantity.c_str());
     return vtkMRMLAstroVolumeDisplayNode::GetWcsTickStepAxis(wcsLength, numberOfPoints, unitNode);
     }
   return 0.;
@@ -1237,6 +1253,16 @@ std::string vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValueZ(const doub
     return "";
     }
 
+  // wavelengths (m for WCSLIB) in Angstrom: formatted here (Slicer's unit
+  // nodes and their settings do not take the factor 1e10)
+  if (this->SpaceQuantities->GetValue(2) == "wavelength")
+    {
+    std::ostringstream stream;
+    stream.setf(std::ios::fixed, std::ios::floatfield);
+    stream.precision(2);
+    stream << world * 1.e10 << " \u00C5";
+    return stream.str();
+    }
   vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(2).c_str());
   return this->GetDisplayStringFromValue(world, unitNode, precision, oldOutputValues, outputValues, additionalSpace);
 }
@@ -1256,7 +1282,8 @@ std::string vtkMRMLAstroVolumeDisplayNode::AddVelocityInfoToDisplayStringZ(std::
     return "";
     }
 
-  if (!this->SpaceQuantities->GetValue(2).compare("velocity"))
+  if (!this->SpaceQuantities->GetValue(2).compare("velocity") ||
+      !this->SpaceQuantities->GetValue(2).compare("wavelength"))
     {
     value = value + " (" + this->WCS->ctype[2] + ")";
     }

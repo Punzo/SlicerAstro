@@ -19,6 +19,10 @@
 
 // Qt includes
 #include <QFrame>
+#include <QList>
+
+// CTK includes
+#include <ctkVTKObject.h>
 
 // VTK includes
 #include <vtkWeakPointer.h>
@@ -33,13 +37,15 @@ class vtkMRMLVolumeNode;
 
 /// \ingroup SlicerAstro_QtModules_AstroVolume_Widgets
 /// A result of a panel (e.g. a moment map): preview, name, unit, a Show
-/// button that puts it in the views, an eye button for the mask made from the
+/// button that shows it in place of its dataset in the views (clicked again,
+/// Hide: the dataset back; vtkSlicerAstroVolumeLogic::ShowProductInViews), an eye button for the mask made from the
 /// result (shown only when there is one, e.g. "Make a mask" of Smoothing) and
 /// a delete button that removes the result from the scene.
 class Q_SLICERASTRO_QTMODULES_ASTROVOLUME_WIDGETS_EXPORT qSlicerAstroResultCard
   : public QFrame
 {
   Q_OBJECT
+  QVTK_OBJECT
   Q_PROPERTY(QString title READ title WRITE setTitle)
   Q_PROPERTY(QString subtitle READ subtitle WRITE setSubtitle)
 
@@ -61,7 +67,16 @@ public:
   Q_INVOKABLE QToolButton* maskButton() const;
   Q_INVOKABLE QToolButton* deleteButton() const;
 
+  /// Show or hide result cards and apply the layouts of their parents at
+  /// once: a panel growing with its results is never painted squashed (the
+  /// layout requests of the parents, e.g. a scroll area, are otherwise
+  /// handled after a paint).
+  static void setCardsVisible(const QList<qSlicerAstroResultCard*>& cards, const QList<bool>& visible);
+
 public slots:
+  /// "Show" or "Hide": the result shown in place of its dataset or not
+  /// (vtkSlicerAstroVolumeLogic::IsProductShownInViews)
+  void updateShowButton();
   /// Show or hide the mask of the result in the views
   void setMaskVisible(bool visible);
   /// Remove the result from the scene (no confirmation; the delete button

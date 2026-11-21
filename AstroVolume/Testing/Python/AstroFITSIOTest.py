@@ -122,6 +122,24 @@ def writeTileCompressedFITS(path, data, wcs):
         f.write(content)
 
 
+def readHeaderCards(path):
+    """Keywords and values of the primary header of a FITS file."""
+    cards = {}
+    with open(path, "rb") as f:
+        while True:
+            block = f.read(2880)
+            if not block:
+                break
+            for start in range(0, 2880, 80):
+                card = block[start:start + 80].decode("ascii", "replace")
+                key = card[:8].strip()
+                if key == "END":
+                    return cards
+                if card[8:10] == "= ":
+                    cards[key] = card[10:].split("/")[0].strip().strip("'").strip()
+    return cards
+
+
 def celestialWCS(projection="SIN", lon="RA--", lat="DEC-", crval=(180.0, 30.0), crpix=(3.0, 3.0),
                  cdelt=(-0.001, 0.001), frame=(("RADESYS", "FK5"), ("EQUINOX", 2000.0))):
     return [(f"CTYPE1", f"{lon}-{projection}"), ("CRVAL1", crval[0]), ("CDELT1", cdelt[0]),
@@ -165,7 +183,9 @@ class AstroFITSIOTestTest(ScriptedLoadableModuleTest):
         for test in (self.test_DataTypes, self.test_WesterborkUnits, self.test_Projections,
                      self.test_CelestialFrames, self.test_SpectralAxes, self.test_HeaderDialects,
                      self.test_Dimensions,
-                     self.test_MissingWCS, self.test_Extension, self.test_Compression, self.test_RoundTrip,
+                     self.test_MissingWCS, self.test_Extension, self.test_ExtensionsAndParts,
+                     self.test_WavelengthsWithoutLine,
+                     self.test_Compression, self.test_RoundTrip,
                      self.test_Memory, self.test_LargeCube):
             self.setUp()
             test()
@@ -358,6 +378,81 @@ class AstroFITSIOTestTest(ScriptedLoadableModuleTest):
                     self.assertAlmostEqual(self.world(node, (2, 2, k))[2], radio[k], delta=1.e-3)
         self.delayDisplay("Test passed")
 
+    def test_WavelengthsWithoutLine(self):
+        """Optical data in wavelengths without a rest wavelength (e.g. MUSE
+        cubes from the archive): the axis stays in wavelengths (Angstrom in
+        the readouts), no line is assumed. Setting the line (Info section)
+        gives optical velocities; the saved file keeps its wavelength axis
+        with RESTFRQ, and loads in velocities."""
+        self.delayDisplay("Wavelengths without a line")
+        c = SPEED_OF_LIGHT
+        data = cubeData(shape=(5, 5, 6))
+        # 6560-6580 Angstrom in vacuum (Halpha at 6564.61 inside)
+        lambdas = [6560.e-10 + 5.e-10 * k for k in range(5)]
+        spectral = [("CTYPE3", "WAVE"), ("CRVAL3", 6560.0), ("CDELT3", 5.0), ("CRPIX3", 1.0),
+                    ("CUNIT3", "Angstrom")]
+        path = os.path.join(self.directory, "wavelengths.fits")
+        writeFITS(path, data, -32, celestialWCS() + spectral + beamCards())
+        node = self.load(path)
+        self.assertIsNotNone(node)
+        displayNode = node.GetAstroVolumeDisplayNode()
+        self.assertEqual(displayNode.GetWCSStatus(), 0)
+        self.assertTrue(displayNode.IsWavelengthAxis())
+        self.assertTrue(slicer.vtkSlicerAstroVolumeLogic.IsWavelengthAxis(node))
+        self.assertEqual(node.GetAttribute("SlicerAstro.CTYPE3")[:4], "WAVE")
+        for k, wavelength in enumerate(lambdas):
+            self.assertAlmostEqual(self.world(node, (2, 2, k))[2], wavelength, delta=1.e-15)
+        # readouts in Angstrom
+        values = [0.0, 0.0, 0.0]
+        text = displayNode.GetDisplayStringFromValueZ(lambdas[1], values, values, 2)
+        self.assertIn("6565.00", text)
+        self.assertIn("\u00c5", text)
+        # the part dialog shows the wavelengths of the channels
+        dialog = slicer.qSlicerAstroSubCubeDialog()
+        self.assertTrue(dialog.setFile(path, 0))
+        self.assertIn("6560.0 to 6580.0 \u00c5", slicer.util.findChild(dialog, "SubCubeVelocities").text)
+
+        # the Info section offers the line (Halpha preselected) and sets it
+        section = slicer.qSlicerAstroInfoSection()
+        section.setVolumeNode(node)
+        self.assertFalse(slicer.util.findChild(section, "InfoLine").parentWidget().isHidden())
+        self.assertTrue(slicer.util.findChild(section, "InfoVelocity").isHidden())
+        lambda0 = 6564.61e-10
+        self.assertAlmostEqual(section.selectedLineWavelength(), lambda0, delta=1.e-16)
+        self.assertTrue(section.applyLine())
+        self.assertFalse(displayNode.IsWavelengthAxis())
+        self.assertEqual(displayNode.GetVelocityDefinition()[:4], "VOPT")
+        self.assertTrue(slicer.util.findChild(section, "InfoLine").parentWidget().isHidden())
+        self.assertAlmostEqual(float(node.GetAttribute("SlicerAstro.RESTFREQ")), c / lambda0, delta=1.)
+        velocities = [c * (wavelength / lambda0 - 1.0) for wavelength in lambdas]
+        for k, velocity in enumerate(velocities):
+            self.assertAlmostEqual(self.world(node, (2, 2, k))[2], velocity, delta=1.e-3)
+
+        # saved: the wavelength axis of the file with RESTFRQ; loaded again in
+        # velocities
+        savedPath = os.path.join(self.directory, "wavelengths_line.fits")
+        self.assertTrue(slicer.util.saveNode(node, savedPath))
+        header = readHeaderCards(savedPath)
+        self.assertEqual(header["CTYPE3"][:4], "WAVE")
+        self.assertAlmostEqual(float(header["RESTFRQ"]), c / lambda0, delta=1.)
+        reloaded = self.load(savedPath)
+        self.assertEqual(reloaded.GetAstroVolumeDisplayNode().GetVelocityDefinition()[:4], "VOPT")
+        for k, velocity in enumerate(velocities):
+            self.assertAlmostEqual(self.world(reloaded, (2, 2, k))[2], velocity, delta=1.e-3)
+
+        # air wavelengths (AWAV, MUSE): velocities of Halpha near zero once set
+        airPath = os.path.join(self.directory, "air_wavelengths.fits")
+        air = [("CTYPE3", "AWAV")] + spectral[1:]
+        writeFITS(airPath, data, -32, celestialWCS() + air + beamCards())
+        airNode = self.load(airPath)
+        self.assertTrue(slicer.vtkSlicerAstroVolumeLogic.IsWavelengthAxis(airNode))
+        self.assertTrue(slicer.vtkSlicerAstroVolumeLogic.SetRestWavelength(airNode, lambda0))
+        for k in range(5):
+            self.assertLess(abs(self.world(airNode, (2, 2, k))[2]), 2.e6)
+        # a cube already in velocities is not changed
+        self.assertFalse(slicer.vtkSlicerAstroVolumeLogic.SetRestWavelength(reloaded, lambda0))
+        self.delayDisplay("Test passed")
+
     def test_HeaderDialects(self):
         """Headers of older software: GIPSY frequency axes with the velocity
         in VELR or DRVAL3 (converted to barycentric frequencies, worked
@@ -514,6 +609,91 @@ class AstroFITSIOTestTest(ScriptedLoadableModuleTest):
         self.assertIsNotNone(node)
         self.assertVoxels(node, data)
         self.assertWorld(node, (2, 2, 3), (180.0, 30.0, 16000.0))
+        self.delayDisplay("Test passed")
+
+    def test_ExtensionsAndParts(self):
+        """A file with two image extensions (e.g. DATA and STAT of MUSE cubes),
+        also gzip-compressed: the list of its image HDUs, the data of each
+        HDU (the first by default), a part of the data (only those voxels,
+        WCS of the part), the options kept by the storage node, and the
+        Extension row of the Info section."""
+        self.delayDisplay("Extensions and parts")
+        data = cubeData()
+        stat = data * 2.0 + 1.0
+        wcs = celestialWCS(crpix=(3.0, 2.0)) + radioVelocityWCS(crpix=2.0) + beamCards()
+        content = fitsHeader([("SIMPLE", True), ("BITPIX", 8), ("NAXIS", 0), ("EXTEND", True)])
+        for name, values in (("DATA", data), ("STAT", stat)):
+            content += fitsHeader(imageCards(values, -32, wcs + [("EXTNAME", name)], primary=False))
+            content += fitsData(values, -32)
+        paths = []
+        for fileName in ("extensions.fits", "extensions.fits.gz"):
+            path = os.path.join(self.directory, fileName)
+            opener = gzip.open if path.endswith(".gz") else open
+            with opener(path, "wb") as f:
+                f.write(content)
+            paths.append(path)
+
+        # the image HDUs of the file (headers only)
+        from vtkFitsPython import vtkFITSReader
+        for path in paths:
+            numbers, names, descriptions = vtk.vtkIntArray(), vtk.vtkStringArray(), vtk.vtkStringArray()
+            self.assertEqual(vtkFITSReader.GetImageHDUs(path, numbers, names, descriptions), 2, path)
+            self.assertEqual([numbers.GetValue(i) for i in range(2)], [2, 3])
+            self.assertEqual([names.GetValue(i) for i in range(2)], ["DATA", "STAT"])
+            shape = " x ".join(str(size) for size in reversed(data.shape))
+            self.assertTrue(descriptions.GetValue(0).startswith(shape), descriptions.GetValue(0))
+
+        def load(path, **options):
+            loaded = vtk.vtkCollection()
+            properties = {"fileName": path}
+            properties.update(options)
+            self.assertTrue(slicer.app.coreIOManager().loadNodes("AstroVolumeFile", properties, loaded))
+            return loaded.GetItemAsObject(0)
+
+        for path in paths:
+            # the first image HDU by default, another HDU on request
+            first = load(path)
+            self.assertVoxels(first, data)
+            second = load(path, hdu=3)
+            self.assertVoxels(second, stat)
+            self.assertIn("_STAT", second.GetName())
+            self.assertEqual(second.GetStorageNode().GetHDUNumber(), 3)
+            # a part: voxels i 1-3, j 0-2, k 1-3 (only these are read)
+            part = load(path, subExtent=[1, 3, 0, 2, 1, 3])
+            self.assertVoxels(part, data[1:4, 0:3, 1:4])
+            self.assertTrue(part.GetStorageNode().GetUseSubExtent())
+            self.assertEqual(list(part.GetStorageNode().GetSubExtent()), [1, 3, 0, 2, 1, 3])
+            # the WCS of the part: its first voxel is the voxel (1, 0, 1)
+            for ijk in ((0, 0, 0), (2, 2, 3)):
+                expected = self.world(first, (ijk[0] + 1, ijk[1], ijk[2] + 1))
+                self.assertWorld(part, ijk, expected)
+            self.assertRoundTripWCS(part)
+
+        # the Info section: the extensions of the file, another one loaded
+        # or shown
+        section = slicer.qSlicerAstroInfoSection()
+        section.setVolumeNode(first)
+        self.assertEqual(len(section.extensionNames()), 2)
+        self.assertTrue(section.extensionNames()[1].startswith("STAT"))
+        self.assertIs(section.loadExtension(3), second)
+
+        # the part dialog (Workbench, Open part of a FITS file): the
+        # extension and the ranges are chosen, then only that part is read
+        dialog = slicer.qSlicerAstroSubCubeDialog()
+        self.assertTrue(dialog.setFile(paths[0], 0))
+        extension = slicer.util.findChild(dialog, "SubCubeExtension")
+        self.assertEqual(extension.count, 2)
+        self.assertEqual(dialog.hduNumber(), 2)
+        extension.setCurrentIndex(1)
+        self.assertEqual(dialog.hduNumber(), 3)
+        dialog.setSubExtent(1, 3, 0, 2, 1, 3)
+        self.assertEqual(list(dialog.subExtent()), [1, 3, 0, 2, 1, 3])
+        slicer.util.findChild(dialog, "SubCubeLoadPart").click()
+        part = dialog.load()
+        self.assertVoxels(part, stat[1:4, 0:3, 1:4])
+        self.assertEqual(part.GetStorageNode().GetHDUNumber(), 3)
+        self.assertIn("_STAT", part.GetName())
+        self.assertTrue(part.GetName().endswith("_part"), part.GetName())
         self.delayDisplay("Test passed")
 
     def test_Compression(self):

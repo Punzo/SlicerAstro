@@ -137,10 +137,10 @@ qSlicerAstroSourcesSection::qSlicerAstroSourcesSection(QWidget* parent)
   d->Catalogue->setMinimumContentsLength(8);
   d->Catalogue->setToolTip(tr("Catalogue shown in the table."));
   QObject::connect(d->Catalogue, SIGNAL(currentIndexChanged(int)), this, SLOT(onCatalogueChanged(int)));
-  d->LoadButton = new QPushButton(tr("Load"), this);
+  d->LoadButton = new QPushButton(tr("Import"), this);
   d->LoadButton->setObjectName("SourcesLoad");
   d->LoadButton->setIcon(qSlicerAstroTheme::instance()->icon("folder", "text"));
-  d->LoadButton->setToolTip(tr("Load a catalogue (SoFiA text or VOTable, CSV or text with RA, Dec and velocity "
+  d->LoadButton->setToolTip(tr("Import a catalogue (SoFiA text or VOTable, CSV or text with RA, Dec and velocity "
                                "or frequency) and place its sources on the data."));
   QObject::connect(d->LoadButton, &QPushButton::clicked, this, [this]() { this->loadCatalogue(); });
   row->addWidget(d->Catalogue, 1);
@@ -164,7 +164,7 @@ qSlicerAstroSourcesSection::qSlicerAstroSourcesSection(QWidget* parent)
   d->Empty = new QLabel(tr("No catalogue"), this);
   d->Empty->setObjectName("SourcesEmpty");
   d->Empty->setProperty("astroRole", "label");
-  d->Empty->setToolTip(tr("Load a catalogue of sources (e.g. the SoFiA output of these data)."));
+  d->Empty->setToolTip(tr("Import a catalogue of sources (e.g. the SoFiA output of these data)."));
   layout->addWidget(d->Empty);
 
   QHBoxLayout* toggles = new QHBoxLayout();
@@ -188,7 +188,7 @@ qSlicerAstroSourcesSection::qSlicerAstroSourcesSection(QWidget* parent)
   d->Status->setObjectName("SourcesStatus");
   d->Status->setProperty("astroRole", "monoLabel");
   d->Status->setWordWrap(true);
-  d->Status->setToolTip(tr("The selected source, or the result of the last load."));
+  d->Status->setToolTip(tr("The selected source, or the result of the last import."));
   layout->addWidget(d->Status);
 
   d->UpdateTimer = new QTimer(this);
@@ -329,7 +329,7 @@ bool qSlicerAstroSourcesSection::loadCatalogue(const QString& fileName)
   QString path = fileName;
   if (path.isEmpty())
     {
-    path = QFileDialog::getOpenFileName(this, tr("Load a catalogue of sources"), QString(),
+    path = QFileDialog::getOpenFileName(this, tr("Import a catalogue of sources"), QString(),
                                         tr("Catalogues (*.txt *.cat *.csv *.xml *.vot *.votable);;All files (*)"));
     if (path.isEmpty())
       {
@@ -352,13 +352,13 @@ bool qSlicerAstroSourcesSection::loadCatalogue(const QString& fileName)
   if (!success || !table)
     {
     const QString error = QString::fromStdString(messages->GetAllMessagesAsString()).trimmed();
-    d->Status->setText(error.isEmpty() ? tr("The catalogue could not be loaded") : error);
+    d->Status->setText(error.isEmpty() ? tr("The catalogue could not be imported") : error);
     return false;
     }
   this->updateFromScene();
   this->setCatalogueNode(table);
   const int rows = table->GetTable() ? static_cast<int>(table->GetTable()->GetNumberOfRows()) : 0;
-  d->Status->setText(rows == 1 ? tr("1 source loaded") : tr("%1 sources loaded").arg(rows));
+  d->Status->setText(rows == 1 ? tr("1 source imported") : tr("%1 sources imported").arg(rows));
   return true;
 }
 

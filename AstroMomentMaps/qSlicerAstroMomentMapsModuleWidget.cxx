@@ -68,6 +68,7 @@
 // qMRML includes
 #include <qMRMLNodeComboBox.h>
 #include <qMRMLSegmentsTableView.h>
+#include <qSlicerAstroSegmentsTableStyler.h>
 #include <qMRMLSortFilterProxyModel.h>
 
 // MRMLLogic includes
@@ -165,6 +166,9 @@ public:
   void updateRunButton();
   void updateResults();
   void showMap(const char* volumeID, const char* sliceNodeID, const char* compositeNodeID);
+  /// A map in place of its cube in a channel-map view, or the cube back
+  /// (vtkSlicerAstroVolumeLogic::ToggleProductInViews)
+  void toggleMap(const char* volumeID);
   /// Output volume of a moment map: the previous output of the same kind
   /// is replaced
   vtkMRMLAstroVolumeNode* createMapVolume(vtkMRMLAstroVolumeNode* input, int order, const std::string& unit,
@@ -318,7 +322,7 @@ void qSlicerAstroMomentMapsModuleWidgetPrivate::init()
   velocityFields->addWidget(this->VelocityMaxField, 0, 1);
   velocityLayout->addLayout(velocityFields);
   this->VelocityNote = new QLabel(qSlicerAstroMomentMapsModuleWidget::tr(
-    "With a mask, the mask selects the voxels in all the channels."), velocity);
+    "With a mask: all the data in the mask are used (the velocity range does not apply)."), velocity);
   this->VelocityNote->setProperty("astroRole", "note");
   this->VelocityNote->setWordWrap(true);
   this->VelocityNote->hide();
@@ -373,6 +377,8 @@ void qSlicerAstroMomentMapsModuleWidgetPrivate::init()
   this->SegmentationNodeComboBox->setToolTip(qSlicerAstroMomentMapsModuleWidget::tr(
     "Mask with the segments. By default the mask of the input data cube."));
   maskLayout->addWidget(this->SegmentationNodeComboBox);
+  // one mask per dataset (the mask of the input data): no choice of the mask
+  this->SegmentationNodeComboBox->hide();
   this->SegmentsTableView = new qMRMLSegmentsTableView(maskPage);
   this->SegmentsTableView->setObjectName("SegmentsTableView");
   this->SegmentsTableView->setSelectionMode(QAbstractItemView::SingleSelection);
@@ -380,6 +386,7 @@ void qSlicerAstroMomentMapsModuleWidgetPrivate::init()
   this->SegmentsTableView->setMaximumHeight(170);
   this->SegmentsTableView->setToolTip(qSlicerAstroMomentMapsModuleWidget::tr("The selected segment is the mask."));
   maskLayout->addWidget(this->SegmentsTableView);
+  qSlicerAstroSegmentsTableStyler::styleTable(this->SegmentsTableView);
   this->VoxelSelectionStack->addWidget(maskPage);
   voxelsLayout->addWidget(this->VoxelSelectionStack);
   bodyLayout->addWidget(voxels);
@@ -447,6 +454,9 @@ void qSlicerAstroMomentMapsModuleWidgetPrivate::init()
   addRow(qSlicerAstroMomentMapsModuleWidget::tr("Parameter set"), this->ParametersNodeComboBox);
   this->AdvancedSection->contentLayout()->addLayout(advancedLayout);
   bodyLayout->addWidget(this->AdvancedSection);
+  // no Advanced for the user: the outputs, the parameter set and the upper
+  // limit (the maximum of the data) are chosen by the module
+  this->AdvancedSection->hide();
 
   // Footer: run and results
   QFrame* footer = new QFrame(q);
@@ -617,6 +627,7 @@ void qSlicerAstroMomentMapsModuleWidgetPrivate::updateResults()
                         this->parametersNode->GetSecondMomentVolumeNodeID()};
   qSlicerAstroResultCard* cards[3] = {this->ZeroMomentResult, this->FirstMomentResult, this->SecondMomentResult};
   vtkMRMLAstroVolumeNode* input = this->inputVolume();
+  QList<bool> visible;
   for (int i = 0; i < 3; i++)
     {
     vtkMRMLAstroVolumeNode* map = ids[i] ?
@@ -628,8 +639,24 @@ void qSlicerAstroMomentMapsModuleWidgetPrivate::updateResults()
       {
       cards[i]->setVolume(map);
       }
-    cards[i]->setVisible(show);
+    visible << show;
     }
+  qSlicerAstroResultCard::setCardsVisible(QList<qSlicerAstroResultCard*>() << cards[0] << cards[1] << cards[2],
+                                          visible);
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroMomentMapsModuleWidgetPrivate::toggleMap(const char* volumeID)
+{
+  Q_Q(qSlicerAstroMomentMapsModuleWidget);
+  vtkMRMLScene* scene = q->mrmlScene();
+  vtkSlicerAstroVolumeLogic* astroVolumeLogic = this->logic() ? this->logic()->GetAstroVolumeLogic() : nullptr;
+  if (!scene || !volumeID || !astroVolumeLogic)
+    {
+    return;
+    }
+  astroVolumeLogic->ToggleProductInViews(vtkMRMLAstroVolumeNode::SafeDownCast(scene->GetNodeByID(volumeID)),
+                                         this->inputVolume());
 }
 
 //-----------------------------------------------------------------------------
@@ -1602,13 +1629,8 @@ void qSlicerAstroMomentMapsModuleWidget::onSegmentEditorNodeModified(vtkObject *
     return;
     }
 
-  // the mask selector follows the Segment Editor (masks only, not the
-  // contours); the table shows the selected mask (onMaskSegmentationChanged)
-  if (this->isEntered() && d->SegmentationNodeComboBox->currentNode() != segmentationNode &&
-      vtkSlicerAstroVolumeLogic::IsMaskSegmentation(segmentationNode))
-    {
-    d->SegmentationNodeComboBox->setCurrentNode(segmentationNode);
-    }
+  // one mask per dataset: the mask of the input data (updateMaskSelector),
+  // not the segmentation of the Segment Editor
 }
 
 //---------------------------------------------------------------------------
@@ -1654,14 +1676,9 @@ void qSlicerAstroMomentMapsModuleWidget::updateMaskSelector()
   // by default the mask of the input volume
   vtkMRMLSegmentationNode* currentNode =
     vtkMRMLSegmentationNode::SafeDownCast(d->SegmentationNodeComboBox->currentNode());
-  vtkMRMLSegmentationNode* editorNode = d->segmentEditorNode ? d->segmentEditorNode->GetSegmentationNode() : nullptr;
   vtkMRMLVolumeNode* inputVolume = d->inputVolume();
   vtkMRMLSegmentationNode* mask = vtkSlicerAstroVolumeLogic::GetMaskForVolume(scene, inputVolume,
-    currentNode ? currentNode : editorNode);
-  if (!mask && !currentNode && vtkSlicerAstroVolumeLogic::IsMaskSegmentation(editorNode))
-    {
-    mask = editorNode;
-    }
+    nullptr);
   if (mask && mask != currentNode)
     {
     d->SegmentationNodeComboBox->setCurrentNode(mask);
@@ -1752,30 +1769,21 @@ void qSlicerAstroMomentMapsModuleWidget::onAutoVelocityRange()
 void qSlicerAstroMomentMapsModuleWidget::onShowZeroMoment()
 {
   Q_D(qSlicerAstroMomentMapsModuleWidget);
-  if (d->parametersNode)
-    {
-    d->showMap(d->parametersNode->GetZeroMomentVolumeNodeID(), "vtkMRMLSliceNodeRed", "vtkMRMLSliceCompositeNodeRed");
-    }
+  d->toggleMap(d->parametersNode ? d->parametersNode->GetZeroMomentVolumeNodeID() : nullptr);
 }
 
 //-----------------------------------------------------------------------------
 void qSlicerAstroMomentMapsModuleWidget::onShowFirstMoment()
 {
   Q_D(qSlicerAstroMomentMapsModuleWidget);
-  if (d->parametersNode)
-    {
-    d->showMap(d->parametersNode->GetFirstMomentVolumeNodeID(), "vtkMRMLSliceNodeRed", "vtkMRMLSliceCompositeNodeRed");
-    }
+  d->toggleMap(d->parametersNode ? d->parametersNode->GetFirstMomentVolumeNodeID() : nullptr);
 }
 
 //-----------------------------------------------------------------------------
 void qSlicerAstroMomentMapsModuleWidget::onShowSecondMoment()
 {
   Q_D(qSlicerAstroMomentMapsModuleWidget);
-  if (d->parametersNode)
-    {
-    d->showMap(d->parametersNode->GetSecondMomentVolumeNodeID(), "vtkMRMLSliceNodeRed", "vtkMRMLSliceCompositeNodeRed");
-    }
+  d->toggleMap(d->parametersNode ? d->parametersNode->GetSecondMomentVolumeNodeID() : nullptr);
 }
 
 //-----------------------------------------------------------------------------

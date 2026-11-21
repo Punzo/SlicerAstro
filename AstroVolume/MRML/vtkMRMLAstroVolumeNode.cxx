@@ -195,76 +195,80 @@ vtkMRMLVolumeRenderingDisplayNode *vtkMRMLAstroVolumeNode::GetAstroVolumeRenderi
 }
 
 //---------------------------------------------------------------------------
-namespace
+bool vtkMRMLAstroVolumeNode::GetDisplayRange(double range[2])
 {
-template <typename T>
-void SampleFiniteValues(const T* values, vtkIdType count, vtkIdType stride, std::vector<double>& samples)
-{
-  for (vtkIdType index = 0; index < count; index += stride)
-    {
-    const double value = static_cast<double>(values[index]);
-    if (std::isfinite(value))
-      {
-      samples.push_back(value);
-      }
-    }
-}
+  return vtkMRMLAstroVolumeNode::ComputeClippedWindow(this->GetImageData(),
+                                                      vtkMRMLAstroVolumeNode::GetDefaultClipPercentage(), range);
 }
 
 //---------------------------------------------------------------------------
-bool vtkMRMLAstroVolumeNode::GetDisplayRange(double range[2])
+bool vtkMRMLAstroVolumeNode::ComputeClippedWindow(vtkImageData* image, double percentage, double window[2],
+                                                  vtkIdType maxSamples)
 {
-  vtkImageData* imageData = this->GetImageData();
-  if (!imageData || !imageData->GetPointData() || !imageData->GetPointData()->GetScalars())
+  vtkDataArray* scalars = image && image->GetPointData() ? image->GetPointData()->GetScalars() : nullptr;
+  if (!scalars || !window)
     {
     return false;
     }
-  vtkDataArray* scalars = imageData->GetPointData()->GetScalars();
-  const vtkIdType count = scalars->GetNumberOfTuples() * scalars->GetNumberOfComponents();
-  const vtkIdType maximumSamples = 1000000;
-  const vtkIdType stride = std::max<vtkIdType>(1, count / maximumSamples);
-  std::vector<double> samples;
-  samples.reserve(static_cast<size_t>(std::min(count, maximumSamples + 1)));
-  switch (scalars->GetDataType())
+  // a regular sample of the finite voxels
+  const vtkIdType count = scalars->GetNumberOfTuples();
+  const vtkIdType step = std::max<vtkIdType>(1, count / std::max<vtkIdType>(1, maxSamples));
+  std::vector<double> negative, positive;
+  double minimum = VTK_DOUBLE_MAX;
+  double maximum = -VTK_DOUBLE_MAX;
+  bool finite = false;
+  for (vtkIdType i = 0; i < count; i += step)
     {
-    vtkTemplateMacro(SampleFiniteValues(static_cast<const VTK_TT*>(scalars->GetVoidPointer(0)), count, stride, samples));
-    default:
-      return false;
+    const double value = scalars->GetComponent(i, 0);
+    if (!std::isfinite(value))
+      {
+      continue;
+      }
+    finite = true;
+    minimum = std::min(minimum, value);
+    maximum = std::max(maximum, value);
+    if (value < 0.)
+      {
+      negative.push_back(value);
+      }
+    else if (value > 0.)
+      {
+      positive.push_back(value);
+      }
     }
-  if (samples.empty())
+  if (!finite)
     {
     return false;
     }
-  // extremes of all the voxels (the sample may miss them)
-  double dataRange[2] = { VTK_DOUBLE_MAX, VTK_DOUBLE_MIN };
-  scalars->GetFiniteRange(dataRange, 0);
-  if (dataRange[0] > dataRange[1])
+  window[0] = minimum;
+  window[1] = maximum;
+  const double fraction = std::max(0., std::min(percentage / 100., 1.));
+  if (fraction >= 1.)
     {
-    dataRange[0] = samples.front();
-    dataRange[1] = samples.front();
+    return true;
     }
-  const size_t last = samples.size() - 1;
-  const size_t highIndex = static_cast<size_t>(0.999 * last);
-  const size_t lowIndex = static_cast<size_t>(0.001 * last);
-  std::nth_element(samples.begin(), samples.begin() + highIndex, samples.end());
-  const double high = samples[highIndex];
-  std::nth_element(samples.begin(), samples.begin() + lowIndex, samples.begin() + highIndex);
-  const double low = samples[lowIndex];
-  range[0] = dataRange[0];
-  range[1] = dataRange[1];
-  // isolated outliers (bright point sources): the percentiles
-  if (high > 0. && dataRange[1] > 10. * high)
+  // quantiles with linear interpolation (as numpy.quantile)
+  const std::function<double(std::vector<double>&, double)> quantile = [](std::vector<double>& data, double q)
     {
-    range[1] = high;
+    std::sort(data.begin(), data.end());
+    const double position = q * (data.size() - 1);
+    const size_t lower = static_cast<size_t>(std::floor(position));
+    const size_t upper = std::min(lower + 1, data.size() - 1);
+    return data[lower] + (position - lower) * (data[upper] - data[lower]);
+    };
+  if (!negative.empty())
+    {
+    window[0] = quantile(negative, 1. - fraction);
     }
-  if (low < 0. && dataRange[0] < 10. * low)
+  if (!positive.empty())
     {
-    range[0] = low;
+    window[1] = quantile(positive, fraction);
     }
-  if (range[1] <= range[0])
+  // constant data: the value
+  if (!(window[1] > window[0]))
     {
-    range[0] = dataRange[0];
-    range[1] = dataRange[1];
+    window[0] = minimum;
+    window[1] = maximum;
     }
   return true;
 }

@@ -144,8 +144,11 @@ namespace
 /// which probes GLX with an offscreen X window. On some X servers (Xvfb,
 /// XWayland with the NVIDIA driver) glXMakeCurrent of the probe fails with
 /// BadAccess and the default handler of Xlib exits Slicer. This error is
-/// ignored: the probe then fails and VTK falls back to its next backend
-/// (EGL). The other errors go to the previous handler.
+/// ignored. VTK may still accept the probe window when another context is
+/// current (its OpenGL calls then reach that context): the OpenGL smoothing
+/// filters therefore create their own EGL window when they can
+/// (vtkAstroOpenGLImageAlgorithmHelper). The other errors go to the
+/// previous handler.
 XErrorHandler PreviousXErrorHandler = nullptr;
 int GLXMajorOpcode = -1;
 const int X_GLXMakeCurrentRequest = 5;
@@ -160,7 +163,7 @@ int SlicerAstroXErrorHandler(Display* display, XErrorEvent* event)
       {
       reported = true;
       qWarning() << "SlicerAstro: glXMakeCurrent failed (BadAccess) in the OpenGL probe of VTK;"
-                    " the error is ignored and VTK uses its next OpenGL backend (EGL).";
+                    " the error is ignored.";
       }
     return 0;
     }
@@ -211,17 +214,21 @@ void HideScissorsEffect()
       continue;
       }
     const QStringList available = editor->availableEffectNames();
+    // an editor of SlicerAstro may hide more effects (property
+    // astroHiddenEffects, e.g. the editor of the Masks section)
+    QStringList hidden = editor->property("astroHiddenEffects").toStringList();
+    hidden << "Scissors";
     QStringList order;
     for (const QString& name : editor->effectNameOrder())
       {
-      if (available.contains(name) && name != "Scissors")
+      if (available.contains(name) && !hidden.contains(name))
         {
         order << name;
         }
       }
     for (const QString& name : available)
       {
-      if (!order.contains(name) && name != "Scissors")
+      if (!order.contains(name) && !hidden.contains(name))
         {
         order << name;
         }

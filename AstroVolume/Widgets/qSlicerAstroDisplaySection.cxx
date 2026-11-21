@@ -25,6 +25,7 @@
 #include <QLabel>
 #include <QPixmap>
 #include <QSignalBlocker>
+#include <QTimer>
 #include <QToolButton>
 #include <QVBoxLayout>
 
@@ -160,6 +161,8 @@ public:
   QLabel* WindowLabel{nullptr};
   double DataRange[2]{0., 1.};
   bool Updating{false};
+  QTimer* NoiseTimer{nullptr};
+  double PendingNoise{0.};
 };
 
 //-----------------------------------------------------------------------------
@@ -171,7 +174,12 @@ vtkMRMLAstroVolumeDisplayNode* qSlicerAstroDisplaySectionPrivate::displayNode() 
 //-----------------------------------------------------------------------------
 double qSlicerAstroDisplaySectionPrivate::noise() const
 {
-  const double value = this->Volume ? this->Volume->GetDisplayThreshold() : 0.;
+  // no noise for maps of velocities (moment 1 and 2)
+  if (!vtkSlicerAstroVolumeLogic::HasNoise(this->Volume))
+    {
+    return 0.;
+    }
+  const double value = this->Volume->GetDisplayThreshold();
   return std::isfinite(value) && value > 0. ? value : 0.;
 }
 
@@ -237,10 +245,17 @@ qSlicerAstroDisplaySection::qSlicerAstroDisplaySection(QWidget* parent)
   d->Histogram = new qSlicerAstroHistogramWidget(this);
   d->Histogram->setObjectName("DisplayHistogram");
   d->Histogram->setMinimumWidth(40);
-  QObject::connect(d->Histogram, SIGNAL(windowChanging(double,double)), this, SLOT(onWindowChanging(double,double)));
+  // the colour functions follow the lines while they are dragged (the 3D
+  // one at most every 40 ms: it re-applies the 3D colour function)
+  QObject::connect(d->Histogram, SIGNAL(windowChanging(double,double)),
+                   this, SLOT(onHistogramWindowDragged(double,double)));
   QObject::connect(d->Histogram, SIGNAL(windowChanged(double,double)), this, SLOT(setWindow(double,double)));
-  QObject::connect(d->Histogram, SIGNAL(noiseChanging(double)), this, SLOT(onNoiseChanging(double)));
+  QObject::connect(d->Histogram, SIGNAL(noiseChanging(double)), this, SLOT(onHistogramNoiseDragged(double)));
   QObject::connect(d->Histogram, SIGNAL(noiseChanged(double)), this, SLOT(setNoise(double)));
+  d->NoiseTimer = new QTimer(this);
+  d->NoiseTimer->setSingleShot(true);
+  d->NoiseTimer->setInterval(40);
+  QObject::connect(d->NoiseTimer, SIGNAL(timeout()), this, SLOT(applyPendingNoise()));
   QObject::connect(d->Histogram, SIGNAL(viewRangeChanged(double,double)), this, SLOT(onViewRangeChanged(double,double)));
   layout->addWidget(d->Histogram);
 
@@ -397,6 +412,7 @@ void qSlicerAstroDisplaySection::updateFromVolume()
     fields[i]->setValue(values[i]);
     }
   d->NoiseField->setEnabled(cube);
+  d->NoiseField->setVisible(noise > 0.);
   this->onWindowChanging(low, high);
 
   // colour tables with the SlicerAstro options (and the current one)
@@ -448,6 +464,32 @@ void qSlicerAstroDisplaySection::onWindowChanging(double minimum, double maximum
 }
 
 //-----------------------------------------------------------------------------
+void qSlicerAstroDisplaySection::onHistogramWindowDragged(double minimum, double maximum)
+{
+  this->onWindowChanging(minimum, maximum);
+  this->setWindow(minimum, maximum);
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroDisplaySection::onHistogramNoiseDragged(double noise)
+{
+  Q_D(qSlicerAstroDisplaySection);
+  this->onNoiseChanging(noise);
+  d->PendingNoise = noise;
+  if (!d->NoiseTimer->isActive())
+    {
+    d->NoiseTimer->start();
+    }
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroDisplaySection::applyPendingNoise()
+{
+  Q_D(qSlicerAstroDisplaySection);
+  this->setNoise(d->PendingNoise);
+}
+
+//-----------------------------------------------------------------------------
 void qSlicerAstroDisplaySection::onNoiseChanging(double noise)
 {
   Q_D(qSlicerAstroDisplaySection);
@@ -474,6 +516,10 @@ void qSlicerAstroDisplaySection::setWindow(double minimum, double maximum)
 void qSlicerAstroDisplaySection::setNoise(double noise)
 {
   Q_D(qSlicerAstroDisplaySection);
+  if (d->NoiseTimer && d->NoiseTimer->isActive() && noise != d->PendingNoise)
+    {
+    d->NoiseTimer->stop();
+    }
   if (d->Volume && noise > 0. && std::abs(noise - d->noise()) > 1e-12 * std::max(1., noise))
     {
     d->Volume->SetDisplayThreshold(noise);

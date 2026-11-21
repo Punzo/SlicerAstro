@@ -9,6 +9,8 @@ import vtk
 import slicer
 
 # rest frequencies (Hz) of common lines, for the chips of the datasets
+SPEED_OF_LIGHT = 299792458.0
+
 LINES = (
     (1.420405752e9, "HI 21 cm"),
     (115.2712018e9, "CO(1–0)"),
@@ -18,6 +20,16 @@ LINES = (
     (1.665401800e9, "OH 1665"),
     (1.667359000e9, "OH 1667"),
 )
+
+
+def lines():
+    """Named lines (rest frequency in Hz, name): the radio lines above and the
+    optical lines of the AstroVolume logic (vacuum wavelengths)."""
+    result = list(LINES)
+    logic = slicer.vtkSlicerAstroVolumeLogic
+    for index in range(logic.GetNumberOfOpticalLines()):
+        result.append((SPEED_OF_LIGHT / logic.GetOpticalLineWavelength(index), logic.GetOpticalLineName(index)))
+    return result
 
 
 def attribute(node, key, default=None):
@@ -90,8 +102,9 @@ def channelVelocities(volume):
     if displayNode is None or not displayNode.IsA("vtkMRMLAstroVolumeDisplayNode"):
         return []
     channels = int(attribute(volume, "NAXIS3", "0"))
-    unit = attribute(volume, "CUNIT3", "")
-    factor = 0.001 if unit.strip().lower() == "m/s" else 1.0
+    unit = attribute(volume, "CUNIT3", "").strip()
+    # km/s, or Angstrom for wavelengths (optical data without a line)
+    factor = 0.001 if unit.lower() == "m/s" else (1.e10 if unit == "m" else 1.0)
     ijk = [float(attribute(volume, "NAXIS1", "1")) * 0.5, float(attribute(volume, "NAXIS2", "1")) * 0.5, 0.0]
     world = [0.0, 0.0, 0.0]
     velocities = []
@@ -104,6 +117,8 @@ def channelVelocities(volume):
 
 def spectralUnit(volume):
     unit = attribute(volume, "CUNIT3", "").strip()
+    if unit == "m":
+        return "Å"
     return "km/s" if unit.lower() in ("m/s", "km/s", "") else unit
 
 
@@ -134,7 +149,7 @@ def chips(volume):
     if dimensions(volume) >= 3 and (not math.isfinite(restFrequency) or restFrequency <= 0):
         restFrequency = floatAttribute(volume, "RESTFRQ")
     if math.isfinite(restFrequency) and restFrequency > 0:
-        for frequency, name in LINES:
+        for frequency, name in lines():
             if abs(restFrequency - frequency) < 1e-4 * frequency:
                 result.append(name)
                 break

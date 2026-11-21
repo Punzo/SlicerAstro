@@ -44,6 +44,23 @@ def foldSection(title, summary, key, collapsed=True):
     return section
 
 
+def accordion(sections):
+    """Only one of the sections open: opening one collapses the others (the
+    first open one stays open at the start)."""
+    def onCollapsedChanged(opened, collapsed):
+        if collapsed:
+            return
+        for section in sections:
+            if section is not opened and not section.collapsed:
+                section.setCollapsed(True)
+    for section in sections:
+        section.connect("collapsedChanged(bool)",
+                        lambda collapsed, opened=section: onCollapsedChanged(opened, collapsed))
+    opened = [section for section in sections if not section.collapsed]
+    for section in opened[1:]:
+        section.setCollapsed(True)
+
+
 def astroVolumeLogic():
     return slicer.modules.astrovolume.logic()
 
@@ -75,3 +92,20 @@ def optionButton(text, toolTip, objectName):
     button.setObjectName(objectName)
     button.setCursor(qt.Qt.PointingHandCursor)
     return button
+
+
+def roundedPixmap(pixmap, radius=6):
+    """The pixmap with rounded corners (transparent outside), as the cards."""
+    if pixmap.isNull():
+        return pixmap
+    result = qt.QPixmap(pixmap.size())
+    result.fill(qt.Qt.transparent)
+    painter = qt.QPainter(result)
+    painter.setRenderHint(qt.QPainter.Antialiasing)
+    painter.setRenderHint(qt.QPainter.SmoothPixmapTransform)
+    path = qt.QPainterPath()
+    path.addRoundedRect(qt.QRectF(0, 0, pixmap.width(), pixmap.height()), radius, radius)
+    painter.setClipPath(path)
+    painter.drawPixmap(0, 0, pixmap)
+    painter.end()
+    return result

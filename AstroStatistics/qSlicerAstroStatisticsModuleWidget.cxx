@@ -47,6 +47,7 @@
 // MRML includes
 #include <qMRMLNodeComboBox.h>
 #include <qMRMLSegmentsTableView.h>
+#include <qSlicerAstroSegmentsTableStyler.h>
 #include <qMRMLSortFilterProxyModel.h>
 #include <qMRMLTableView.h>
 #include <vtkMRMLAstroStatisticsParametersNode.h>
@@ -314,6 +315,8 @@ void qSlicerAstroStatisticsModuleWidgetPrivate::init()
   this->SegmentationNodeComboBox->setToolTip(qSlicerAstroStatisticsModuleWidget::tr(
     "Mask with the segments. By default the mask of the data."));
   maskLayout->addWidget(this->SegmentationNodeComboBox);
+  // one mask per dataset (the mask of the input data): no choice of the mask
+  this->SegmentationNodeComboBox->hide();
   this->SegmentsTableView = new qMRMLSegmentsTableView(maskPage);
   this->SegmentsTableView->setObjectName("SegmentsTableView");
   this->SegmentsTableView->setSelectionMode(QAbstractItemView::SingleSelection);
@@ -321,6 +324,7 @@ void qSlicerAstroStatisticsModuleWidgetPrivate::init()
   this->SegmentsTableView->setMaximumHeight(170);
   this->SegmentsTableView->setToolTip(qSlicerAstroStatisticsModuleWidget::tr("The selected segment is the region."));
   maskLayout->addWidget(this->SegmentsTableView);
+  qSlicerAstroSegmentsTableStyler::styleTable(this->SegmentsTableView);
   this->RegionStack->addWidget(maskPage);
   regionLayout->addWidget(this->RegionStack);
   bodyLayout->addWidget(region);
@@ -972,15 +976,9 @@ void qSlicerAstroStatisticsModuleWidget::onComputationCancelled()
 //---------------------------------------------------------------------------
 void qSlicerAstroStatisticsModuleWidget::onSegmentEditorNodeModified(vtkObject* sender)
 {
-  Q_D(qSlicerAstroStatisticsModuleWidget);
-  vtkMRMLSegmentEditorNode* segmentEditorNode = vtkMRMLSegmentEditorNode::SafeDownCast(sender);
-  vtkMRMLSegmentationNode* segmentationNode = segmentEditorNode ? segmentEditorNode->GetSegmentationNode() : nullptr;
-  // the mask selector follows the Segment Editor (masks only, not the contours)
-  if (segmentationNode && this->isEntered() && d->SegmentationNodeComboBox->currentNode() != segmentationNode &&
-      vtkSlicerAstroVolumeLogic::IsMaskSegmentation(segmentationNode))
-    {
-    d->SegmentationNodeComboBox->setCurrentNode(segmentationNode);
-    }
+  Q_UNUSED(sender);
+  // one mask per dataset: the mask of the input data (updateMaskSelector),
+  // not the segmentation of the Segment Editor
 }
 
 //---------------------------------------------------------------------------
@@ -1021,13 +1019,8 @@ void qSlicerAstroStatisticsModuleWidget::updateMaskSelector()
 
   // by default the mask of the input data
   vtkMRMLSegmentationNode* currentNode = vtkMRMLSegmentationNode::SafeDownCast(d->SegmentationNodeComboBox->currentNode());
-  vtkMRMLSegmentationNode* editorNode = d->segmentEditorNode ? d->segmentEditorNode->GetSegmentationNode() : nullptr;
   vtkMRMLSegmentationNode* mask = vtkSlicerAstroVolumeLogic::GetMaskForVolume(scene, d->inputVolume(),
-    currentNode ? currentNode : editorNode);
-  if (!mask && !currentNode && vtkSlicerAstroVolumeLogic::IsMaskSegmentation(editorNode))
-    {
-    mask = editorNode;
-    }
+    nullptr);
   if (mask && mask != currentNode)
     {
     d->SegmentationNodeComboBox->setCurrentNode(mask);

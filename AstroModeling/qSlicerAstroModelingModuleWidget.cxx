@@ -104,6 +104,7 @@
 #include <qMRMLPlotView.h>
 #include <qMRMLPlotWidget.h>
 #include <qMRMLSegmentsTableView.h>
+#include <qSlicerAstroSegmentsTableStyler.h>
 #include <qMRMLSortFilterProxyModel.h>
 #include <qMRMLNodeComboBox.h>
 
@@ -376,6 +377,10 @@ void qSlicerAstroModelingModuleWidgetPrivate::init()
                    this->SegmentsTableView, SLOT(setMRMLScene(vtkMRMLScene*)));
 
   this->SegmentsTableView->setSelectionMode(QAbstractItemView::SingleSelection);
+  qSlicerAstroSegmentsTableStyler::styleTable(this->SegmentsTableView);
+  // one mask per dataset (the mask of the input data): no choice of the mask
+  this->SegmentationNodeComboBox->hide();
+  this->MaskSelectorLabel->hide();
 
   QObject::connect(this->MaskCheckBox, SIGNAL(toggled(bool)),
                    q, SLOT(onMaskActiveToggled(bool)));
@@ -1190,6 +1195,11 @@ void qSlicerAstroModelingModuleWidgetPrivate::restructurePanel()
     if (spec.Key == std::string("Results"))
       {
       resultsSection = section;
+      }
+    if (spec.Key == std::string("Nodes"))
+      {
+      // the output nodes and the parameter set are chosen by the module
+      section->hide();
       }
     }
   // the sections of the module layout (the .ui ones are hidden), the
@@ -2910,21 +2920,28 @@ bool qSlicerAstroModelingModuleWidget::setMaskSegmentFromSelection()
 
   vtkMRMLSegmentationNode* segmentationNode = d->segmentEditorNode ?
     d->segmentEditorNode->GetSegmentationNode() : nullptr;
-  if (!d->parametersNode || !segmentationNode || !segmentationNode->GetSegmentation())
+  // (in tests the message is only logged: a modal box would wait forever)
+  const bool testing = qSlicerApplication::application() &&
+    qSlicerApplication::application()->testAttribute(qSlicerCoreApplication::AA_EnableTesting);
+  if (!d->parametersNode || !segmentationNode || !segmentationNode->GetSegmentation() ||
+      segmentationNode->GetSegmentation()->GetNumberOfSegments() < 1)
     {
-    QString message = QString("No segmentation available! Please create a segmentation or untoggle the input mask option to perform automatic masking with 3DBarolo.");
+    QString message = tr("The mask of the data has no segments. Draw the mask (Mask tab or AstroVolume Masks) "
+                         "or untoggle the input mask option to let 3DBarolo mask the data.");
     qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(nullptr, tr("Failed to select a mask"), message);
+    if (!testing)
+      {
+      QMessageBox::warning(nullptr, tr("Failed to select a mask"), message);
+      }
     return false;
     }
 
+  // the selected segment of the mask, or its first one (selected)
   QStringList selectedSegmentIDs = d->SegmentsTableView->selectedSegmentIDs();
   if (selectedSegmentIDs.size() < 1)
     {
-    QString message = QString("No segment selected from the segmentation node! Please select the segment of the mask. Please create a segmentation or untoggle the input mask option to perform automatic masking with 3DBarolo.");
-    qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(nullptr, tr("Failed to select a mask"), message);
-    return false;
+    selectedSegmentIDs << QString::fromStdString(segmentationNode->GetSegmentation()->GetNthSegmentID(0));
+    d->SegmentsTableView->setSelectedSegmentIDs(selectedSegmentIDs);
     }
 
   // the logic reads the segment directly (no label map volume)
@@ -5293,13 +5310,8 @@ void qSlicerAstroModelingModuleWidget::onSegmentEditorNodeModified(vtkObject *se
     return;
     }
 
-  // the mask selector follows the Segment Editor (masks only, not the
-  // contours); the table shows the selected mask (onMaskSegmentationChanged)
-  if (this->isEntered() && d->SegmentationNodeComboBox->currentNode() != segmentationNode &&
-      vtkSlicerAstroVolumeLogic::IsMaskSegmentation(segmentationNode))
-    {
-    d->SegmentationNodeComboBox->setCurrentNode(segmentationNode);
-    }
+  // one mask per dataset: the mask of the input data (updateMaskSelector),
+  // not the segmentation of the Segment Editor
 }
 
 //---------------------------------------------------------------------------
@@ -5345,15 +5357,10 @@ void qSlicerAstroModelingModuleWidget::updateMaskSelector()
   // by default the mask of the input volume
   vtkMRMLSegmentationNode* currentNode =
     vtkMRMLSegmentationNode::SafeDownCast(d->SegmentationNodeComboBox->currentNode());
-  vtkMRMLSegmentationNode* editorNode = d->segmentEditorNode ? d->segmentEditorNode->GetSegmentationNode() : nullptr;
   vtkMRMLVolumeNode* inputVolume = (d->parametersNode && d->parametersNode->GetInputVolumeNodeID()) ?
     vtkMRMLVolumeNode::SafeDownCast(scene->GetNodeByID(d->parametersNode->GetInputVolumeNodeID())) : nullptr;
   vtkMRMLSegmentationNode* mask = vtkSlicerAstroVolumeLogic::GetMaskForVolume(scene, inputVolume,
-    currentNode ? currentNode : editorNode);
-  if (!mask && !currentNode && vtkSlicerAstroVolumeLogic::IsMaskSegmentation(editorNode))
-    {
-    mask = editorNode;
-    }
+    nullptr);
   if (mask && mask != currentNode)
     {
     d->SegmentationNodeComboBox->setCurrentNode(mask);

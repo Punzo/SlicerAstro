@@ -98,7 +98,7 @@ class ProductStep(PipelineStep):
 
 STEPS = [
     ProductStep("Smooth", "module-smoothing", "AstroSmoothing", cubeProduct=True),
-    ProductStep("Mask", "module-masking", "AstroMasking", mask=True),
+    ProductStep("Crop / blank", "module-masking", "AstroMasking", mask=True),
     ProductStep("Moments", "module-moment-maps", "AstroMomentMaps",
                 datamodels=("ZEROMOMENTMAP", "FIRSTMOMENTMAP", "SECONDMOMENTMAP")),
     ProductStep("Profiles", "module-profiles", "AstroProfiles"),
@@ -109,7 +109,7 @@ STEPS = [
 
 STEP_TOOLTIPS = {
     "Smooth": "Smooth the cube (box, Gaussian or intensity-driven gradient filter) to bring out faint emission.",
-    "Mask": "Mask the cube: blank or crop the voxels outside a segment or box.",
+    "Crop / blank": "Crop the cube to a box or a mask, or blank the voxels inside or outside it.",
     "Moments": "Moment maps: integrated intensity, velocity field and dispersion.",
     "Profiles": "Integrated spectrum (global profile) with W50, W20, systemic velocity and flux.",
     "PV slice": "Position-velocity slice through the cube along a straight line on the sky.",
@@ -164,7 +164,8 @@ class Inspector(qt.QFrame):
         self.shownPanel = None
         self.setProperty("astroRole", "inspector")
         self.setObjectName("WorkbenchInspector")
-        self.setMinimumWidth(340)
+        # the five tabs fit (Inspect, Mask, Sources, Process, Model)
+        self.setMinimumWidth(376)
         self.setMaximumWidth(640)
         layout = qt.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -173,20 +174,25 @@ class Inspector(qt.QFrame):
         tabs = qt.QFrame()
         tabs.setProperty("astroRole", "bar")
         tabsLayout = qt.QHBoxLayout(tabs)
-        tabsLayout.setContentsMargins(12, 10, 12, 10)
-        tabsLayout.setSpacing(4)
+        tabsLayout.setContentsMargins(8, 10, 8, 10)
+        tabsLayout.setSpacing(2)
         self.tabGroup = qt.QButtonGroup(self)
         self.stack = qt.QStackedWidget()
         self.tabs = {}
-        for index, name in enumerate(("Inspect", "Process", "Model")):
+        # the Mask (stack page 3) and Sources (4) tabs after Inspect
+        for index, name in ((0, "Inspect"), (3, "Mask"), (4, "Sources"), (1, "Process"), (2, "Model")):
             button = qt.QToolButton()
             button.setProperty("astroRole", "tab")
             button.setObjectName(f"InspectorTab_{name}")
             button.toolTip = {
-                "Inspect": "Facts of the active dataset, its colours, contours, masks, sources, 3D and header.",
+                "Inspect": "Facts of the active dataset, its colours, contours, 3D and header.",
                 "Process": "Processing steps of the active dataset: smoothing, masking, moments, profiles, "
                            "position-velocity, reprojection.",
                 "Model": "Tilted-ring model of a galaxy with 3DBarolo.",
+                "Sources": "Catalogues of sources of the dataset (e.g. SoFiA): table, positions in the views, "
+                           "labels; click a source to go to it.",
+                "Mask": "Mask of the dataset: its segments (sources, regions), shown or hidden, edited with the "
+                        "Segment Editor (draw, erase, threshold), exported as a FITS mask.",
             }[name]
             button.text = name
             button.checkable = True
@@ -201,8 +207,11 @@ class Inspector(qt.QFrame):
         self.stack.addWidget(self.buildInspect())
         self.stack.addWidget(self.buildProcess())
         self.stack.addWidget(self.buildModel())
-        self.tabs["Process"].checked = True
-        self.stack.setCurrentIndex(1)
+        self.stack.addWidget(self.buildMask())
+        self.stack.addWidget(self.buildSources())
+        # Inspect first: what the data are; Process opens on its first step
+        self.tabs["Inspect"].checked = True
+        self.stack.setCurrentIndex(0)
 
     # ------------------------------------------------------------------
     def scrollPage(self):
@@ -234,7 +243,7 @@ class Inspector(qt.QFrame):
         # the reusable C++ sections of AstroVolume (the same widgets as the
         # AstroVolume panel), in fold sections
         self.infoWidget = slicer.qSlicerAstroInfoSection()
-        self.infoFold = Sections.foldSection("Info", "facts, beam, FITS header", "Info", collapsed=False)
+        self.infoFold = Sections.foldSection("Info", "facts, beam, FITS header", "Info")
         self.infoFold.toolTip = self.infoWidget.toolTip
         self.infoFold.contentLayout().addWidget(self.infoWidget)
         layout.addWidget(self.infoFold)
@@ -242,27 +251,25 @@ class Inspector(qt.QFrame):
         self.displayFold = Sections.foldSection("Display", "2D colours, window, noise", "Display", collapsed=False)
         self.displayFold.toolTip = self.displayWidget.toolTip
         self.displayFold.contentLayout().addWidget(self.displayWidget)
+        # the 3D rendering of a cube: an advanced part of Display (folded)
+        self.renderingWidget = slicer.qSlicerAstroRenderingSection()
+        self.renderingFold = Sections.foldSection("3D rendering", "colour function, box, quality", "ThreeD",
+                                                  collapsed=True)
+        self.renderingFold.toolTip = self.renderingWidget.toolTip
+        self.renderingFold.contentLayout().addWidget(self.renderingWidget)
+        self.displayFold.contentLayout().addWidget(self.renderingFold)
         layout.addWidget(self.displayFold)
         self.contoursWidget = slicer.qSlicerAstroContoursSection()
-        self.contoursFold = Sections.foldSection("Contours", "levels over the data", "Contours", collapsed=False)
+        self.contoursFold = Sections.foldSection("Contours", "levels over the data", "Contours", collapsed=True)
         self.contoursFold.toolTip = self.contoursWidget.toolTip
         self.contoursFold.contentLayout().addWidget(self.contoursWidget)
         layout.addWidget(self.contoursFold)
+        # one section open at a time (Display at the start)
+        Sections.accordion([self.displayFold, self.infoFold, self.contoursFold])
+        # the mask of the data has its own tab (buildMask)
         self.masksWidget = slicer.qSlicerAstroMasksSection()
-        self.masksFold = Sections.foldSection("Masks", "segments of the data", "Masks")
-        self.masksFold.toolTip = self.masksWidget.toolTip
-        self.masksFold.contentLayout().addWidget(self.masksWidget)
-        layout.addWidget(self.masksFold)
+        # the catalogues of sources have their own tab (buildSources)
         self.sourcesWidget = slicer.qSlicerAstroSourcesSection()
-        self.sourcesFold = Sections.foldSection("Sources", "catalogues", "Sources")
-        self.sourcesFold.toolTip = self.sourcesWidget.toolTip
-        self.sourcesFold.contentLayout().addWidget(self.sourcesWidget)
-        self.renderingWidget = slicer.qSlicerAstroRenderingSection()
-        self.renderingFold = Sections.foldSection("3D", "rendering of the cube", "ThreeD")
-        self.renderingFold.toolTip = self.renderingWidget.toolTip
-        self.renderingFold.contentLayout().addWidget(self.renderingWidget)
-        layout.addWidget(self.renderingFold)
-        layout.addWidget(self.sourcesFold)
         layout.addStretch(1)
         return scroll
 
@@ -307,9 +314,46 @@ class Inspector(qt.QFrame):
         self.modelStep = PipelineStep("Model", "module-modelling", "AstroModeling")
         return scroll
 
+    def buildMask(self):
+        """The Mask tab: the mask of the data shown in Inspect (Masks section:
+        mask, segments, show, Edit with the Segment Editor, export). Leaving
+        the tab ends the editing; the panel widens while an effect needs more
+        room for its options."""
+        scroll, layout = self.scrollPage()
+        layout.addWidget(self.masksWidget)
+        self.maskEmpty = Sections.label("No data: load or choose a dataset.")
+        self.maskEmpty.setObjectName("MaskEmpty")
+        layout.addWidget(self.maskEmpty)
+        layout.addStretch(1)
+        self.masksWidget.connect("activeEffectChanged(QString)", self.onMaskEffectChanged)
+        self.widthBeforeEffect = None
+        self.widthForEffect = None
+        return scroll
+
+    def buildSources(self):
+        """The Sources tab: the catalogues of sources of the data shown in
+        Inspect (SoFiA or other catalogues: import, table, points, labels)."""
+        scroll, layout = self.scrollPage()
+        layout.addWidget(self.sourcesWidget)
+        self.sourcesEmpty = Sections.label("No data: load or choose a dataset.")
+        self.sourcesEmpty.setObjectName("SourcesEmpty")
+        layout.addWidget(self.sourcesEmpty)
+        layout.addStretch(1)
+        return scroll
+
+    def showSources(self, catalogue=None):
+        """The Sources tab, with a catalogue (table node) if given."""
+        self.tabs["Sources"].checked = True
+        self.showTab(4)
+        if catalogue is not None:
+            self.sourcesWidget.setCatalogueNode(catalogue)
+
     # ------------------------------------------------------------------
     def showTab(self, index):
         self.stack.setCurrentIndex(index)
+        # leaving the Mask tab ends the editing of the mask
+        if index != 3:
+            self.masksWidget.setEditing(False)
         if index == 2:
             panel = self.modelStep.widget()
             if panel is not None and self.modelContainer.indexOf(panel) < 0:
@@ -339,6 +383,50 @@ class Inspector(qt.QFrame):
             if widget is not None:
                 widget.visible = widget is panel
         self.enterPanel(panel)
+
+    def inspectorDock(self):
+        return slicer.util.mainWindow().findChild("QDockWidget", "WorkbenchInspector")
+
+    def onMaskEffectChanged(self, effect):
+        """The options of a Segment Editor effect (e.g. Paint) need more width
+        than the panel usually has: the panel widens to show them (at most
+        45% of the window) and returns to its width when no effect is active,
+        unless it was resized meanwhile."""
+        dock = self.inspectorDock()
+        if dock is None:
+            return
+        if effect:
+            # after the options of the effect are laid out
+            qt.QTimer.singleShot(0, self.fitEffectWidth)
+            return
+        if self.widthBeforeEffect is not None and self.widthForEffect is not None and \
+                abs(dock.width - self.widthForEffect) <= 4:
+            slicer.util.mainWindow().resizeDocks([dock], [self.widthBeforeEffect], qt.Qt.Horizontal)
+        self.widthBeforeEffect = None
+        self.widthForEffect = None
+
+    def fitEffectWidth(self):
+        dock = self.inspectorDock()
+        editor = self.masksWidget.segmentEditor()
+        if dock is None or editor is None or not self.masksWidget.activeEffect():
+            return
+        qt.QCoreApplication.sendPostedEvents(None, qt.QEvent.LayoutRequest)
+        hint = self.masksWidget.editorWidthHint()
+        if hint <= 0:
+            return
+        # margins of the editor in the panel on both sides, and the scroll bar
+        left = editor.mapTo(dock, qt.QPoint(0, 0)).x()
+        needed = hint + 2 * max(left, 0) + 14
+        mainWindow = slicer.util.mainWindow()
+        target = min(needed, int(mainWindow.width * 0.45))
+        if dock.width >= target:
+            return
+        if self.widthBeforeEffect is None:
+            self.widthBeforeEffect = dock.width
+        mainWindow.resizeDocks([dock], [target], qt.Qt.Horizontal)
+        # (the dock has its new width once the layout of the window is applied)
+        mainWindow.layout().activate()
+        self.widthForEffect = dock.width
 
     def enterPanel(self, panel):
         """The module panel shown in the inspector is entered (as the module
@@ -387,13 +475,13 @@ class Inspector(qt.QFrame):
         self.contoursWidget.setVolumeNode(volume)
         self.contoursFold.visible = volume is not None
         self.masksWidget.setVolumeNode(volume)
-        self.masksFold.visible = volume is not None
+        self.masksWidget.visible = volume is not None
+        self.maskEmpty.visible = volume is None
         self.renderingWidget.setVolumeNode(volume)
         self.renderingFold.visible = volume is not None and Astro.dimensions(volume) >= 3
         self.sourcesWidget.setVolumeNode(volume)
-        self.sourcesFold.visible = volume is not None
-        count = self.sourcesWidget.catalogueCount()
-        self.sourcesFold.summary = f"{count} catalogue{'s' if count != 1 else ''}" if count else "catalogues"
+        self.sourcesWidget.visible = volume is not None
+        self.sourcesEmpty.visible = volume is None
 
     def setVolume(self, volume):
         changed = volume is not self.volume
@@ -416,8 +504,8 @@ class Inspector(qt.QFrame):
         self.pipelineTitle.text = f"PIPELINE · {volume.GetName().upper()}" if volume is not None else "PIPELINE"
         self.pipelineSummary.text = f"{done} of {len(STEPS)} done" if volume is not None else ""
         if self.stepGroup.checkedId() < 0:
-            self.stepButtons[2].checked = True
-            self.showStep(2)
+            self.stepButtons[0].checked = True
+            self.showStep(0)
 
     def cleanup(self):
         self.inspected = None

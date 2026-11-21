@@ -28,7 +28,9 @@
 
 // MRML includes
 #include <vtkMRMLScene.h>
+#include <vtkMRMLSegmentationNode.h>
 #include <vtkMRMLVolumeNode.h>
+#include <vtkSegmentation.h>
 
 #include <vector>
 
@@ -199,13 +201,18 @@ QList<vtkMRMLNode*> qSlicerAstroDatasetSelector::nodes() const
     {
     return result;
     }
-  std::vector<vtkMRMLNode*> nodes;
-  this->Scene->GetNodesByClass("vtkMRMLVolumeNode", nodes);
-  for (vtkMRMLNode* node : nodes)
+  // the nodes of the types (volumes, or other nodes such as masks)
+  const QStringList types = this->NodeTypes.isEmpty() ? QStringList() << "vtkMRMLVolumeNode" : this->NodeTypes;
+  for (const QString& type : types)
     {
-    if (this->accepts(node))
+    std::vector<vtkMRMLNode*> nodes;
+    this->Scene->GetNodesByClass(type.toUtf8().constData(), nodes);
+    for (vtkMRMLNode* node : nodes)
       {
-      result << node;
+      if (!result.contains(node) && this->accepts(node))
+        {
+        result << node;
+        }
       }
     }
   return result;
@@ -258,8 +265,36 @@ void qSlicerAstroDatasetSelector::onCurrentNodeModified()
 }
 
 //-----------------------------------------------------------------------------
+QString qSlicerAstroDatasetSelector::nodeIcon() const
+{
+  return this->NodeIcon;
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroDatasetSelector::setNodeIcon(const QString& iconName)
+{
+  this->NodeIcon = iconName;
+  this->update();
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroDatasetSelector::addExtraAction(QAction* action)
+{
+  if (action && !this->ExtraActions.contains(action))
+    {
+    this->ExtraActions << action;
+    }
+}
+
+//-----------------------------------------------------------------------------
 QString qSlicerAstroDatasetSelector::defaultSubtitle(vtkMRMLNode* node) const
 {
+  vtkMRMLSegmentationNode* segmentation = vtkMRMLSegmentationNode::SafeDownCast(node);
+  if (segmentation && segmentation->GetSegmentation())
+    {
+    const int count = segmentation->GetSegmentation()->GetNumberOfSegments();
+    return count == 0 ? tr("no segments") : (count == 1 ? tr("1 segment") : tr("%1 segments").arg(count));
+    }
   vtkMRMLVolumeNode* volume = vtkMRMLVolumeNode::SafeDownCast(node);
   if (!volume || !volume->GetImageData())
     {
@@ -315,12 +350,26 @@ void qSlicerAstroDatasetSelector::paintEvent(QPaintEvent* event)
 
   const int top = (this->height() - ThumbnailHeight) / 2;
   int x = 6;
-  vtkMRMLVolumeNode* volume = vtkMRMLVolumeNode::SafeDownCast(this->CurrentNode);
+  vtkMRMLNode* node = this->CurrentNode;
+  vtkMRMLVolumeNode* volume = vtkMRMLVolumeNode::SafeDownCast(node);
   if (volume)
     {
     const QPixmap thumbnail = qSlicerAstroThumbnails::instance()->roundedPixmap(
       volume, ThumbnailWidth, ThumbnailHeight, 6., this->devicePixelRatioF());
     painter.drawPixmap(x, top, thumbnail);
+    x += ThumbnailWidth + 9;
+    }
+  else if (node && !this->NodeIcon.isEmpty())
+    {
+    // no preview: the icon of the kind of node in a tile of the same size
+    QPainterPath tile;
+    tile.addRoundedRect(QRectF(x, top, ThumbnailWidth, ThumbnailHeight), 6., 6.);
+    painter.fillPath(tile, theme->color("panel"));
+    painter.setPen(QPen(theme->color("line"), 1.));
+    painter.drawPath(tile);
+    const int iconSize = 18;
+    theme->icon(this->NodeIcon, "muted").paint(&painter, QRect(x + (ThumbnailWidth - iconSize) / 2,
+      top + (ThumbnailHeight - iconSize) / 2, iconSize, iconSize));
     x += ThumbnailWidth + 9;
     }
   else
@@ -335,14 +384,14 @@ void qSlicerAstroDatasetSelector::paintEvent(QPaintEvent* event)
   const QFont subtitleFont = theme->font("monoSmall");
   const QFontMetrics subtitleMetrics(subtitleFont);
   painter.setPen(this->isEnabled() ? theme->color("text") : theme->color("subtle"));
-  if (volume)
+  if (node)
     {
-    const QString subtitle = this->Subtitle.isEmpty() ? this->defaultSubtitle(volume) : this->Subtitle;
+    const QString subtitle = this->Subtitle.isEmpty() ? this->defaultSubtitle(node) : this->Subtitle;
     const int textHeight = titleMetrics.height() + subtitleMetrics.height();
     const int y = (this->height() - textHeight) / 2;
     painter.setFont(titleFont);
     painter.drawText(QRect(x, y, textWidth, titleMetrics.height()), Qt::AlignLeft | Qt::AlignVCenter,
-                     titleMetrics.elidedText(QString::fromUtf8(volume->GetName()), Qt::ElideMiddle, textWidth));
+                     titleMetrics.elidedText(QString::fromUtf8(node->GetName()), Qt::ElideMiddle, textWidth));
     painter.setFont(subtitleFont);
     painter.setPen(theme->color("muted"));
     painter.drawText(QRect(x, y + titleMetrics.height(), textWidth, subtitleMetrics.height()),
@@ -369,21 +418,39 @@ void qSlicerAstroDatasetSelector::showMenu()
   const QList<vtkMRMLNode*> nodes = this->nodes();
   if (nodes.isEmpty())
     {
-    QAction* action = menu.addAction(this->RequiredDimensions == 3 ? tr("No data cube loaded") : tr("No data loaded"));
+    QAction* action = menu.addAction(!this->NodeIcon.isEmpty() ? this->NoneText :
+      (this->RequiredDimensions == 3 ? tr("No data cube loaded") : tr("No data loaded")));
     action->setEnabled(false);
     }
   for (vtkMRMLNode* node : nodes)
     {
     vtkMRMLVolumeNode* volume = vtkMRMLVolumeNode::SafeDownCast(node);
     QAction* action = menu.addAction(QString::fromUtf8(node->GetName()));
-    action->setIcon(QIcon(qSlicerAstroThumbnails::instance()->roundedPixmap(
-      volume, 32, 24, 4., this->devicePixelRatioF())));
+    if (volume || this->NodeIcon.isEmpty())
+      {
+      action->setIcon(QIcon(qSlicerAstroThumbnails::instance()->roundedPixmap(
+        volume, 32, 24, 4., this->devicePixelRatioF())));
+      }
+    else
+      {
+      action->setIcon(qSlicerAstroTheme::instance()->icon(this->NodeIcon, "muted"));
+      }
     action->setCheckable(true);
     action->setChecked(node == this->CurrentNode);
     action->setToolTip(this->defaultSubtitle(node));
     action->setData(QString::fromUtf8(node->GetID()));
     }
-  menu.setStyleSheet(menu.styleSheet() + "QMenu { icon-size: 32px; } QMenu::item { padding: 6px 12px 6px 6px; }");
+  if (!this->ExtraActions.isEmpty())
+    {
+    menu.addSeparator();
+    for (QAction* extra : this->ExtraActions)
+      {
+      menu.addAction(extra);
+      }
+    }
+  // previews of the data, or the icons of other nodes (e.g. masks)
+  menu.setStyleSheet(menu.styleSheet() + QString("QMenu { icon-size: %1px; } QMenu::item { padding: 6px 12px 6px 6px; }")
+                                           .arg(this->NodeIcon.isEmpty() ? 32 : 18));
   QAction* chosen = menu.exec(this->mapToGlobal(QPoint(0, this->height() + 2)));
   if (chosen && chosen->data().isValid())
     {

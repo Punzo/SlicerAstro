@@ -39,9 +39,10 @@ qSlicerAstroFoldSection::qSlicerAstroFoldSection(QWidget* parent)
   this->Header->setProperty("astroRole", "fold");
   this->Header->setCursor(Qt::PointingHandCursor);
   this->Header->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-  this->Header->setMinimumHeight(28);
+  this->Header->setMinimumHeight(30);
   QHBoxLayout* headerLayout = new QHBoxLayout(this->Header);
-  headerLayout->setContentsMargins(0, 6, 0, 0);
+  // a small inset: the hover background does not touch the chevron
+  headerLayout->setContentsMargins(4, 6, 4, 4);
   headerLayout->setSpacing(6);
   this->IconLabel = new QLabel(this->Header);
   this->IconLabel->setFixedSize(14, 14);

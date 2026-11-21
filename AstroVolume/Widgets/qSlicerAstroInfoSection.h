@@ -19,6 +19,7 @@
 
 // Qt includes
 #include <QScopedPointer>
+#include <QStringList>
 #include <QWidget>
 
 // CTK includes
@@ -53,6 +54,13 @@ public:
   Q_INVOKABLE QString beamStatus() const;
   /// Number of FITS keywords shown in the header table
   Q_INVOKABLE int keywordRowCount() const;
+  /// The file of the data, and its HDU (0: the first image HDU with data)
+  Q_INVOKABLE QString fileName() const;
+  Q_INVOKABLE int hduNumber() const;
+  /// The image extensions of the file listed in the Extension row
+  Q_INVOKABLE QStringList extensionNames() const;
+  /// Rest wavelength (vacuum, m) of the line chosen in the Line row
+  Q_INVOKABLE double selectedLineWavelength() const;
 
 public slots:
   /// The volume described (nullptr: none)
@@ -67,14 +75,33 @@ public slots:
   void setHeaderVisible(bool visible);
   /// Updates the widgets from the volume
   void updateFromVolume();
+  /// Data in wavelengths: sets the chosen line (the spectral axis becomes an
+  /// optical velocity); false if not applied
+  bool applyLine();
+  /// The data of another image extension of the file: loaded as a new
+  /// dataset (or the dataset already loaded), made active; returns it
+  vtkMRMLNode* loadExtension(int hdu);
+
+signals:
+  /// The spectral axis changed (e.g. a line set: wavelengths to velocities)
+  void spectralAxisChanged();
 
 protected slots:
   void onRightAscensionFormatChanged(int index);
   void onVelocityDefinitionChanged(int index);
   void onBeamEdited();
+  void onExtensionActivated(int index);
+  void onLineChanged(int index);
 
 protected:
   void fillKeywords();
+  void updateExtensions();
+  /// Chooses the line most likely in the wavelengths of the data
+  void preselectLine();
+  /// The loaded dataset of an HDU of a file (whole data), or nullptr
+  vtkMRMLNode* loadedData(const QString& file, int hdu) const;
+  /// Makes a dataset the active volume
+  void activate(vtkMRMLNode* node);
 
   QScopedPointer<qSlicerAstroInfoSectionPrivate> d_ptr;
 

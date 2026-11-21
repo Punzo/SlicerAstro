@@ -21,6 +21,7 @@
 #include <QColor>
 #include <QFont>
 #include <QIcon>
+#include <QList>
 #include <QObject>
 #include <QVector>
 #include <QPalette>
@@ -94,6 +95,24 @@ public:
   Q_INVOKABLE void applyTo(QWidget* widget);
   /// The theme for the whole application (SlicerAstroApp)
   Q_INVOKABLE void applyToApplication();
+  /// The theme on every menu and dialog shown (e.g. Slicer's view context
+  /// menus, file dialogs) while on: set by the Workbench while it is active
+  /// (the menus and dialogs get Slicer's look back when it is turned off),
+  /// and for the whole application by SlicerAstroApp
+  Q_INVOKABLE void setPopupsThemed(bool themed);
+  Q_INVOKABLE bool popupsThemed() const;
+  /// The theme on a dialog, with the icons of the theme on its buttons
+  /// (OK, Cancel, Yes, No, Replace, Merge, Delete, Save, Open...) and on the
+  /// tool buttons of a file dialog
+  Q_INVOKABLE void applyToDialog(QWidget* dialog);
+  /// Slicer's look back on a widget themed with applyTo (style sheet,
+  /// palette and font of the application); it no longer follows the theme
+  Q_INVOKABLE void removeFrom(QWidget* widget);
+  /// Slicer's "Loading data" progress windows (shown after a delay by their
+  /// own timer) hidden and stopped while a question is asked during a load;
+  /// returns the visible ones, to show again with resumeProgressDialogs
+  static QList<QWidget*> suspendProgressDialogs(QWidget* except = nullptr);
+  static void resumeProgressDialogs(const QList<QWidget*>& dialogs);
 
   /// A label with a text role: "overline", "label", "unit", "mono",
   /// "section", "title" (font and colour of the role)
