@@ -103,7 +103,7 @@ STEPS = [
                 datamodels=("ZEROMOMENTMAP", "FIRSTMOMENTMAP", "SECONDMOMENTMAP")),
     ProductStep("Profiles", "module-profiles", "AstroProfiles"),
     ProductStep("PV slice", "module-pv-slice", "AstroPVSlice"),
-    ProductStep("PV diagram", "module-pv-diagram", "AstroPVDiagram"),
+    ProductStep("PV diagram", "module-pv-diagram", "AstroPVDiagram", datamodels=("PVDIAGRAM",)),
     PipelineStep("Reproject", "module-reproject", "AstroReproject"),
 ]
 

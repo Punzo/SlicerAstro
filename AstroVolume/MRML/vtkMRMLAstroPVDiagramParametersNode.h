@@ -72,15 +72,11 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroPVDiagramParametersNode : public vtkMRML
   vtkSetStringMacro(OutputVolumeNodeID);
   vtkGetStringMacro(OutputVolumeNodeID);
 
-  /// Set/Get the FiducialsMarkupsID.
+  /// Set/Get the FiducialsMarkupsID: the path of the PV diagram (Markups
+  /// open curve "PVDiagramLine").
   /// \sa SetFiducialsMarkupsID(), GetFiducialsMarkupsID()
   vtkSetStringMacro(FiducialsMarkupsID);
   vtkGetStringMacro(FiducialsMarkupsID);
-
-  /// Set/Get the ModelID.
-  /// \sa SetModelID(), GetModelID()
-  vtkSetStringMacro(ModelID);
-  vtkGetStringMacro(ModelID);
 
   /// Set Interpolation
   void SetInterpolation(bool interpolation);
@@ -95,11 +91,11 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroPVDiagramParametersNode : public vtkMRML
     InterpolationModifiedEvent = 130000
     };
 
-  /// Set/Get the AutoUpdate.
-  /// \sa SetAutoUpdate(), GetAutoUpdate()
-  vtkSetMacro(AutoUpdate,bool);
-  vtkGetMacro(AutoUpdate,bool);
-  vtkBooleanMacro(AutoUpdate,bool);
+  /// Set/Get the Width of the path (pixels of the moment map, 1 to 999):
+  /// each column of the PV diagram is the mean of Width samples across the
+  /// path, one pixel apart (1: the samples on the path only).
+  vtkSetClampMacro(Width, int, 1, 999);
+  vtkGetMacro(Width, int);
 
 protected:
   vtkMRMLAstroPVDiagramParametersNode();
@@ -112,10 +108,9 @@ protected:
   char *MomentMapNodeID;
   char *OutputVolumeNodeID;
   char *FiducialsMarkupsID;
-  char *ModelID;
 
   bool Interpolation;
-  bool AutoUpdate;
+  int Width;
 };
 
 #endif

@@ -18,232 +18,105 @@
 ==============================================================================*/
 
 // Qt includes
-#include <QDebug>
-#include <QMessageBox>
-#include <QStringList>
-
-// CTK includes
-#include <ctkColorPickerButton.h>
+#include <QFrame>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QPushButton>
+#include <QSignalBlocker>
+#include <QTimer>
+#include <QVBoxLayout>
 
 // VTK includes
-#include <vtkCollection.h>
 #include <vtkCommand.h>
-#include <vtkDoubleArray.h>
 #include <vtkImageData.h>
-#include <vtkImageReslice.h>
-#include <vtkGeneralTransform.h>
-#include <vtkNew.h>
-#include <vtkMatrix3x3.h>
-#include <vtkMatrix4x4.h>
-#include <vtkPointData.h>
-#include <vtkRenderer.h>
-#include <vtkTransform.h>
-#include <vtksys/SystemTools.hxx>
+#include <vtkSmartPointer.h>
+#include <vtkWeakPointer.h>
 
 // SlicerQt includes
-#include <qMRMLThreeDWidget.h>
-#include <qMRMLThreeDView.h>
 #include <qSlicerAbstractCoreModule.h>
 #include <qSlicerApplication.h>
-#include <qSlicerCoreApplication.h>
 #include <qSlicerLayoutManager.h>
-#include <qSlicerModuleManager.h>
-#include <qSlicerMarkupsPlaceWidget.h>
-#include <qSlicerUtils.h>
-
-// AstroPVDiagram includes
-#include "qSlicerAstroPVDiagramModuleWidget.h"
-#include "ui_qSlicerAstroPVDiagramModuleWidget.h"
-
-// Logic includes
-#include <vtkSlicerAstroVolumeLogic.h>
-#include <vtkSlicerAstroPVDiagramLogic.h>
-#include <vtkSlicerSegmentationsModuleLogic.h>
-
-// MRMLLogic includes
-#include <vtkMRMLApplicationLogic.h>
+#include <vtkSlicerApplicationLogic.h>
 
 // MRML includes
-#include <vtkMRMLMarkupsROINode.h>
-#include <vtkMRMLAstroMomentMapsParametersNode.h>
-
-// STD includes
-#include <vector>
 #include <vtkMRMLAstroPVDiagramParametersNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
-#include <vtkMRMLAstroVolumeDisplayNode.h>
-#include <vtkMRMLAstroVolumeStorageNode.h>
-#include <vtkMRMLCameraNode.h>
 #include <vtkMRMLInteractionNode.h>
 #include <vtkMRMLLayoutLogic.h>
 #include <vtkMRMLLayoutNode.h>
-#include <vtkMRMLMarkupsDisplayNode.h>
 #include <vtkMRMLMarkupsCurveNode.h>
-#include <vtkVector.h>
-#include <algorithm>
-#include <vtkMRMLMarkupsFiducialNode.h>
-#include <vtkMRMLModelNode.h>
-#include <vtkMRMLModelDisplayNode.h>
+#include <vtkMRMLMarkupsDisplayNode.h>
+#include <vtkMRMLScene.h>
 #include <vtkMRMLSelectionNode.h>
-#include <vtkMRMLSliceCompositeNode.h>
-#include <vtkMRMLSliceLayerLogic.h>
-#include <vtkMRMLSliceLogic.h>
-#include <vtkMRMLViewNode.h>
-#include <vtkMRMLVolumeNode.h>
-#include <vtkMRMLVolumeRenderingDisplayNode.h>
 
-#include <chrono>
+// AstroVolume includes
+#include <qSlicerAstroDatasetSelector.h>
+#include <qSlicerAstroMapPreview.h>
+#include <qSlicerAstroMessageWidget.h>
+#include <qSlicerAstroPanelHeader.h>
+#include <qSlicerAstroResultCard.h>
+#include <qSlicerAstroSegmentedButton.h>
+#include <qSlicerAstroTheme.h>
+#include <qSlicerAstroValueField.h>
+#include <vtkSlicerAstroVolumeLogic.h>
+
+// Logic includes
+#include <vtkSlicerAstroPVDiagramLogic.h>
+
+#include "qSlicerAstroPVDiagramModuleWidget.h"
 
 namespace
 {
 //----------------------------------------------------------------------------
-template <typename T> T StringToNumber(const char* num)
+QLabel* Overline(const QString& text, QWidget* parent)
 {
-  std::stringstream ss;
-  ss << num;
-  T result;
-  return ss >> result ? result : 0;
+  QLabel* label = new QLabel(text, parent);
+  qSlicerAstroTheme::setLabelRole(label, "overline");
+  return label;
 }
-
-//----------------------------------------------------------------------------
-int StringToInt(const char* str)
-{
-  return StringToNumber<int>(str);
-}
-
-//----------------------------------------------------------------------------
-template <typename T> std::string NumberToString(T V)
-{
-  std::string stringValue;
-  std::stringstream strstream;
-  strstream << V;
-  strstream >> stringValue;
-  return stringValue;
-}
-
-//----------------------------------------------------------------------------
-std::string IntToString(int Value)
-{
-  return NumberToString<int>(Value);
-}
-
-} // end namespace
+} // end of anonymous namespace
 
 //-----------------------------------------------------------------------------
-/// \ingroup SlicerAstro_QtModules_AstroPVDiagram
-class qSlicerAstroPVDiagramModuleWidgetPrivate: public Ui_qSlicerAstroPVDiagramModuleWidget
+class qSlicerAstroPVDiagramModuleWidgetPrivate
 {
   Q_DECLARE_PUBLIC(qSlicerAstroPVDiagramModuleWidget);
 protected:
   qSlicerAstroPVDiagramModuleWidget* const q_ptr;
 public:
-
-  qSlicerAstroPVDiagramModuleWidgetPrivate(qSlicerAstroPVDiagramModuleWidget& object);
-  ~qSlicerAstroPVDiagramModuleWidgetPrivate();
-
+  qSlicerAstroPVDiagramModuleWidgetPrivate(qSlicerAstroPVDiagramModuleWidget& object) : q_ptr(&object) {}
   void init();
-  void cleanPointers();
-
   vtkSlicerAstroPVDiagramLogic* logic() const;
+  vtkMRMLAstroVolumeNode* inputVolume() const;
+  vtkMRMLAstroVolumeNode* outputVolume() const;
+  vtkMRMLMarkupsCurveNode* path() const;
+  vtkMRMLInteractionNode* interactionNode() const;
+  /// moment map and path of the cube (created if needed)
+  bool prepare();
+  /// the moment maps and the PV diagram in the views
+  void showViews(bool fit);
+  bool embedded() const;
+  void updateInfo();
+  void updateResult();
+  void updateEnabled();
+
+  qSlicerAstroPanelHeader* Header{nullptr};
+  qSlicerAstroDatasetSelector* InputVolumeNodeSelector{nullptr};
+  qSlicerAstroMessageWidget* Message{nullptr};
+  QWidget* Controls{nullptr};
+  qSlicerAstroMapPreview* Preview{nullptr};
+  QLabel* PathInfo{nullptr};
+  QPushButton* DrawButton{nullptr};
+  QPushButton* ClearButton{nullptr};
+  qSlicerAstroSegmentedButton* ShapeButton{nullptr};
+  qSlicerAstroValueField* WidthField{nullptr};
+  qSlicerAstroResultCard* Result{nullptr};
+  QTimer* UpdateTimer{nullptr};
+
   vtkSmartPointer<vtkMRMLAstroPVDiagramParametersNode> parametersNode;
   vtkSmartPointer<vtkMRMLSelectionNode> selectionNode;
-  bool reportDimensionalityError;
-  /// true while the widget itself moves the source points
-  bool UpdatingSourcePoints;
+  vtkWeakPointer<vtkMRMLMarkupsCurveNode> ObservedPath;
+  bool Updating{false};
 };
-
-//-----------------------------------------------------------------------------
-// qSlicerAstroPVDiagramModuleWidgetPrivate methods
-
-//-----------------------------------------------------------------------------
-qSlicerAstroPVDiagramModuleWidgetPrivate::qSlicerAstroPVDiagramModuleWidgetPrivate(qSlicerAstroPVDiagramModuleWidget& object)
-  : q_ptr(&object)
-{
-  this->parametersNode = nullptr;
-  this->selectionNode = nullptr;
-  this->reportDimensionalityError = false;
-  this->UpdatingSourcePoints = false;
-}
-
-//-----------------------------------------------------------------------------
-qSlicerAstroPVDiagramModuleWidgetPrivate::~qSlicerAstroPVDiagramModuleWidgetPrivate()
-{
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroPVDiagramModuleWidgetPrivate::init()
-{
-  Q_Q(qSlicerAstroPVDiagramModuleWidget);
-  this->setupUi(q);
-
-  qSlicerApplication* app = qSlicerApplication::application();
-  if(!app)
-    {
-    qCritical() << "qSlicerAstroPVDiagramModuleWidgetPrivate::init : "
-                   "could not find qSlicerApplication!";
-    return;
-    }
-
-  QObject::connect(this->ParametersNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
-                   q, SLOT(setMRMLAstroPVDiagramParametersNode(vtkMRMLNode*)));
-
-  QObject::connect(this->InputVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
-                   q, SLOT(onInputVolumeChanged(vtkMRMLNode*)));
-
-  QObject::connect(this->MomentMapNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
-                   q, SLOT(onMomentMapChanged(vtkMRMLNode*)));
-
-  QObject::connect(this->SecondMomentMapNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
-                   q, SLOT(onSecondMomentMapChanged(vtkMRMLNode*)));
-
-  QObject::connect(this->OutputNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
-                   q, SLOT(onOutputVolumeChanged(vtkMRMLNode*)));
-
-  QObject::connect(this->SourcePointsNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
-                   q, SLOT(onFiducialsMarkupsChanged(vtkMRMLNode*)));
-
-  QObject::connect(this->InterpolationSplineRadioButton, SIGNAL(toggled(bool)),
-                   q, SLOT(onInterpolationSpline(bool)));
-
-  QObject::connect(this->InterpolationNoneRadioButton, SIGNAL(toggled(bool)),
-                   q, SLOT(onInterpolationNone(bool)));
-
-  QObject::connect(this->AutoUpdateCheckBox, SIGNAL(toggled(bool)),
-                   q, SLOT(onAutoUpdateToggled(bool)));
-
-  QObject::connect(this->GeneratePVPushButton, SIGNAL(clicked()),
-                   q, SLOT(generatePVDiagram()));
-
-  ctkColorPickerButton* ColorButton =
-    this->PointsMarkupsPlaceWidget->findChild<ctkColorPickerButton*>
-      (QString("ColorButton"));
-  if (ColorButton)
-    {
-    QSizePolicy sizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
-    sizePolicy.setHorizontalStretch(0);
-    sizePolicy.setVerticalStretch(0);
-    sizePolicy.setHeightForWidth(ColorButton->sizePolicy().hasHeightForWidth());
-    ColorButton->setSizePolicy(sizePolicy);
-    ColorButton->setMinimumSize(QSize(0, 30));
-    }
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroPVDiagramModuleWidgetPrivate::cleanPointers()
-{
-  Q_Q(const qSlicerAstroPVDiagramModuleWidget);
-
-  if (!q->mrmlScene())
-    {
-    return;
-    }
-
-  if (this->parametersNode)
-    {
-    q->mrmlScene()->RemoveNode(this->parametersNode);
-    }
-  this->parametersNode = 0;
-}
 
 //-----------------------------------------------------------------------------
 vtkSlicerAstroPVDiagramLogic* qSlicerAstroPVDiagramModuleWidgetPrivate::logic() const
@@ -253,1252 +126,684 @@ vtkSlicerAstroPVDiagramLogic* qSlicerAstroPVDiagramModuleWidgetPrivate::logic() 
 }
 
 //-----------------------------------------------------------------------------
+vtkMRMLAstroVolumeNode* qSlicerAstroPVDiagramModuleWidgetPrivate::inputVolume() const
+{
+  Q_Q(const qSlicerAstroPVDiagramModuleWidget);
+  return (this->parametersNode && q->mrmlScene() && this->parametersNode->GetInputVolumeNodeID()) ?
+    vtkMRMLAstroVolumeNode::SafeDownCast(q->mrmlScene()->GetNodeByID(this->parametersNode->GetInputVolumeNodeID())) :
+    nullptr;
+}
+
+//-----------------------------------------------------------------------------
+vtkMRMLAstroVolumeNode* qSlicerAstroPVDiagramModuleWidgetPrivate::outputVolume() const
+{
+  Q_Q(const qSlicerAstroPVDiagramModuleWidget);
+  vtkMRMLAstroVolumeNode* output = (this->parametersNode && q->mrmlScene() &&
+                                    this->parametersNode->GetOutputVolumeNodeID()) ?
+    vtkMRMLAstroVolumeNode::SafeDownCast(q->mrmlScene()->GetNodeByID(this->parametersNode->GetOutputVolumeNodeID())) :
+    nullptr;
+  return (output && output->GetImageData()) ? output : nullptr;
+}
+
+//-----------------------------------------------------------------------------
+vtkMRMLMarkupsCurveNode* qSlicerAstroPVDiagramModuleWidgetPrivate::path() const
+{
+  vtkSlicerAstroPVDiagramLogic* logic = this->logic();
+  return logic ? logic->GetPath(this->parametersNode) : nullptr;
+}
+
+//-----------------------------------------------------------------------------
+vtkMRMLInteractionNode* qSlicerAstroPVDiagramModuleWidgetPrivate::interactionNode() const
+{
+  Q_Q(const qSlicerAstroPVDiagramModuleWidget);
+  vtkSlicerApplicationLogic* appLogic = q->module() ? q->module()->appLogic() : nullptr;
+  return appLogic ? appLogic->GetInteractionNode() : nullptr;
+}
+
+//-----------------------------------------------------------------------------
+bool qSlicerAstroPVDiagramModuleWidgetPrivate::embedded() const
+{
+  Q_Q(const qSlicerAstroPVDiagramModuleWidget);
+  return q->property("astroEmbedded").toBool();
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroPVDiagramModuleWidgetPrivate::init()
+{
+  Q_Q(qSlicerAstroPVDiagramModuleWidget);
+  qSlicerAstroTheme* theme = qSlicerAstroTheme::instance();
+  QVBoxLayout* rootLayout = new QVBoxLayout(q);
+  rootLayout->setContentsMargins(0, 0, 0, 0);
+  rootLayout->setSpacing(0);
+
+  this->Header = new qSlicerAstroPanelHeader(q);
+  this->Header->setTitle(qSlicerAstroPVDiagramModuleWidget::tr("PV diagram"));
+  this->Header->setIconName("module-pv-diagram");
+  rootLayout->addWidget(this->Header);
+
+  QWidget* body = new QWidget(q);
+  QVBoxLayout* bodyLayout = new QVBoxLayout(body);
+  bodyLayout->setContentsMargins(12, 12, 12, 14);
+  bodyLayout->setSpacing(14);
+  rootLayout->addWidget(body);
+
+  this->InputVolumeNodeSelector = new qSlicerAstroDatasetSelector(body);
+  this->InputVolumeNodeSelector->setObjectName("InputVolumeNodeSelector");
+  this->InputVolumeNodeSelector->setRequiredDimensions(3);
+  this->InputVolumeNodeSelector->setNoneText(qSlicerAstroPVDiagramModuleWidget::tr("Select a data cube"));
+  this->InputVolumeNodeSelector->setToolTip(qSlicerAstroPVDiagramModuleWidget::tr(
+    "Data cube of the position-velocity diagram."));
+  bodyLayout->addWidget(this->InputVolumeNodeSelector);
+
+  this->Message = new qSlicerAstroMessageWidget(body);
+  this->Message->setObjectName("MessageWidget");
+  bodyLayout->addWidget(this->Message);
+
+  this->Controls = new QWidget(body);
+  QVBoxLayout* controls = new QVBoxLayout(this->Controls);
+  controls->setContentsMargins(0, 0, 0, 0);
+  controls->setSpacing(8);
+  bodyLayout->addWidget(this->Controls);
+
+  // the path on the moment-0 map
+  controls->addWidget(Overline(qSlicerAstroPVDiagramModuleWidget::tr("Path on the moment-0 map"), this->Controls));
+  this->Preview = new qSlicerAstroMapPreview(this->Controls);
+  this->Preview->setObjectName("PVDiagramPreview");
+  this->Preview->setToolTip(qSlicerAstroPVDiagramModuleWidget::tr(
+    "Moment-0 map of the cube (north up) with the path of the PV diagram. Click to add a point at the end of "
+    "the path, drag a point to move it, right-click a point to remove it. The PV diagram starts at the first "
+    "point (offset 0)."));
+  controls->addWidget(this->Preview);
+  this->PathInfo = new QLabel(this->Controls);
+  this->PathInfo->setObjectName("PVDiagramPathInfo");
+  this->PathInfo->setProperty("astroRole", "monoLabel");
+  this->PathInfo->setToolTip(qSlicerAstroPVDiagramModuleWidget::tr(
+    "Points of the path, its length on the sky and the columns of the PV diagram (one per pixel along the path)."));
+  controls->addWidget(this->PathInfo);
+
+  QHBoxLayout* pathButtons = new QHBoxLayout();
+  pathButtons->setSpacing(6);
+  this->DrawButton = new QPushButton(theme->icon("curve", "text"),
+                                     qSlicerAstroPVDiagramModuleWidget::tr("Draw in views"), this->Controls);
+  this->DrawButton->setObjectName("PVDiagramDrawButton");
+  this->DrawButton->setCheckable(true);
+  this->DrawButton->setToolTip(qSlicerAstroPVDiagramModuleWidget::tr(
+    "Add points to the path by clicking on the moment-0 map in the views; click again or right-click in a view "
+    "to stop."));
+  this->ClearButton = new QPushButton(theme->icon("trash", "text"),
+                                      qSlicerAstroPVDiagramModuleWidget::tr("Clear"), this->Controls);
+  this->ClearButton->setObjectName("PVDiagramClearButton");
+  this->ClearButton->setToolTip(qSlicerAstroPVDiagramModuleWidget::tr(
+    "Remove the points of the path (the PV diagram is kept until a new path has two points)."));
+  pathButtons->addWidget(this->DrawButton, 1);
+  pathButtons->addWidget(this->ClearButton, 1);
+  controls->addLayout(pathButtons);
+
+  QHBoxLayout* shapeRow = new QHBoxLayout();
+  shapeRow->setSpacing(8);
+  this->ShapeButton = new qSlicerAstroSegmentedButton(this->Controls);
+  this->ShapeButton->setObjectName("PVDiagramShape");
+  this->ShapeButton->setToolTip(qSlicerAstroPVDiagramModuleWidget::tr("Shape of the path through its points."));
+  this->ShapeButton->addButton(qSlicerAstroPVDiagramModuleWidget::tr("Straight"),
+    qSlicerAstroPVDiagramModuleWidget::tr("Straight segments between the points."));
+  this->ShapeButton->addButton(qSlicerAstroPVDiagramModuleWidget::tr("Spline"),
+    qSlicerAstroPVDiagramModuleWidget::tr("A smooth curve (cardinal spline) through the points."));
+  this->WidthField = new qSlicerAstroValueField(this->Controls);
+  this->WidthField->setObjectName("PVDiagramWidth");
+  this->WidthField->setLeadingText(qSlicerAstroPVDiagramModuleWidget::tr("Width"));
+  this->WidthField->setUnit(qSlicerAstroPVDiagramModuleWidget::tr("px"));
+  this->WidthField->setDecimals(0);
+  this->WidthField->setRange(1., 999.);
+  this->WidthField->setSingleStep(1.);
+  this->WidthField->setToolTip(qSlicerAstroPVDiagramModuleWidget::tr(
+    "Width of the path (pixels of the map): each column of the PV diagram is the mean of the spectra across "
+    "the path, one pixel apart (blank pixels left out). 1: the spectra on the path only."));
+  shapeRow->addWidget(this->ShapeButton, 1);
+  shapeRow->addWidget(this->WidthField, 1);
+  controls->addLayout(shapeRow);
+  bodyLayout->addStretch(1);
+
+  // the result
+  QFrame* footer = new QFrame(q);
+  footer->setProperty("astroRole", "panelFooter");
+  QVBoxLayout* footerLayout = new QVBoxLayout(footer);
+  footerLayout->setContentsMargins(12, 12, 12, 12);
+  footerLayout->setSpacing(8);
+  this->Result = new qSlicerAstroResultCard(footer);
+  this->Result->setObjectName("PVDiagramResult");
+  this->Result->hide();
+  footerLayout->addWidget(this->Result);
+  rootLayout->addWidget(footer);
+  rootLayout->addStretch(1);
+
+  // the PV diagram follows the path once the pending events are processed
+  // (one update for the moves of a drag)
+  this->UpdateTimer = new QTimer(q);
+  this->UpdateTimer->setSingleShot(true);
+  this->UpdateTimer->setInterval(0);
+
+  QObject::connect(this->InputVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+                   q, SLOT(setInputVolume(vtkMRMLNode*)));
+  QObject::connect(q, SIGNAL(mrmlSceneChanged(vtkMRMLScene*)),
+                   this->InputVolumeNodeSelector, SLOT(setMRMLScene(vtkMRMLScene*)));
+  QObject::connect(this->DrawButton, SIGNAL(toggled(bool)), q, SLOT(setDrawing(bool)));
+  QObject::connect(this->ClearButton, SIGNAL(clicked()), q, SLOT(clearPath()));
+  QObject::connect(this->ShapeButton, &qSlicerAstroSegmentedButton::currentIndexChanged,
+                   q, [q](int index) { q->setInterpolation(index == 1); });
+  QObject::connect(this->WidthField, &qSlicerAstroValueField::valueChanged,
+                   q, [q](double value) { q->setWidth(static_cast<int>(value + 0.5)); });
+  QObject::connect(this->UpdateTimer, SIGNAL(timeout()), q, SLOT(updatePVDiagram()));
+  QObject::connect(this->Result, SIGNAL(showRequested()), q, SLOT(onShowResult()));
+  QObject::connect(this->Result, SIGNAL(deleted()), q, SLOT(onResultDeleted()));
+  theme->applyTo(q);
+  this->updateEnabled();
+  this->updateInfo();
+}
+
+//-----------------------------------------------------------------------------
+bool qSlicerAstroPVDiagramModuleWidgetPrivate::prepare()
+{
+  vtkSlicerAstroPVDiagramLogic* logic = this->logic();
+  if (!logic || !this->parametersNode || !this->inputVolume())
+    {
+    return false;
+    }
+  if (!logic->PreparePath(this->parametersNode))
+    {
+    this->Message->showMessage("info", QString::fromStdString(logic->GetLastError()));
+    return false;
+    }
+  this->Message->clearMessage();
+  vtkMRMLMarkupsCurveNode* path = this->path();
+  vtkMRMLMarkupsDisplayNode* display = path ? path->GetMarkupsDisplayNode() : nullptr;
+  if (display)
+    {
+    display->SetPointLabelsVisibility(false);
+    display->SetPropertiesLabelVisibility(false);
+    }
+  return path != nullptr;
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroPVDiagramModuleWidgetPrivate::showViews(bool fit)
+{
+  Q_Q(qSlicerAstroPVDiagramModuleWidget);
+  vtkSlicerAstroPVDiagramLogic* logic = this->logic();
+  if (!logic || !this->parametersNode || !q->isEntered())
+    {
+    return;
+    }
+  // classic Slicer: the 2nd moment map in the Green view too; embedded (e.g.
+  // the Workbench): only the views of the path and of the PV diagram
+  logic->SetMomentMapsOnViews(this->parametersNode, !this->embedded());
+  if (this->outputVolume())
+    {
+    logic->SetPVDiagramOnViews(this->parametersNode, fit);
+    }
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroPVDiagramModuleWidgetPrivate::updateEnabled()
+{
+  vtkSlicerAstroPVDiagramLogic* logic = this->logic();
+  const bool ready = logic && this->path() && this->inputVolume() && this->parametersNode &&
+    this->parametersNode->GetMomentMapNodeID();
+  this->Controls->setEnabled(ready);
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroPVDiagramModuleWidgetPrivate::updateInfo()
+{
+  vtkSlicerAstroPVDiagramLogic* logic = this->logic();
+  vtkMRMLMarkupsCurveNode* path = this->path();
+  const int points = path ? path->GetNumberOfDefinedControlPoints() : 0;
+  double length = 0.;
+  int columns = 0;
+  if (logic && points >= 2 && logic->GetPathInfo(this->parametersNode, &length, &columns))
+    {
+    this->PathInfo->setText(qSlicerAstroPVDiagramModuleWidget::tr("%1 points · %2′ · %3 columns")
+                              .arg(points).arg(length, 0, 'f', 2).arg(columns));
+    }
+  else if (points == 1)
+    {
+    this->PathInfo->setText(qSlicerAstroPVDiagramModuleWidget::tr("1 point · add the next one"));
+    }
+  else
+    {
+    this->PathInfo->setText(qSlicerAstroPVDiagramModuleWidget::tr("Click on the map to start the path"));
+    }
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroPVDiagramModuleWidgetPrivate::updateResult()
+{
+  vtkMRMLAstroVolumeNode* output = this->outputVolume();
+  if (output)
+    {
+    this->Result->setVolume(output);
+    int dims[3] = {0, 0, 0};
+    output->GetImageData()->GetDimensions(dims);
+    this->Result->setSubtitle(qSlicerAstroPVDiagramModuleWidget::tr("%1 columns × %2 channels")
+                                .arg(dims[0]).arg(dims[1]));
+    }
+  qSlicerAstroResultCard::setCardsVisible(QList<qSlicerAstroResultCard*>() << this->Result,
+                                          QList<bool>() << (output != nullptr));
+}
+
+//-----------------------------------------------------------------------------
 // qSlicerAstroPVDiagramModuleWidget methods
 
 //-----------------------------------------------------------------------------
 qSlicerAstroPVDiagramModuleWidget::qSlicerAstroPVDiagramModuleWidget(QWidget* _parent)
-  : Superclass( _parent )
-  , d_ptr( new qSlicerAstroPVDiagramModuleWidgetPrivate(*this) )
+  : Superclass(_parent)
+  , d_ptr(new qSlicerAstroPVDiagramModuleWidgetPrivate(*this))
 {
   Q_D(qSlicerAstroPVDiagramModuleWidget);
   d->init();
 }
 
 //-----------------------------------------------------------------------------
-qSlicerAstroPVDiagramModuleWidget::~qSlicerAstroPVDiagramModuleWidget()
-{
-}
-
-//----------------------------------------------------------------------------
-void qSlicerAstroPVDiagramModuleWidget::enter()
-{
-  Q_D(qSlicerAstroPVDiagramModuleWidget);
-
-  this->Superclass::enter();
-
-  qSlicerApplication* app = qSlicerApplication::application();
-
-  if(!app || !app->layoutManager() || !app->layoutManager()->layoutLogic()
-     || !app->layoutManager()->layoutLogic()->GetLayoutNode())
-    {
-    qCritical() << "qSlicerAstroVolumeModuleWidget::setComparative3DViews : "
-                   "qSlicerApplication not found.";
-    return;
-    }
-
-  app->layoutManager()->layoutLogic()->GetLayoutNode()->SetViewArrangement
-          (vtkMRMLLayoutNode::SlicerLayoutFourUpView);
-
-  vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
-  if (!appLogic)
-    {
-    qCritical() << "qSlicerAstroPVDiagramModuleWidget::enter : "
-                   "appLogic not found!";
-    return;
-    }
-
-  d->selectionNode = appLogic->GetSelectionNode();
-  if (!d->selectionNode)
-    {
-    qCritical() << "qSlicerAstroPVDiagramModuleWidget::enter : "
-                   "selectionNode not found!";
-    return;
-    }
-
-  vtkMRMLInteractionNode *interactionNode = appLogic->GetInteractionNode();
-  if (!interactionNode)
-    {
-    qCritical() << "qSlicerAstroPVDiagramModuleWidget::enter : "
-                   "interactionNode not found.";
-    return;
-    }
-
-  // the clicks add control points to the line (Markups open curve)
-  d->selectionNode->SetReferenceActivePlaceNodeClassName("vtkMRMLMarkupsCurveNode");
-  interactionNode->SetCurrentInteractionMode(vtkMRMLInteractionNode::Place);
-  interactionNode->SetPlaceModePersistence(1);
-
-  this->qvtkReconnect(d->selectionNode, vtkCommand::ModifiedEvent,
-                      this, SLOT(onMRMLSelectionNodeModified(vtkObject*)));
-  this->onMRMLSelectionNodeModified(d->selectionNode);
-
-  this->initializeNodes();
-
-  if (!d->parametersNode || !this->mrmlScene())
-    {
-    return;
-    }
-
-  // line of the PV diagram shown, and the place mode adds points to it
-  vtkMRMLMarkupsCurveNode *lineNode = vtkMRMLMarkupsCurveNode::SafeDownCast
-    (this->mrmlScene()->GetNodeByID(d->parametersNode->GetFiducialsMarkupsID()));
-  if (lineNode)
-    {
-    if (!lineNode->GetDisplayNode())
-      {
-      lineNode->CreateDefaultDisplayNodes();
-      }
-    lineNode->GetDisplayNode()->SetVisibility(1);
-    d->selectionNode->SetActivePlaceNodeID(lineNode->GetID());
-    }
-
-  vtkMRMLSliceCompositeNode *redSliceComposite = vtkMRMLSliceCompositeNode::SafeDownCast(
-    this->mrmlScene()->GetNodeByID("vtkMRMLSliceCompositeNodeRed"));
-  if (redSliceComposite)
-    {
-    redSliceComposite->SetLabelVolumeID("");
-    redSliceComposite->SetForegroundVolumeID("");
-    redSliceComposite->SetForegroundOpacity(0.);
-    redSliceComposite->SetBackgroundVolumeID(d->parametersNode->GetMomentMapNodeID());
-    }
-
-  vtkMRMLSliceNode *redSliceNode = vtkMRMLSliceNode::SafeDownCast
-    (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeRed"));
-  if (redSliceNode)
-    {
-    redSliceNode->SetRulerType(vtkMRMLSliceNode::RulerTypeThin);
-    }
-
-  vtkMRMLSliceNode *greenSliceNode = vtkMRMLSliceNode::SafeDownCast
-    (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeGreen"));
-  if (greenSliceNode)
-    {
-    greenSliceNode->SetOrientation("XY");
-    }
-
-  vtkMRMLSliceCompositeNode *yellowSliceComposite = vtkMRMLSliceCompositeNode::SafeDownCast(
-    this->mrmlScene()->GetNodeByID("vtkMRMLSliceCompositeNodeYellow"));
-  if (yellowSliceComposite)
-    {
-    yellowSliceComposite->SetLabelVolumeID("");
-    yellowSliceComposite->SetForegroundVolumeID("");
-    yellowSliceComposite->SetForegroundOpacity(0.);
-    yellowSliceComposite->SetBackgroundVolumeID(d->parametersNode->GetOutputVolumeNodeID());
-    }
-
-  vtkMRMLSliceCompositeNode *greenSliceComposite = vtkMRMLSliceCompositeNode::SafeDownCast(
-    this->mrmlScene()->GetNodeByID("vtkMRMLSliceCompositeNodeGreen"));
-  if (greenSliceComposite)
-    {
-    // 2nd moment map (velocity dispersion)
-    vtkMRMLNode* secondMomentMapNode = d->parametersNode->GetNodeReference(
-      vtkSlicerAstroPVDiagramLogic::GetSecondMomentMapReferenceRole());
-    greenSliceComposite->SetLabelVolumeID("");
-    greenSliceComposite->SetForegroundVolumeID("");
-    greenSliceComposite->SetForegroundOpacity(0.);
-    greenSliceComposite->SetBackgroundVolumeID(secondMomentMapNode ? secondMomentMapNode->GetID() : "");
-    }
-
-  vtkMRMLAstroVolumeNode *PVDiagramVolume =
-    vtkMRMLAstroVolumeNode::SafeDownCast(this->mrmlScene()->
-      GetNodeByID(d->parametersNode->GetOutputVolumeNodeID()));
- if (!PVDiagramVolume)
-   {
-   return;
-   }
-
-  const int *dims = PVDiagramVolume->GetImageData()->GetDimensions();
-
-  vtkMRMLSliceNode *yellowSliceNode = vtkMRMLSliceNode::SafeDownCast
-    (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeYellow"));
-  if (!yellowSliceNode)
-    {
-    qCritical() << "qSlicerAstroPVDiagramModuleWidget::enter :"
-                  " yellowSliceNode not found.";
-    return;
-    }
-
-  yellowSliceNode->SetOrientation("PVDiagram");
-  yellowSliceNode->SetSliceOffset(0.);
-
-  vtkMRMLSliceLogic* yellowSliceLogic = appLogic->GetSliceLogic(yellowSliceNode);
-  if (yellowSliceLogic)
-    {
-    int *dims = yellowSliceNode->GetDimensions();
-    if (dims)
-      {
-      yellowSliceLogic->FitSliceToAll(dims[0], dims[1]);
-      }
-    yellowSliceLogic->SnapSliceOffsetToIJK();
-    }
-
-  double FieldOfView[3];
-  yellowSliceNode->GetFieldOfView(FieldOfView);
-  yellowSliceNode->SetFieldOfView(dims[0], dims[1], FieldOfView[2]);
-}
-
-//----------------------------------------------------------------------------
-void qSlicerAstroPVDiagramModuleWidget::exit()
-{
-  Q_D(qSlicerAstroPVDiagramModuleWidget);
-
-  this->Superclass::exit();
-
-  if (!d->selectionNode)
-    {
-    qCritical() << "qSlicerAstroPVDiagramModuleWidget::exit : "
-                   "selectionNode not found!";
-    return;
-    }
-
-  this->qvtkDisconnect(d->selectionNode, vtkCommand::ModifiedEvent,
-                      this, SLOT(onMRMLSelectionNodeModified(vtkObject*)));
-
-  vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
-  if (!appLogic)
-    {
-    qCritical() << "qSlicerAstroPVDiagramModuleWidget::exit : "
-                   "appLogic not found!";
-    return;
-    }
-
-  vtkMRMLInteractionNode *interactionNode = appLogic->GetInteractionNode();
-  if (!interactionNode)
-    {
-    qCritical() << "qSlicerAstroPVDiagramModuleWidget::exit : "
-                   "interactionNode not found.";
-    return;
-    }
-
-  d->selectionNode->SetReferenceActivePlaceNodeClassName("vtkMRMLMarkupsFiducialNode");
-  interactionNode->SetCurrentInteractionMode(vtkMRMLInteractionNode::ViewTransform);
-  interactionNode->SetPlaceModePersistence(0);
-
-  if (!d->parametersNode || !this->mrmlScene())
-    {
-    return;
-    }
-
-  vtkMRMLSliceNode *redSliceNode = vtkMRMLSliceNode::SafeDownCast
-    (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeRed"));
-  if (redSliceNode)
-    {
-    redSliceNode->SetRulerType(vtkMRMLSliceNode::RulerTypeNone);
-    }
-
-  // line of the PV diagram hidden (not removed)
-  vtkMRMLMarkupsCurveNode *lineNode = vtkMRMLMarkupsCurveNode::SafeDownCast
-    (this->mrmlScene()->GetNodeByID(d->parametersNode->GetFiducialsMarkupsID()));
-  if (lineNode && lineNode->GetDisplayNode())
-    {
-    lineNode->GetDisplayNode()->SetVisibility(0);
-    }
-}
+qSlicerAstroPVDiagramModuleWidget::~qSlicerAstroPVDiagramModuleWidget() = default;
 
 //-----------------------------------------------------------------------------
 void qSlicerAstroPVDiagramModuleWidget::setMRMLScene(vtkMRMLScene* scene)
 {
   Q_D(qSlicerAstroPVDiagramModuleWidget);
-
+  this->Superclass::setMRMLScene(scene);
   if (!scene)
     {
     return;
     }
-
-  this->Superclass::setMRMLScene(scene);
-
-  vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
-  if (!appLogic)
-    {
-    qCritical() << "qSlicerAstroPVDiagramModuleWidget::setMRMLScene : "
-                   "appLogic not found.";
-    return;
-    }
-
-  d->selectionNode = appLogic->GetSelectionNode();
-  if (!d->selectionNode)
-    {
-    qCritical() << "qSlicerAstroPVDiagramModuleWidget::setMRMLScene : "
-                   "selectionNode not found.";
-    return;
-    }
-
-  this->initializeNodes();
-
-  this->qvtkReconnect(scene, vtkMRMLScene::EndCloseEvent,
-                      this, SLOT(onEndCloseEvent()));
-  this->qvtkReconnect(scene, vtkMRMLScene::StartImportEvent,
-                      this, SLOT(onStartImportEvent()));
-  this->qvtkReconnect(scene, vtkMRMLScene::EndImportEvent,
-                      this, SLOT(onEndImportEvent()));
-  // the active volume is followed only while the module is shown (enter/exit)
-  if (this->isEntered())
-    {
-    this->qvtkReconnect(d->selectionNode, vtkCommand::ModifiedEvent,
-                        this, SLOT(onMRMLSelectionNodeModified(vtkObject*)));
-    this->onMRMLSelectionNodeModified(d->selectionNode);
-    }
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroPVDiagramModuleWidget::initializeNodes(bool forceNew /*= false*/)
-{
-  this->initializeParameterNode(forceNew);
-
-  this->initializeMomentMapNode(forceNew);
-
-  this->initializeLineNode(forceNew);
+  vtkSlicerApplicationLogic* appLogic = this->module() ? this->module()->appLogic() : nullptr;
+  d->selectionNode = appLogic ? appLogic->GetSelectionNode() : nullptr;
+  this->qvtkReconnect(scene, vtkMRMLScene::EndCloseEvent, this, SLOT(onEndCloseEvent()));
+  this->qvtkReconnect(scene, vtkMRMLScene::EndImportEvent, this, SLOT(onEndImportEvent()));
+  this->qvtkReconnect(d->selectionNode, vtkCommand::ModifiedEvent, this, SLOT(onSelectionNodeModified()));
+  this->qvtkReconnect(d->interactionNode(), vtkMRMLInteractionNode::InteractionModeChangedEvent,
+                      this, SLOT(onInteractionNodeModified()));
+  this->onEndImportEvent();
 }
 
 //-----------------------------------------------------------------------------
 void qSlicerAstroPVDiagramModuleWidget::onEndCloseEvent()
 {
   Q_D(qSlicerAstroPVDiagramModuleWidget);
-
-  vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
-  if (!appLogic)
-    {
-    qCritical() << "qSlicerAstroPVDiagramModuleWidget::onEndCloseEvent : "
-                   "appLogic not found!";
-    return;
-    }
-
-  d->selectionNode = appLogic->GetSelectionNode();
-  if (!d->selectionNode)
-    {
-    qCritical() << "qSlicerAstroPVDiagramModuleWidget::onEndCloseEvent"
-                   " : selectionNode not found!";
-    return;
-    }
-
-  vtkMRMLInteractionNode *interactionNode = appLogic->GetInteractionNode();
-  if (!interactionNode)
-    {
-    qCritical() << "qSlicerAstroPVDiagramModuleWidget::enter : "
-                   "interactionNode not found.";
-    return;
-    }
-
-  // the module follows the active volume (and places the points of its line)
-  // only while it is shown, as in enter()/exit(): not after the closing of a
-  // scene while another module is shown (a scene loaded next would change the
-  // input of its PV diagram)
-  if (this->isEntered())
-    {
-    d->selectionNode->SetReferenceActivePlaceNodeClassName("vtkMRMLMarkupsCurveNode");
-    interactionNode->SetPlaceModePersistence(1);
-
-    this->qvtkReconnect(d->selectionNode, vtkCommand::ModifiedEvent,
-                        this, SLOT(onMRMLSelectionNodeModified(vtkObject*)));
-    this->onMRMLSelectionNodeModified(d->selectionNode);
-    }
-
-  this->initializeNodes(true);
-  this->onMRMLAstroPVDiagramParametersNodeModified();
+  // a new parameters node for the new scene
+  d->UpdateTimer->stop();
+  d->parametersNode = nullptr;
+  this->onEndImportEvent();
 }
 
 //-----------------------------------------------------------------------------
 void qSlicerAstroPVDiagramModuleWidget::onEndImportEvent()
 {
   Q_D(qSlicerAstroPVDiagramModuleWidget);
-
-  vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
-  if (!appLogic)
-    {
-    qCritical() << "qSlicerAstroPVDiagramModuleWidget::onEndImportEvent : "
-                   "appLogic not found!";
-    return;
-    }
-
-  d->selectionNode = appLogic->GetSelectionNode();
-  if (!d->selectionNode)
-    {
-    qCritical() << "qSlicerAstroPVDiagramModuleWidget::onEndImportEvent"
-                   " : selectionNode not found!";
-    return;
-    }
-
-  this->initializeNodes();
-  this->onMRMLAstroPVDiagramParametersNodeModified();
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroPVDiagramModuleWidget::onFiducialsMarkupsChanged(vtkMRMLNode *mrmlNode)
-{
-  Q_D(qSlicerAstroPVDiagramModuleWidget);
-
-  if (!d->parametersNode)
-    {
-    return;
-    }
-
-  vtkMRMLMarkupsCurveNode* SourcePointsNode = vtkMRMLMarkupsCurveNode::SafeDownCast(mrmlNode);
-
-  if (SourcePointsNode)
-    {
-    d->parametersNode->SetFiducialsMarkupsID(SourcePointsNode->GetID());
-
-    this->qvtkReconnect(SourcePointsNode, vtkMRMLMarkupsNode::PointModifiedEvent,
-                        this, SLOT(onMRMLSourcePointsNodeModified()));
-
-    this->qvtkReconnect(SourcePointsNode, vtkMRMLMarkupsNode::PointRemovedEvent,
-                        this, SLOT(onMRMLSourcePointsNodeModified()));
-
-    this->qvtkReconnect(SourcePointsNode, vtkMRMLMarkupsNode::PointAddedEvent,
-                        this, SLOT(onMRMLSourcePointsNodeMarkupAdded()));
-
-    this->onMRMLSourcePointsNodeModified();
-    this->onMRMLSourcePointsNodeMarkupAdded();
-    }
-  else
-    {
-    d->parametersNode->SetFiducialsMarkupsID(nullptr);
-    }
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroPVDiagramModuleWidget::initializeParameterNode(bool forceNew /*= false*/)
-{
-  Q_D(qSlicerAstroPVDiagramModuleWidget);
-
-  if (!this->mrmlScene() || !d->selectionNode)
-    {
-    return;
-    }
-
-  vtkMRMLAstroPVDiagramParametersNode *astroParametersNode = nullptr;
-  unsigned int numNodes = this->mrmlScene()->GetNumberOfNodesByClass("vtkMRMLAstroPVDiagramParametersNode");
-  if(numNodes > 0 && !forceNew)
-    {
-    astroParametersNode = vtkMRMLAstroPVDiagramParametersNode::SafeDownCast
-      (this->mrmlScene()->GetNthNodeByClass(numNodes - 1, "vtkMRMLAstroPVDiagramParametersNode"));
-    }
-  else
-    {
-    vtkSmartPointer<vtkMRMLNode> parametersNode;
-    vtkMRMLNode *foo = this->mrmlScene()->CreateNodeByClass("vtkMRMLAstroPVDiagramParametersNode");
-    parametersNode.TakeReference(foo);
-    this->mrmlScene()->AddNode(parametersNode);
-
-    astroParametersNode = vtkMRMLAstroPVDiagramParametersNode::SafeDownCast(parametersNode);
-    int wasModifying = astroParametersNode->StartModify();
-    astroParametersNode->SetInputVolumeNodeID(d->selectionNode->GetActiveVolumeID());
-    astroParametersNode->EndModify(wasModifying);
-    }
-
-  d->ParametersNodeComboBox->setCurrentNode(astroParametersNode);
-}
-
-//--------------------------------------------------------------------------
-void qSlicerAstroPVDiagramModuleWidget::initializeMomentMapNode(bool forceNew /*= false*/)
-{
-  Q_D(qSlicerAstroPVDiagramModuleWidget);
-
-  if (!this->mrmlScene() || !d->parametersNode)
-    {
-    return;
-    }
-
-  vtkMRMLAstroVolumeNode *inputVolume =
-    vtkMRMLAstroVolumeNode::SafeDownCast(this->mrmlScene()->
-      GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
-  if(!inputVolume || !inputVolume->GetImageData())
-    {
-    return;
-    }
-
-  std::string type = inputVolume->GetAttribute("SlicerAstro.DATAMODEL");
-  if (type.find("DATA") == std::string::npos &&
-      type.find("MODEL") == std::string::npos)
-    {
-    return;
-    }
-
-  // Check Input volume
-  int n = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS"));
-  if (n != 3)
-    {
-    if (d->reportDimensionalityError)
-      {
-      QString message = QString("It is possible to create PVDiagram only"
-                                " for datacubes with dimensionality 3 (NAXIS = 3).");
-      qCritical() << Q_FUNC_INFO << ": " << message;
-      QMessageBox::warning(nullptr, tr("Failed to create the PVDiagram"), message);
-      d->reportDimensionalityError = false;
-      }
-    return;
-    }
-
-  // 0th (Red view) and 2nd (Green view) moment maps of the input volume:
-  // the maps of the AstroMomentMaps module if available, otherwise the maps
-  // calculated by this module
-  vtkMRMLAstroVolumeNode *ZeroMomentMapNode = nullptr;
-  vtkMRMLAstroVolumeNode *SecondMomentMapNode = nullptr;
-  vtkMRMLAstroVolumeNode *PVZeroMomentMapNode = nullptr;
-  vtkMRMLAstroVolumeNode *PVSecondMomentMapNode = nullptr;
-  std::vector<vtkMRMLAstroVolumeNode*> pvMomentMapNodes;
-  const std::string inputName = inputVolume->GetName() ? inputVolume->GetName() : "";
-
-  vtkSmartPointer<vtkCollection> AstroVolumeNodes = vtkSmartPointer<vtkCollection>::Take
-      (this->mrmlScene()->GetNodesByClass("vtkMRMLAstroVolumeNode"));
-
-  for (int AstroVolumeIndex = 0; AstroVolumeIndex < AstroVolumeNodes->GetNumberOfItems(); AstroVolumeIndex++)
-    {
-    vtkMRMLAstroVolumeNode* astroVolume = vtkMRMLAstroVolumeNode::SafeDownCast
-      (AstroVolumeNodes->GetItemAsObject(AstroVolumeIndex));
-    if (!astroVolume || !astroVolume->GetName() || !astroVolume->GetImageData())
-      {
-      continue;
-      }
-    const std::string name = astroVolume->GetName();
-    if (name.compare(0, inputName.size(), inputName) != 0)
-      {
-      continue;
-      }
-    const std::string suffix = name.substr(inputName.size());
-    if (suffix.find("_PVDiagramMomentMap") == 0)
-      {
-      pvMomentMapNodes.push_back(astroVolume);
-      PVZeroMomentMapNode = PVZeroMomentMapNode ? PVZeroMomentMapNode : astroVolume;
-      }
-    else if (suffix.find("_PVDiagramSecondMomentMap") == 0)
-      {
-      pvMomentMapNodes.push_back(astroVolume);
-      PVSecondMomentMapNode = PVSecondMomentMapNode ? PVSecondMomentMapNode : astroVolume;
-      }
-    }
-  // the moment maps of the cube (AstroMomentMaps module, "<input>_mom0"...)
-  ZeroMomentMapNode = vtkSlicerAstroVolumeLogic::GetMomentMap(inputVolume, 0);
-  SecondMomentMapNode = vtkSlicerAstroVolumeLogic::GetMomentMap(inputVolume, 2);
-
-  // recalculated: the maps of this module
-  if (forceNew)
-    {
-    for (vtkMRMLAstroVolumeNode* momentMapNode : pvMomentMapNodes)
-      {
-      this->mrmlScene()->RemoveNode(momentMapNode);
-      }
-    PVZeroMomentMapNode = nullptr;
-    PVSecondMomentMapNode = nullptr;
-    }
-  ZeroMomentMapNode = ZeroMomentMapNode ? ZeroMomentMapNode : PVZeroMomentMapNode;
-  SecondMomentMapNode = SecondMomentMapNode ? SecondMomentMapNode : PVSecondMomentMapNode;
-
-  vtkSlicerAstroPVDiagramLogic *logic = d->logic();
-  if (!logic)
-    {
-    qCritical() << "qSlicerAstroPVDiagramModuleWidget::initializeMomentMapNode : "
-                   "logic not found!";
-    return;
-    }
-
-  if (ZeroMomentMapNode)
-    {
-    d->parametersNode->SetMomentMapNodeID(ZeroMomentMapNode->GetID());
-    }
-  else
-    {
-    logic->CalculateMomentMap(d->parametersNode, 0);
-    }
-  if (SecondMomentMapNode)
-    {
-    d->parametersNode->SetNodeReferenceID(vtkSlicerAstroPVDiagramLogic::GetSecondMomentMapReferenceRole(),
-                                          SecondMomentMapNode->GetID());
-    }
-  else
-    {
-    logic->CalculateMomentMap(d->parametersNode, 2);
-    }
-  d->SecondMomentMapNodeSelector->setCurrentNode(d->parametersNode->GetNodeReference(
-    vtkSlicerAstroPVDiagramLogic::GetSecondMomentMapReferenceRole()));
-
-  logic->SetMomentMapsOnViews(d->parametersNode);
-  // the points of the line on the (new) moment map
-  this->onMRMLSourcePointsNodeModified();
-}
-
-//--------------------------------------------------------------------------
-void qSlicerAstroPVDiagramModuleWidget::initializeLineNode(bool forceNew)
-{
-  Q_D(qSlicerAstroPVDiagramModuleWidget);
-
   vtkMRMLScene* scene = this->mrmlScene();
-  if (!scene || !d->parametersNode)
+  if (!scene)
     {
     return;
     }
-
-  // the line of the PV diagram: a Markups open curve
-  vtkMRMLNode* referencedNode = d->parametersNode->GetFiducialsMarkupsID() ?
-    scene->GetNodeByID(d->parametersNode->GetFiducialsMarkupsID()) : nullptr;
-  vtkMRMLMarkupsCurveNode* lineNode = vtkMRMLMarkupsCurveNode::SafeDownCast(referencedNode);
-  if (!lineNode)
+  // the parameters of a loaded scene (the last one with a cube) rather than
+  // the empty node made when the previous scene was closed, which is removed
+  std::vector<vtkMRMLNode*> nodes;
+  scene->GetNodesByClass("vtkMRMLAstroPVDiagramParametersNode", nodes);
+  vtkMRMLNode* parametersNode = nullptr;
+  for (vtkMRMLNode* node : nodes)
     {
-    std::vector<vtkMRMLNode*> curveNodes;
-    scene->GetNodesByClass("vtkMRMLMarkupsCurveNode", curveNodes);
-    for (vtkMRMLNode* node : curveNodes)
+    vtkMRMLAstroPVDiagramParametersNode* candidate = vtkMRMLAstroPVDiagramParametersNode::SafeDownCast(node);
+    if (candidate && (candidate->GetInputVolumeNodeID() || !parametersNode))
       {
-      if (node->GetName() && std::string(node->GetName()) == "PVDiagramLine")
-        {
-        lineNode = vtkMRMLMarkupsCurveNode::SafeDownCast(node);
-        break;
-        }
+      parametersNode = candidate;
       }
     }
-  if (lineNode && forceNew)
+  for (vtkMRMLNode* node : nodes)
     {
-    scene->RemoveNode(lineNode);
-    lineNode = nullptr;
-    }
-  // an empty line (e.g. created when the scene was closed) and a loaded line
-  // with points: the loaded one (the reference of a singleton parameters node
-  // merged by a scene import can keep the ID of the empty line)
-  if (lineNode && lineNode->GetNumberOfControlPoints() == 0)
-    {
-    std::vector<vtkMRMLNode*> loadedCurveNodes;
-    scene->GetNodesByClass("vtkMRMLMarkupsCurveNode", loadedCurveNodes);
-    for (vtkMRMLNode* node : loadedCurveNodes)
+    vtkMRMLAstroPVDiagramParametersNode* other = vtkMRMLAstroPVDiagramParametersNode::SafeDownCast(node);
+    if (other && other != parametersNode && !other->GetInputVolumeNodeID())
       {
-      vtkMRMLMarkupsCurveNode* loadedLine = vtkMRMLMarkupsCurveNode::SafeDownCast(node);
-      if (loadedLine && loadedLine != lineNode && loadedLine->GetName() &&
-          std::string(loadedLine->GetName()) == "PVDiagramLine" && loadedLine->GetNumberOfControlPoints() > 0)
+      if (other == d->parametersNode.GetPointer())
         {
-        lineNode = loadedLine;
-        break;
+        this->setMRMLAstroPVDiagramParametersNode(nullptr);
         }
+      scene->RemoveNode(other);
       }
     }
-  if (!lineNode)
+  if (!parametersNode)
     {
-    lineNode = vtkMRMLMarkupsCurveNode::SafeDownCast(
-      scene->AddNewNodeByClass("vtkMRMLMarkupsCurveNode", "PVDiagramLine"));
+    vtkSmartPointer<vtkMRMLNode> node = vtkSmartPointer<vtkMRMLNode>::Take(
+      scene->CreateNodeByClass("vtkMRMLAstroPVDiagramParametersNode"));
+    parametersNode = scene->AddNode(node);
     }
-  if (!lineNode)
+  this->setMRMLAstroPVDiagramParametersNode(parametersNode);
+  // a loaded scene: its path on its moment map
+  if (d->inputVolume())
     {
-    return;
+    d->prepare();
+    this->onParametersNodeModified();
     }
-  // the empty line created when the scene was closed, before a scene with its
-  // own line was loaded: removed (lines with points are kept)
-  std::vector<vtkMRMLNode*> otherCurveNodes;
-  scene->GetNodesByClass("vtkMRMLMarkupsCurveNode", otherCurveNodes);
-  for (vtkMRMLNode* node : otherCurveNodes)
-    {
-    vtkMRMLMarkupsCurveNode* otherLine = vtkMRMLMarkupsCurveNode::SafeDownCast(node);
-    if (otherLine && otherLine != lineNode && otherLine->GetName() &&
-        std::string(otherLine->GetName()) == "PVDiagramLine" && otherLine->GetNumberOfControlPoints() == 0)
-      {
-      if (otherLine == referencedNode)
-        {
-        referencedNode = nullptr;
-        }
-      scene->RemoveNode(otherLine);
-      }
-    }
-
-  // scenes of the previous versions: source points (fiducials) and line model
-  vtkMRMLMarkupsFiducialNode* oldPointsNode = vtkMRMLMarkupsFiducialNode::SafeDownCast(referencedNode);
-  if (oldPointsNode)
-    {
-    if (lineNode->GetNumberOfControlPoints() == 0)
-      {
-      for (int index = 0; index < oldPointsNode->GetNumberOfControlPoints(); index++)
-        {
-        double position[3] = {0., 0., 0.};
-        oldPointsNode->GetNthControlPointPositionWorld(index, position);
-        lineNode->AddControlPointWorld(vtkVector3d(position[0], position[1], position[2]));
-        }
-      }
-    scene->RemoveNode(oldPointsNode);
-    }
-  vtkMRMLNode* oldModelNode = d->parametersNode->GetModelID() ?
-    scene->GetNodeByID(d->parametersNode->GetModelID()) : nullptr;
-  if (oldModelNode && oldModelNode->IsA("vtkMRMLModelNode"))
-    {
-    scene->RemoveNode(oldModelNode);
-    }
-  d->parametersNode->SetModelID(nullptr);
-
-  // shown in the moment maps (Red, Green) and 3D views, not on the PV diagram (Yellow)
-  if (!lineNode->GetDisplayNode())
-    {
-    lineNode->CreateDefaultDisplayNodes();
-    }
-  vtkMRMLMarkupsDisplayNode* lineDisplayNode = lineNode->GetMarkupsDisplayNode();
-  if (lineDisplayNode)
-    {
-    lineDisplayNode->RemoveAllViewNodeIDs();
-    lineDisplayNode->AddViewNodeID("vtkMRMLSliceNodeRed");
-    lineDisplayNode->AddViewNodeID("vtkMRMLSliceNodeGreen");
-    lineDisplayNode->AddViewNodeID("vtkMRMLViewNode1");
-    lineDisplayNode->SetGlyphType(vtkMRMLMarkupsDisplayNode::Sphere3D);
-    lineDisplayNode->SetColor(0., 0.66, 1.);
-    lineDisplayNode->SetSelectedColor(0., 0.66, 1.);
-    }
-  this->updateLineCurveType(lineNode);
-
-  d->parametersNode->SetFiducialsMarkupsID(lineNode->GetID());
+  this->onSelectionNodeModified();
 }
 
-//--------------------------------------------------------------------------
-void qSlicerAstroPVDiagramModuleWidget::updateLineCurveType(vtkMRMLMarkupsCurveNode* lineNode)
+//-----------------------------------------------------------------------------
+void qSlicerAstroPVDiagramModuleWidget::setMRMLAstroPVDiagramParametersNode(vtkMRMLNode* node)
 {
   Q_D(qSlicerAstroPVDiagramModuleWidget);
-
-  if (!lineNode || !d->parametersNode)
-    {
-    return;
-    }
-  // interpolation of the line: spline or straight segments
-  if (d->parametersNode->GetInterpolation())
-    {
-    lineNode->SetCurveTypeToCardinalSpline();
-    }
-  else
-    {
-    lineNode->SetCurveTypeToLinear();
-    }
-}
-
-//--------------------------------------------------------------------------
-void qSlicerAstroPVDiagramModuleWidget::generatePVDiagram()
-{
-  Q_D(qSlicerAstroPVDiagramModuleWidget);
-
-  if (!d->parametersNode || !this->mrmlScene())
-    {
-    return;
-    }
-
-  vtkMRMLAstroVolumeNode *inputVolume =
-    vtkMRMLAstroVolumeNode::SafeDownCast(this->mrmlScene()->
-      GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
-  if(!inputVolume || !inputVolume->GetImageData())
-    {
-    qCritical() <<"qSlicerAstroPVDiagramModuleWidget::generatePVDiagram"
-                  " : inputVolume not found!";
-    return;
-    }
-
-  // Check Input volume
-  int n = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS"));
-  if (n != 3)
-    {
-    if (d->reportDimensionalityError)
-      {
-      QString message = QString("It is possible to create PVDiagram only"
-                                " for datacubes with dimensionality 3 (NAXIS = 3).");
-      qCritical() << Q_FUNC_INFO << ": " << message;
-      QMessageBox::warning(nullptr, tr("Failed to create the PVDiagram"), message);
-      d->reportDimensionalityError = false;
-      }
-    return;
-    }
-
-  vtkMRMLAstroVolumeNode *PVDiagramVolume =
-    vtkMRMLAstroVolumeNode::SafeDownCast(this->mrmlScene()->
-      GetNodeByID(d->parametersNode->GetOutputVolumeNodeID()));
-
-  if (!PVDiagramVolume)
-    {
-    std::ostringstream outSS;
-    outSS << inputVolume->GetName() << "_PVDiagram";
-
-    // create Astro Volume for the moment map
-    PVDiagramVolume = vtkMRMLAstroVolumeNode::SafeDownCast
-       (d->logic()->GetAstroVolumeLogic()->CloneVolumeWithoutImageData(this->mrmlScene(), inputVolume, outSS.str().c_str()));
-    }
-
-  // modify fits attributes
-  PVDiagramVolume->SetAttribute("SlicerAstro.DATAMODEL", "PVDIAGRAM");
-  PVDiagramVolume->SetAttribute("SlicerAstro.NAXIS", "2");
-  PVDiagramVolume->GetAstroVolumeDisplayNode()->SetAttribute("SlicerAstro.NAXIS", "2");
-  PVDiagramVolume->GetAstroVolumeDisplayNode()->CopyWCS(inputVolume->GetAstroVolumeDisplayNode());
-
-  PVDiagramVolume->SetAttribute("SlicerAstro.BUNIT", inputVolume->GetAttribute("SlicerAstro.BUNIT"));
-  PVDiagramVolume->SetAttribute("SlicerAstro.BTYPE", inputVolume->GetAttribute("SlicerAstro.BTYPE"));
-
-  PVDiagramVolume->SetAttribute("SlicerAstro.NAXIS1", "1");
-  PVDiagramVolume->SetAttribute("SlicerAstro.CROTA1", "0");
-  // offset 0 at the first pixel (FITS pixel 1)
-  PVDiagramVolume->SetAttribute("SlicerAstro.CRPIX1", "1");
-  PVDiagramVolume->SetAttribute("SlicerAstro.CRVAL1", "0");
-  PVDiagramVolume->SetAttribute("SlicerAstro.CTYPE1", "UNDEFINED");
-
-  PVDiagramVolume->SetAttribute("SlicerAstro.NAXIS2", inputVolume->GetAttribute("SlicerAstro.NAXIS3"));
-  PVDiagramVolume->SetAttribute("SlicerAstro.CDELT2", inputVolume->GetAttribute("SlicerAstro.CDELT3"));
-  PVDiagramVolume->SetAttribute("SlicerAstro.CROTA2", inputVolume->GetAttribute("SlicerAstro.CROTA3"));
-  PVDiagramVolume->SetAttribute("SlicerAstro.CRPIX2", inputVolume->GetAttribute("SlicerAstro.CRPIX3"));
-  PVDiagramVolume->SetAttribute("SlicerAstro.CRVAL2", inputVolume->GetAttribute("SlicerAstro.CRVAL3"));
-  PVDiagramVolume->SetAttribute("SlicerAstro.CTYPE2", inputVolume->GetAttribute("SlicerAstro.CTYPE3"));
-  PVDiagramVolume->SetAttribute("SlicerAstro.CUNIT2", inputVolume->GetAttribute("SlicerAstro.CUNIT3"));
-  PVDiagramVolume->SetAttribute("SlicerAstro.DTYPE2", inputVolume->GetAttribute("SlicerAstro.DTYPE3"));
-  PVDiagramVolume->SetAttribute("SlicerAstro.DRVAL2", inputVolume->GetAttribute("SlicerAstro.DRVAL3"));
-  PVDiagramVolume->SetAttribute("SlicerAstro.DUNIT2", inputVolume->GetAttribute("SlicerAstro.DUNIT3"));
-
-  PVDiagramVolume->RemoveAttribute("SlicerAstro.NAXIS3");
-  PVDiagramVolume->RemoveAttribute("SlicerAstro.CDELT3");
-  PVDiagramVolume->RemoveAttribute("SlicerAstro.CROTA3");
-  PVDiagramVolume->RemoveAttribute("SlicerAstro.CRPIX3");
-  PVDiagramVolume->RemoveAttribute("SlicerAstro.CRVAL3");
-  PVDiagramVolume->RemoveAttribute("SlicerAstro.CTYPE3");
-  PVDiagramVolume->RemoveAttribute("SlicerAstro.CUNIT3");
-  PVDiagramVolume->RemoveAttribute("SlicerAstro.DTYPE3");
-  PVDiagramVolume->RemoveAttribute("SlicerAstro.DRVAL3");
-  PVDiagramVolume->RemoveAttribute("SlicerAstro.DUNIT3");
-
-  PVDiagramVolume->RemoveAttribute("SlicerAstro.PC1_3");
-  PVDiagramVolume->RemoveAttribute("SlicerAstro.PC2_3");
-  PVDiagramVolume->RemoveAttribute("SlicerAstro.PC3_1");
-  PVDiagramVolume->RemoveAttribute("SlicerAstro.PC3_2");
-  PVDiagramVolume->RemoveAttribute("SlicerAstro.PC3_3");
-
-  // copy 2D image into the Astro Volume object
-  int N2 = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS3"));
-  vtkNew<vtkImageData> imageDataTemp;
-  imageDataTemp->SetDimensions(1, N2, 1);
-  imageDataTemp->SetSpacing(1.,1.,1.);
-  imageDataTemp->AllocateScalars(inputVolume->GetImageData()->GetScalarType(), 1);
-
-  PVDiagramVolume->SetAndObserveImageData(imageDataTemp.GetPointer());
-
-  // Set Origin
-  double Origin[3];
-  inputVolume->GetOrigin(Origin);
-  Origin[1] = 0.;
-  PVDiagramVolume->SetOrigin(Origin);
-
-  // Remove old rendering Display
-  int ndnodes = PVDiagramVolume->GetNumberOfDisplayNodes();
-  for (int ii = 0; ii < ndnodes; ii++)
-    {
-    vtkMRMLVolumeRenderingDisplayNode *dnode =
-      vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(
-        PVDiagramVolume->GetNthDisplayNode(ii));
-    if (dnode)
-      {
-      PVDiagramVolume->RemoveNthDisplayNodeID(ii);
-      }
-    }
-
-  // Set no WCS
-  PVDiagramVolume->GetAstroVolumeDisplayNode()->SetSpace("IJK");
-
-  // Update parameter Node
-  d->parametersNode->SetOutputVolumeNodeID(PVDiagramVolume->GetID());
-
-  vtkMRMLNode* node = nullptr;
-  PVDiagramVolume->SetPresetNode(node);
-
-  vtkSlicerAstroPVDiagramLogic *logic = d->logic();
-  if (logic)
-    {
-    logic->GenerateAndSetPVDiagram(d->parametersNode);
-    }
-
-  if (!d->parametersNode->GetAutoUpdate())
-    {
-    vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
-    if (!appLogic)
-      {
-      qCritical() << "qSlicerAstroPVDiagramModuleWidget::generatePVDiagram : "
-                     "appLogic not found!";
-      return;
-      }
-
-    vtkMRMLInteractionNode *interactionNode = appLogic->GetInteractionNode();
-    if (!interactionNode)
-      {
-      qCritical() << "qSlicerAstroPVDiagramModuleWidget::generatePVDiagram : "
-                     "interactionNode not found.";
-      return;
-      }
-
-    interactionNode->SetCurrentInteractionMode(vtkMRMLInteractionNode::ViewTransform);
-    }
-}
-
-//--------------------------------------------------------------------------
-void qSlicerAstroPVDiagramModuleWidget::onAutoUpdateToggled(bool toggled)
-{
-  Q_D(qSlicerAstroPVDiagramModuleWidget);
-
-  if (!d->parametersNode)
-    {
-    return;
-    }
-
-  d->parametersNode->SetAutoUpdate(toggled);
-}
-
-//--------------------------------------------------------------------------
-void qSlicerAstroPVDiagramModuleWidget::setMRMLAstroPVDiagramParametersNode(vtkMRMLNode* mrmlNode)
-{
-  Q_D(qSlicerAstroPVDiagramModuleWidget);
-
-  if (!mrmlNode)
-    {
-    return;
-    }
-
-  vtkMRMLAstroPVDiagramParametersNode* AstroPVDiagramParaNode =
-      vtkMRMLAstroPVDiagramParametersNode::SafeDownCast(mrmlNode);
-
-  this->qvtkReconnect(d->parametersNode, AstroPVDiagramParaNode, vtkCommand::ModifiedEvent,
-                      this, SLOT(onMRMLAstroPVDiagramParametersNodeModified()));
-
-  this->qvtkReconnect(d->parametersNode, AstroPVDiagramParaNode,
+  vtkMRMLAstroPVDiagramParametersNode* parametersNode = vtkMRMLAstroPVDiagramParametersNode::SafeDownCast(node);
+  this->qvtkReconnect(d->parametersNode, parametersNode, vtkCommand::ModifiedEvent,
+                      this, SLOT(onParametersNodeModified()));
+  this->qvtkReconnect(d->parametersNode, parametersNode,
                       vtkMRMLAstroPVDiagramParametersNode::InterpolationModifiedEvent,
-                      this, SLOT(onMRMLAstroPVDiagramInterpolationModeModified()));
-
-  d->parametersNode = AstroPVDiagramParaNode;
-
-  this->onMRMLAstroPVDiagramParametersNodeModified();
-  this->onMRMLAstroPVDiagramInterpolationModeModified();
+                      this, SLOT(onInterpolationModified()));
+  d->parametersNode = parametersNode;
+  this->onParametersNodeModified();
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroPVDiagramModuleWidget::onInputVolumeChanged(vtkMRMLNode* mrmlNode)
-{
-  Q_D(qSlicerAstroPVDiagramModuleWidget);
-
-  if (!d->parametersNode || !d->selectionNode)
-    {
-    return;
-    }
-
-  vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
-  if (!appLogic)
-    {
-    qCritical() << "qSlicerAstroPVDiagramModuleWidget::onInputVolumeChanged : "
-                   "appLogic not found!";
-    return;
-    }
-
-  if (mrmlNode)
-    {
-    d->selectionNode->SetActiveVolumeID(mrmlNode->GetID());
-    d->selectionNode->SetActiveVolumeID(mrmlNode->GetID());
-    d->reportDimensionalityError = true;
-    this->initializeMomentMapNode();
-    }
-  else
-    {
-    d->selectionNode->SetActiveVolumeID(nullptr);
-    d->selectionNode->SetActiveVolumeID(nullptr);
-  }
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroPVDiagramModuleWidget::onInterpolationNone(bool toggled)
-{
-  Q_D(qSlicerAstroPVDiagramModuleWidget);
-
-  if (!d->parametersNode)
-    {
-    return;
-    }
-
-  if (!toggled)
-    {
-    return;
-    }
-
-  d->parametersNode->SetInterpolation(false);
-
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroPVDiagramModuleWidget::onInterpolationSpline(bool toggled)
-{
-  Q_D(qSlicerAstroPVDiagramModuleWidget);
-
-  if (!d->parametersNode)
-    {
-    return;
-    }
-
-  if (!toggled)
-    {
-    return;
-    }
-
-  d->parametersNode->SetInterpolation(true);
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroPVDiagramModuleWidget::onMRMLAstroPVDiagramParametersNodeModified()
-{
-  Q_D(qSlicerAstroPVDiagramModuleWidget);
-
-  if (!d->parametersNode || !this->mrmlScene())
-    {
-    return;
-    }
-
-  const char *inputVolumeNodeID = d->parametersNode->GetInputVolumeNodeID();
-  vtkMRMLAstroVolumeNode *inputVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast
-      (this->mrmlScene()->GetNodeByID(inputVolumeNodeID));
-  d->InputVolumeNodeSelector->setCurrentNode(inputVolumeNode);
-
-  const char *momentMapNodeID = d->parametersNode->GetMomentMapNodeID();
-  vtkMRMLAstroVolumeNode *momentMapNode = vtkMRMLAstroVolumeNode::SafeDownCast
-      (this->mrmlScene()->GetNodeByID(momentMapNodeID));
-  d->MomentMapNodeSelector->setCurrentNode(momentMapNode);
-  d->SecondMomentMapNodeSelector->setCurrentNode(d->parametersNode->GetNodeReference(
-    vtkSlicerAstroPVDiagramLogic::GetSecondMomentMapReferenceRole()));
-
-  const char *outputVolumeNodeID = d->parametersNode->GetOutputVolumeNodeID();
-  vtkMRMLAstroVolumeNode *outputVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast
-      (this->mrmlScene()->GetNodeByID(outputVolumeNodeID));
-  d->OutputNodeSelector->setCurrentNode(outputVolumeNode);
-
-  const char *fiducialsMarkupsNodeID = d->parametersNode->GetFiducialsMarkupsID();
-  vtkMRMLMarkupsCurveNode *fiducialsMarkupsNode = vtkMRMLMarkupsCurveNode::SafeDownCast
-      (this->mrmlScene()->GetNodeByID(fiducialsMarkupsNodeID));
-  d->SourcePointsNodeComboBox->setCurrentNode(fiducialsMarkupsNode);
-  d->PointsMarkupsPlaceWidget->setCurrentNode(fiducialsMarkupsNode);
-
-
-  d->AutoUpdateCheckBox->setChecked(d->parametersNode->GetAutoUpdate());
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroPVDiagramModuleWidget::onMRMLSelectionNodeModified(vtkObject *sender)
-{
-  Q_D(qSlicerAstroPVDiagramModuleWidget);
-
-  if (!sender)
-    {
-    return;
-    }
-
-  vtkMRMLSelectionNode *selectionNode =
-      vtkMRMLSelectionNode::SafeDownCast(sender);
-
-  if (!selectionNode || !d->parametersNode)
-    {
-    return;
-    }
-
-  if (d->parametersNode->GetInputVolumeNodeID() && selectionNode->GetActiveVolumeID())
-    {
-    if(!strcmp(d->parametersNode->GetInputVolumeNodeID(), selectionNode->GetActiveVolumeID()))
-      {
-      return;
-      }
-    }
-
-  int wasModifying = d->parametersNode->StartModify();
-  d->parametersNode->SetInputVolumeNodeID(selectionNode->GetActiveVolumeID());
-  d->parametersNode->EndModify(wasModifying);
-
-  this->initializeMomentMapNode(true);
-  this->initializeLineNode(false);
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroPVDiagramModuleWidget::onMRMLSourcePointsNodeMarkupAdded()
-{
-  Q_D(qSlicerAstroPVDiagramModuleWidget);
-
-  if (!d->parametersNode || !this->mrmlScene())
-    {
-    return;
-    }
-
-  vtkMRMLMarkupsCurveNode *fiducialsMarkupsNode = vtkMRMLMarkupsCurveNode::SafeDownCast
-    (this->mrmlScene()->GetNodeByID(d->parametersNode->GetFiducialsMarkupsID()));
-  if (!fiducialsMarkupsNode)
-    {
-    return;
-    }
-
-  int FiducialIndex = fiducialsMarkupsNode->GetNumberOfControlPoints() - 1;
-  if (FiducialIndex < 0)
-    {
-    return;
-    }
-
-  fiducialsMarkupsNode->SetNthControlPointLabel(FiducialIndex, IntToString(FiducialIndex + 1));
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroPVDiagramModuleWidget::onMRMLSourcePointsNodeModified()
-{
-  Q_D(qSlicerAstroPVDiagramModuleWidget);
-
-  if (!d->parametersNode)
-    {
-    return;
-    }
-
-  vtkMRMLMarkupsCurveNode *fiducialsMarkupsNode =
-    vtkMRMLMarkupsCurveNode::SafeDownCast
-      (this->mrmlScene()->GetNodeByID(d->parametersNode->GetFiducialsMarkupsID()));
-  if (!fiducialsMarkupsNode)
-    {
-    return;
-    }
-
-  vtkMRMLAstroVolumeNode *PVMomentMap =
-    vtkMRMLAstroVolumeNode::SafeDownCast
-      (this->mrmlScene()->GetNodeByID(d->parametersNode->GetMomentMapNodeID()));
-  if(!PVMomentMap || !PVMomentMap->GetImageData())
-    {
-    return;
-    }
-
-  int nOfControlPoints = fiducialsMarkupsNode->GetNumberOfControlPoints();
-  if (nOfControlPoints < 1 || fiducialsMarkupsNode->GetNumberOfDefinedControlPoints() < 1)
-    {
-    return;
-    }
-
-  // Moving the points from here fires PointModifiedEvent again (MRML Markups do
-  // not honor DisableModifiedEvent for point events): ignore the re-entrant calls.
-  if (d->UpdatingSourcePoints)
-    {
-    return;
-    }
-  d->UpdatingSourcePoints = true;
-
-  // The control points stay on the moment map (plane and extent), in the
-  // pixel coordinates of the moment map
-  int dimsIJK[3] = {0, 0, 0};
-  PVMomentMap->GetImageData()->GetDimensions(dimsIJK);
-  vtkNew<vtkMatrix4x4> RASToIJKMatrix;
-  PVMomentMap->GetRASToIJKMatrix(RASToIJKMatrix.GetPointer());
-  vtkNew<vtkMatrix4x4> IJKToRASMatrix;
-  PVMomentMap->GetIJKToRASMatrix(IJKToRASMatrix.GetPointer());
-
-  for (int fiducialIndex = 0; fiducialIndex < nOfControlPoints; fiducialIndex++)
-    {
-    if (!fiducialsMarkupsNode->ControlPointExists(fiducialIndex) ||
-        fiducialsMarkupsNode->GetNthControlPointPositionStatus(fiducialIndex) != vtkMRMLMarkupsNode::PositionDefined)
-      {
-      // point being placed (preview) or undefined
-      continue;
-      }
-    double positionRAS[4] = {0., 0., 0., 1.}, positionIJK[4] = {0., 0., 0., 1.};
-    fiducialsMarkupsNode->GetNthControlPointPosition(fiducialIndex, positionRAS);
-    RASToIJKMatrix->MultiplyPoint(positionRAS, positionIJK);
-    const double clampedIJK[4] = {std::clamp(positionIJK[0], 0., dimsIJK[0] - 1.),
-                                  std::clamp(positionIJK[1], 0., dimsIJK[1] - 1.), 0., 1.};
-    if (fabs(clampedIJK[0] - positionIJK[0]) > 1.E-6 || fabs(clampedIJK[1] - positionIJK[1]) > 1.E-6 ||
-        fabs(positionIJK[2]) > 1.E-6)
-      {
-      double clampedRAS[4] = {0., 0., 0., 1.};
-      IJKToRASMatrix->MultiplyPoint(clampedIJK, clampedRAS);
-      fiducialsMarkupsNode->SetNthControlPointPosition(fiducialIndex, clampedRAS[0], clampedRAS[1], clampedRAS[2]);
-      }
-    }
-  d->UpdatingSourcePoints = false;
-
-  if (d->parametersNode->GetAutoUpdate())
-    {
-    this->generatePVDiagram();
-    }
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroPVDiagramModuleWidget::onStartImportEvent()
-{
-  Q_D(qSlicerAstroPVDiagramModuleWidget);
-
-  d->cleanPointers();
-}
-
-//---------------------------------------------------------------------------
-void qSlicerAstroPVDiagramModuleWidget::onSecondMomentMapChanged(vtkMRMLNode *mrmlNode)
-{
-  Q_D(qSlicerAstroPVDiagramModuleWidget);
-
-  if (!d->parametersNode)
-    {
-    return;
-    }
-  const char* role = vtkSlicerAstroPVDiagramLogic::GetSecondMomentMapReferenceRole();
-  if (d->parametersNode->GetNodeReference(role) == mrmlNode)
-    {
-    return;
-    }
-  d->parametersNode->SetNodeReferenceID(role, mrmlNode ? mrmlNode->GetID() : nullptr);
-
-  vtkSlicerAstroPVDiagramLogic *logic = d->logic();
-  if (logic)
-    {
-    logic->SetMomentMapsOnViews(d->parametersNode);
-    }
-}
-
-//---------------------------------------------------------------------------
-void qSlicerAstroPVDiagramModuleWidget::onMomentMapChanged(vtkMRMLNode *mrmlNode)
-{
-  Q_D(qSlicerAstroPVDiagramModuleWidget);
-
-  if (!d->parametersNode)
-    {
-    return;
-    }
-
-  if (mrmlNode)
-    {
-    d->parametersNode->SetMomentMapNodeID(mrmlNode->GetID());
-
-    vtkSlicerAstroPVDiagramLogic *logic = d->logic();
-    if (logic)
-      {
-      logic->SetMomentMapsOnViews(d->parametersNode);
-      }
-    // the points of the line on the new moment map
-    this->onMRMLSourcePointsNodeModified();
-    }
-  else
-    {
-    d->parametersNode->SetMomentMapNodeID(nullptr);
-    }
-}
-
-//---------------------------------------------------------------------------
-void qSlicerAstroPVDiagramModuleWidget::onMRMLAstroPVDiagramInterpolationModeModified()
-{
-  Q_D(qSlicerAstroPVDiagramModuleWidget);
-
-  if (!d->parametersNode || !this->mrmlScene())
-    {
-    return;
-    }
-
-  if (d->parametersNode->GetInterpolation())
-    {
-    d->InterpolationSplineRadioButton->setChecked(true);
-    d->InterpolationNoneRadioButton->setChecked(false);
-    }
-  else
-    {
-    d->InterpolationSplineRadioButton->setChecked(false);
-    d->InterpolationNoneRadioButton->setChecked(true);
-    }
-
-  this->updateLineCurveType(vtkMRMLMarkupsCurveNode::SafeDownCast
-    (this->mrmlScene()->GetNodeByID(d->parametersNode->GetFiducialsMarkupsID())));
-  this->onMRMLSourcePointsNodeModified();
-}
-
-//---------------------------------------------------------------------------
-void qSlicerAstroPVDiagramModuleWidget::onOutputVolumeChanged(vtkMRMLNode *mrmlNode)
-{
-  Q_D(qSlicerAstroPVDiagramModuleWidget);
-
-  if (!d->parametersNode)
-    {
-    return;
-    }
-
-  if (mrmlNode)
-    {
-    d->parametersNode->SetOutputVolumeNodeID(mrmlNode->GetID());
-    }
-  else
-    {
-    d->parametersNode->SetOutputVolumeNodeID(nullptr);
-    }
-}
-
-//---------------------------------------------------------------------------
-vtkMRMLAstroPVDiagramParametersNode* qSlicerAstroPVDiagramModuleWidget::
-mrmlAstroPVDiagramParametersNode()const
+vtkMRMLAstroPVDiagramParametersNode* qSlicerAstroPVDiagramModuleWidget::mrmlAstroPVDiagramParametersNode() const
 {
   Q_D(const qSlicerAstroPVDiagramModuleWidget);
   return d->parametersNode;
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroPVDiagramModuleWidget::onSelectionNodeModified()
+{
+  Q_D(qSlicerAstroPVDiagramModuleWidget);
+  // the module follows the active cube while it is shown (a scene loaded
+  // while another module is shown keeps its PV diagram)
+  if (!this->isEntered())
+    {
+    return;
+    }
+  const char* activeID = d->selectionNode ? d->selectionNode->GetActiveVolumeID() : nullptr;
+  vtkMRMLAstroVolumeNode* active = (activeID && this->mrmlScene()) ?
+    vtkMRMLAstroVolumeNode::SafeDownCast(this->mrmlScene()->GetNodeByID(activeID)) : nullptr;
+  if (active && active->GetImageData() && active->GetImageData()->GetDimensions()[2] > 1 &&
+      active != d->inputVolume())
+    {
+    this->setInputVolume(active);
+    }
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroPVDiagramModuleWidget::setInputVolume(vtkMRMLNode* node)
+{
+  Q_D(qSlicerAstroPVDiagramModuleWidget);
+  if (!d->parametersNode)
+    {
+    return;
+    }
+  const char* id = node ? node->GetID() : nullptr;
+  const char* current = d->parametersNode->GetInputVolumeNodeID();
+  const bool changed = (id && current) ? strcmp(id, current) != 0 : id != current;
+  if (changed)
+    {
+    // a new cube: its moment map, its PV diagram and the path on its map
+    const int wasModifying = d->parametersNode->StartModify();
+    d->parametersNode->SetMomentMapNodeID(nullptr);
+    d->parametersNode->SetOutputVolumeNodeID(nullptr);
+    d->parametersNode->SetNodeReferenceID(vtkSlicerAstroPVDiagramLogic::GetSecondMomentMapReferenceRole(), nullptr);
+    d->parametersNode->SetInputVolumeNodeID(id);
+    d->parametersNode->EndModify(wasModifying);
+    }
+  if (changed || !d->path() || !d->parametersNode->GetMomentMapNodeID())
+    {
+    d->prepare();
+    }
+  this->onParametersNodeModified();
+  if (changed)
+    {
+    d->showViews(true);
+    this->updatePVDiagram();
+    }
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroPVDiagramModuleWidget::onParametersNodeModified()
+{
+  Q_D(qSlicerAstroPVDiagramModuleWidget);
+  if (!d->parametersNode)
+    {
+    d->updateEnabled();
+    return;
+    }
+  vtkMRMLAstroVolumeNode* cube = d->inputVolume();
+  {
+  const QSignalBlocker blocker(d->InputVolumeNodeSelector);
+  d->InputVolumeNodeSelector->setCurrentNode(cube);
+  }
+  vtkMRMLMarkupsCurveNode* path = d->path();
+  if (path != d->ObservedPath.GetPointer())
+    {
+    for (unsigned long event : {static_cast<unsigned long>(vtkMRMLMarkupsNode::PointModifiedEvent),
+                                static_cast<unsigned long>(vtkMRMLMarkupsNode::PointAddedEvent),
+                                static_cast<unsigned long>(vtkMRMLMarkupsNode::PointRemovedEvent),
+                                static_cast<unsigned long>(vtkMRMLMarkupsNode::PointPositionDefinedEvent),
+                                static_cast<unsigned long>(vtkMRMLMarkupsNode::PointPositionUndefinedEvent)})
+      {
+      this->qvtkReconnect(d->ObservedPath, path, event, this, SLOT(onPathModified()));
+      }
+    d->ObservedPath = path;
+    }
+  vtkMRMLNode* map = (this->mrmlScene() && d->parametersNode->GetMomentMapNodeID()) ?
+    this->mrmlScene()->GetNodeByID(d->parametersNode->GetMomentMapNodeID()) : nullptr;
+  d->Preview->setVolumeNode(map);
+  d->Preview->setMarkupsNode(path);
+  {
+  const QSignalBlocker blockShape(d->ShapeButton);
+  d->ShapeButton->setCurrentIndex(d->parametersNode->GetInterpolation() ? 1 : 0);
+  const QSignalBlocker blockWidth(d->WidthField);
+  d->WidthField->setValue(d->parametersNode->GetWidth());
+  }
+  d->updateEnabled();
+  d->updateInfo();
+  d->updateResult();
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroPVDiagramModuleWidget::onInterpolationModified()
+{
+  Q_D(qSlicerAstroPVDiagramModuleWidget);
+  vtkSlicerAstroPVDiagramLogic* logic = d->logic();
+  if (logic && d->parametersNode)
+    {
+    logic->UpdatePathCurveType(d->parametersNode);
+    }
+  d->Preview->update();
+  d->UpdateTimer->start();
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroPVDiagramModuleWidget::onPathModified()
+{
+  Q_D(qSlicerAstroPVDiagramModuleWidget);
+  vtkSlicerAstroPVDiagramLogic* logic = d->logic();
+  if (!logic || d->Updating || !d->parametersNode)
+    {
+    return;
+    }
+  // on the plane and in the extent of the map (e.g. placed in a view)
+  d->Updating = true;
+  logic->ConstrainPath(d->parametersNode);
+  d->Updating = false;
+  d->updateInfo();
+  d->UpdateTimer->start();
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroPVDiagramModuleWidget::updatePVDiagram()
+{
+  Q_D(qSlicerAstroPVDiagramModuleWidget);
+  d->UpdateTimer->stop();
+  vtkSlicerAstroPVDiagramLogic* logic = d->logic();
+  vtkMRMLMarkupsCurveNode* path = d->path();
+  if (!logic || !d->parametersNode || !path || path->GetNumberOfDefinedControlPoints() < 2)
+    {
+    d->updateInfo();
+    return;
+    }
+  const bool existed = d->outputVolume() != nullptr;
+  if (!logic->UpdatePVDiagram(d->parametersNode))
+    {
+    d->Message->showMessage("error", QString::fromStdString(logic->GetLastError()));
+    return;
+    }
+  if (this->isEntered())
+    {
+    // the view is fitted to a new PV diagram only (the zoom of the user kept)
+    logic->SetPVDiagramOnViews(d->parametersNode, !existed);
+    }
+  d->updateInfo();
+  d->updateResult();
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroPVDiagramModuleWidget::setInterpolation(bool spline)
+{
+  Q_D(qSlicerAstroPVDiagramModuleWidget);
+  if (d->parametersNode)
+    {
+    d->parametersNode->SetInterpolation(spline);
+    }
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroPVDiagramModuleWidget::setWidth(int width)
+{
+  Q_D(qSlicerAstroPVDiagramModuleWidget);
+  if (!d->parametersNode || d->parametersNode->GetWidth() == width)
+    {
+    return;
+    }
+  d->parametersNode->SetWidth(width);
+  d->UpdateTimer->start();
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroPVDiagramModuleWidget::setDrawing(bool drawing)
+{
+  Q_D(qSlicerAstroPVDiagramModuleWidget);
+  vtkMRMLInteractionNode* interactionNode = d->interactionNode();
+  vtkMRMLMarkupsCurveNode* path = d->path();
+  if (!interactionNode || !d->selectionNode)
+    {
+    return;
+    }
+  const bool placing = interactionNode->GetCurrentInteractionMode() == vtkMRMLInteractionNode::Place && path &&
+    d->selectionNode->GetActivePlaceNodeID() && !strcmp(d->selectionNode->GetActivePlaceNodeID(), path->GetID());
+  if (drawing && path && !placing)
+    {
+    d->selectionNode->SetReferenceActivePlaceNodeClassName("vtkMRMLMarkupsCurveNode");
+    d->selectionNode->SetActivePlaceNodeID(path->GetID());
+    interactionNode->SetPlaceModePersistence(1);
+    interactionNode->SetCurrentInteractionMode(vtkMRMLInteractionNode::Place);
+    }
+  else if (!drawing && placing)
+    {
+    interactionNode->SetPlaceModePersistence(0);
+    interactionNode->SetCurrentInteractionMode(vtkMRMLInteractionNode::ViewTransform);
+    }
+  this->onInteractionNodeModified();
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroPVDiagramModuleWidget::onInteractionNodeModified()
+{
+  Q_D(qSlicerAstroPVDiagramModuleWidget);
+  vtkMRMLInteractionNode* interactionNode = d->interactionNode();
+  vtkMRMLMarkupsCurveNode* path = d->path();
+  const bool placing = interactionNode && path && d->selectionNode &&
+    interactionNode->GetCurrentInteractionMode() == vtkMRMLInteractionNode::Place &&
+    d->selectionNode->GetActivePlaceNodeID() && !strcmp(d->selectionNode->GetActivePlaceNodeID(), path->GetID());
+  const QSignalBlocker blocker(d->DrawButton);
+  d->DrawButton->setChecked(placing);
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroPVDiagramModuleWidget::clearPath()
+{
+  Q_D(qSlicerAstroPVDiagramModuleWidget);
+  vtkSlicerAstroPVDiagramLogic* logic = d->logic();
+  if (logic)
+    {
+    logic->ClearPath(d->parametersNode);
+    }
+  d->updateInfo();
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroPVDiagramModuleWidget::onShowResult()
+{
+  Q_D(qSlicerAstroPVDiagramModuleWidget);
+  vtkSlicerAstroPVDiagramLogic* logic = d->logic();
+  vtkSlicerAstroVolumeLogic* astroVolumeLogic = logic ? logic->GetAstroVolumeLogic() : nullptr;
+  if (astroVolumeLogic && d->outputVolume())
+    {
+    astroVolumeLogic->ToggleProductInViews(d->outputVolume(), d->inputVolume());
+    d->Result->updateShowButton();
+    }
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroPVDiagramModuleWidget::onResultDeleted()
+{
+  Q_D(qSlicerAstroPVDiagramModuleWidget);
+  if (d->parametersNode)
+    {
+    d->parametersNode->SetOutputVolumeNodeID(nullptr);
+    }
+  d->updateResult();
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroPVDiagramModuleWidget::enter()
+{
+  Q_D(qSlicerAstroPVDiagramModuleWidget);
+  this->Superclass::enter();
+  this->onSelectionNodeModified();
+  if (!d->path() || !d->parametersNode || !d->parametersNode->GetMomentMapNodeID())
+    {
+    d->prepare();
+    this->onParametersNodeModified();
+    }
+  vtkMRMLMarkupsCurveNode* path = d->path();
+  if (path)
+    {
+    path->SetDisplayVisibility(1);
+    }
+  // classic Slicer: four views (moment-0 map with the path, 2nd moment map,
+  // PV diagram, 3D); embedded (e.g. Workbench): the layout is kept
+  qSlicerApplication* app = qSlicerApplication::application();
+  vtkMRMLLayoutNode* layoutNode = (app && app->layoutManager() && app->layoutManager()->layoutLogic()) ?
+    app->layoutManager()->layoutLogic()->GetLayoutNode() : nullptr;
+  if (layoutNode && !d->embedded() && layoutNode->GetViewArrangement() != vtkMRMLLayoutNode::SlicerLayoutFourUpView)
+    {
+    layoutNode->SetViewArrangement(vtkMRMLLayoutNode::SlicerLayoutFourUpView);
+    }
+  if (path && path->GetNumberOfDefinedControlPoints() >= 2)
+    {
+    vtkSlicerAstroPVDiagramLogic* logic = d->logic();
+    if (logic)
+      {
+      logic->UpdatePVDiagram(d->parametersNode);
+      }
+    }
+  d->showViews(true);
+  d->updateInfo();
+  d->updateResult();
+  this->onInteractionNodeModified();
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroPVDiagramModuleWidget::exit()
+{
+  Q_D(qSlicerAstroPVDiagramModuleWidget);
+  this->setDrawing(false);
+  this->Superclass::exit();
+  // the path is shown only while the module (or its Workbench step) is open
+  vtkMRMLMarkupsCurveNode* path = d->path();
+  if (path)
+    {
+    path->SetDisplayVisibility(0);
+    }
 }

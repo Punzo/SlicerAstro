@@ -33,12 +33,15 @@ class vtkMRMLNode;
 /// \ingroup SlicerAstro_QtModules_AstroVolume_Widgets
 /// A map (e.g. a moment-0 map, north up) with a markups line or curve drawn
 /// over it: drag an end or a point to move it, drag the centre of a line to
-/// move the whole line. The positions of the markups are on the plane of
-/// the map (used by the PV slice and PV diagram panels).
+/// move the whole line. With pointAdding (default), a click on the map adds
+/// a point at the end of a curve and a right click on a point of a curve
+/// removes it. The positions of the markups are on the plane of the map
+/// (used by the PV slice and PV diagram panels).
 class Q_SLICERASTRO_QTMODULES_ASTROVOLUME_WIDGETS_EXPORT qSlicerAstroMapPreview : public QWidget
 {
   Q_OBJECT
   QVTK_OBJECT
+  Q_PROPERTY(bool pointAdding READ pointAdding WRITE setPointAdding)
 
 public:
   explicit qSlicerAstroMapPreview(QWidget* parent = nullptr);
@@ -54,6 +57,10 @@ public:
   Q_INVOKABLE QPointF mapToWidget(double i, double j) const;
   /// Pixel coordinates (i, j) of the map at a widget position
   Q_INVOKABLE QPointF widgetToMap(const QPointF& position) const;
+
+  /// Points added (click) and removed (right click) on a curve
+  bool pointAdding() const;
+  void setPointAdding(bool adding);
 
 public slots:
   /// The map (2D astronomical volume)

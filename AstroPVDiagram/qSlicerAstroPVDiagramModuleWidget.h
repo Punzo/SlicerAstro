@@ -29,15 +29,18 @@
 #include <ctkVTKObject.h>
 
 class qSlicerAstroPVDiagramModuleWidgetPrivate;
-class vtkMRMLMarkupsCurveNode;
 class vtkMRMLAstroPVDiagramParametersNode;
 class vtkMRMLNode;
 
 /// \ingroup SlicerAstro_QtModules_AstroPVDiagram
+/// PV diagram panel: the path drawn on the moment-0 map of the cube (in the
+/// panel or in the views), its shape and width; the PV diagram follows the
+/// path (vtkSlicerAstroPVDiagramLogic::UpdatePVDiagram).
 class Q_SLICERASTRO_QTMODULES_ASTROPVDIAGRAM_EXPORT qSlicerAstroPVDiagramModuleWidget :
   public qSlicerAbstractModuleWidget
 {
   Q_OBJECT
+  QVTK_OBJECT
 
 public:
 
@@ -52,74 +55,36 @@ public:
   Q_INVOKABLE vtkMRMLAstroPVDiagramParametersNode* mrmlAstroPVDiagramParametersNode()const;
 
 public slots:
-  /// Slots to generate the PV diagram.
-  /// It creates the output volume and calls the logic
-  void generatePVDiagram();
+  /// The data cube of the PV diagram
+  void setInputVolume(vtkMRMLNode* node);
+  /// Spline (true) or straight segments through the points of the path
+  void setInterpolation(bool spline);
+  /// Width of the path (pixels)
+  void setWidth(int width);
+  /// Points of the path placed in the views (persistent place mode) or not
+  void setDrawing(bool drawing);
+  /// Remove the points of the path
+  void clearPath();
+  /// The PV diagram along the path now (otherwise it follows the path after
+  /// the pending events)
+  void updatePVDiagram();
 
 protected:
   QScopedPointer<qSlicerAstroPVDiagramModuleWidgetPrivate> d_ptr;
 
-  /// Initialization of the qvtk connections between MRML nodes
   virtual void setMRMLScene(vtkMRMLScene*);
 
-  /// Initialization of MRML nodes
-  void initializeNodes(bool forceNew = false);
-
-  /// Initialization of MRML parameter node
-  void initializeParameterNode(bool forceNew = false);
-
-  /// Initialization of MRML moment map node
-  void initializeMomentMapNode(bool forceNew = false);
-
-  /// Initialization of MRML fiducial markups node
-  /// Line of the PV diagram: Markups open curve (the source points and the
-  /// line model of the scenes of the previous versions are converted)
-  void initializeLineNode(bool forceNew = false);
-  /// Curve type of the line (linear or spline) from the parameter node
-  void updateLineCurveType(vtkMRMLMarkupsCurveNode* lineNode);
-
-  /// Initialization of MRML model (line) node
-
 protected slots:
-
-  /// Set the MRML input node
-  void onInputVolumeChanged(vtkMRMLNode* mrmlNode);
-
-  /// Set the MRML fiducial markups node
-  void onFiducialsMarkupsChanged(vtkMRMLNode* mrmlNode);
-
-  /// Set the MRML model (line) node
-
-  /// Set the MRML moment map input node
-  void onMomentMapChanged(vtkMRMLNode* mrmlNode);
-  void onSecondMomentMapChanged(vtkMRMLNode* mrmlNode);
-
-  /// Set the MRML output node
-  void onOutputVolumeChanged(vtkMRMLNode* mrmlNode);
-
-  /// Update widget GUI from MRML parameter node
-  void onMRMLAstroPVDiagramInterpolationModeModified();
-
-  /// Update widget GUI from MRML parameter node
-  void onMRMLAstroPVDiagramParametersNodeModified();
-
-  /// Update widget GUI from MRML fiducial markups node
-  void onMRMLSourcePointsNodeMarkupAdded();
-
-  /// Update widget GUI from MRML fiducial markups node
-  void onMRMLSourcePointsNodeModified();
-
-  /// Set the MRML parameter node
   void setMRMLAstroPVDiagramParametersNode(vtkMRMLNode*);
-
+  void onParametersNodeModified();
+  void onInterpolationModified();
+  void onPathModified();
+  void onSelectionNodeModified();
+  void onInteractionNodeModified();
+  void onShowResult();
+  void onResultDeleted();
   void onEndCloseEvent();
   void onEndImportEvent();
-  void onStartImportEvent();
-
-  void onAutoUpdateToggled(bool toggled);
-  void onInterpolationNone(bool toggled);
-  void onInterpolationSpline(bool toggled);
-  void onMRMLSelectionNodeModified(vtkObject* sender);
 
 private:
   Q_DECLARE_PRIVATE(qSlicerAstroPVDiagramModuleWidget);

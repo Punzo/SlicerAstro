@@ -69,9 +69,9 @@ qSlicerAstroPVDiagramModule::~qSlicerAstroPVDiagramModule()
 //-----------------------------------------------------------------------------
 QString qSlicerAstroPVDiagramModule::helpText()const
 {
-  return "The AstroPVDiagram module generates a Position Velocity (PV) diagram along a curve: "
-         "place the points of the curve on the moment map in the red 2D view (or in the 3D view); "
-         "the PV diagram is generated, and updated when the points move.";
+  return "The AstroPVDiagram module makes the position-velocity (PV) diagram of a data cube along a path "
+         "drawn on its moment-0 map (straight segments or a spline, with a width). The PV diagram follows "
+         "the path as it is edited.";
 }
 
 //-----------------------------------------------------------------------------

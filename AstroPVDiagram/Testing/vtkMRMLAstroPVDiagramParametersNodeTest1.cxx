@@ -31,10 +31,16 @@ int vtkMRMLAstroPVDiagramParametersNodeTest1(int , char * [] )
   TEST_SET_GET_STRING(node1.GetPointer(), MomentMapNodeID);
   TEST_SET_GET_STRING(node1.GetPointer(), OutputVolumeNodeID);
   TEST_SET_GET_STRING(node1.GetPointer(), FiducialsMarkupsID);
-  TEST_SET_GET_STRING(node1.GetPointer(), ModelID);
 
   TEST_SET_GET_BOOLEAN(node1.GetPointer(), Interpolation);
-  TEST_SET_GET_BOOLEAN(node1.GetPointer(), AutoUpdate);
+  // Width: pixels, clamped to 1-999
+  CHECK_INT(node1->GetWidth(), 1);
+  node1->SetWidth(7);
+  CHECK_INT(node1->GetWidth(), 7);
+  node1->SetWidth(0);
+  CHECK_INT(node1->GetWidth(), 1);
+  node1->SetWidth(5000);
+  CHECK_INT(node1->GetWidth(), 999);
 
   return EXIT_SUCCESS;
 }

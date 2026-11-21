@@ -50,9 +50,8 @@ vtkMRMLAstroPVDiagramParametersNode::vtkMRMLAstroPVDiagramParametersNode()
   this->MomentMapNodeID = nullptr;
   this->OutputVolumeNodeID = nullptr;
   this->FiducialsMarkupsID = nullptr;
-  this->ModelID = nullptr;
   this->Interpolation = true;
-  this->AutoUpdate = true;
+  this->Width = 1;
 }
 
 //----------------------------------------------------------------------------
@@ -80,12 +79,6 @@ vtkMRMLAstroPVDiagramParametersNode::~vtkMRMLAstroPVDiagramParametersNode()
     {
     delete [] this->FiducialsMarkupsID;
     this->FiducialsMarkupsID = nullptr;
-    }
-
-  if (this->ModelID)
-    {
-    delete [] this->ModelID;
-    this->ModelID = nullptr;
     }
 }
 
@@ -144,21 +137,15 @@ void vtkMRMLAstroPVDiagramParametersNode::ReadXMLAttributes(const char** atts)
       continue;
       }
 
-    if (!strcmp(attName, "ModelID"))
-      {
-      this->SetModelID(attValue);
-      continue;
-      }
-
     if (!strcmp(attName, "Interpolation"))
       {
       this->Interpolation = StringToInt(attValue);
       continue;
       }
 
-    if (!strcmp(attName, "AutoUpdate"))
+    if (!strcmp(attName, "Width"))
       {
-      this->AutoUpdate = StringToInt(attValue);
+      this->SetWidth(StringToInt(attValue));
       continue;
       }
     }
@@ -191,13 +178,8 @@ void vtkMRMLAstroPVDiagramParametersNode::WriteXML(ostream& of, int nIndent)
     of << indent << " FiducialsMarkupsID=\"" << this->FiducialsMarkupsID << "\"";
     }
 
-  if (this->ModelID != nullptr)
-    {
-    of << indent << " ModelID=\"" << this->ModelID << "\"";
-    }
-
   of << indent << " Interpolation=\"" << this->Interpolation << "\"";
-  of << indent << " AutoUpdate=\"" << this->AutoUpdate << "\"";
+  of << indent << " Width=\"" << this->Width << "\"";
 }
 
 //----------------------------------------------------------------------------
@@ -214,9 +196,8 @@ void vtkMRMLAstroPVDiagramParametersNode::Copy(vtkMRMLNode *anode)
   this->SetMomentMapNodeID(node->GetMomentMapNodeID());
   this->SetOutputVolumeNodeID(node->GetOutputVolumeNodeID());
   this->SetFiducialsMarkupsID(node->GetFiducialsMarkupsID());
-  this->SetModelID(node->GetModelID());
   this->SetInterpolation(node->GetInterpolation());
-  this->SetAutoUpdate(node->GetAutoUpdate());
+  this->SetWidth(node->GetWidth());
 
   this->EndModify(disabledModify);
 }
@@ -224,8 +205,13 @@ void vtkMRMLAstroPVDiagramParametersNode::Copy(vtkMRMLNode *anode)
 //----------------------------------------------------------------------------
 void vtkMRMLAstroPVDiagramParametersNode::SetInterpolation(bool interpolation)
 {
+  if (this->Interpolation == interpolation)
+    {
+    return;
+    }
   this->Interpolation = interpolation;
   this->InvokeCustomModifiedEvent(vtkMRMLAstroPVDiagramParametersNode::InterpolationModifiedEvent);
+  this->Modified();
 }
 
 //----------------------------------------------------------------------------
@@ -237,7 +223,6 @@ void vtkMRMLAstroPVDiagramParametersNode::PrintSelf(ostream& os, vtkIndent inden
   os << indent << "MomentMapNodeID: " << ( (this->MomentMapNodeID) ? this->MomentMapNodeID : "None" ) << "\n";
   os << indent << "OutputVolumeNodeID: " << ( (this->OutputVolumeNodeID) ? this->OutputVolumeNodeID : "None" ) << "\n";
   os << indent << "FiducialsMarkupsID: " << ( (this->FiducialsMarkupsID) ? this->FiducialsMarkupsID : "None" ) << "\n";
-  os << indent << "ModelID: " << ( (this->ModelID) ? this->ModelID : "None" ) << "\n";
 
   if(this->Interpolation)
     {
@@ -247,15 +232,7 @@ void vtkMRMLAstroPVDiagramParametersNode::PrintSelf(ostream& os, vtkIndent inden
     {
     os << indent << "Interpolation: Inactive\n";
     }
-
-  if(this->AutoUpdate)
-    {
-    os << indent << "AutoUpdate: Active\n";
-    }
-  else
-    {
-    os << indent << "AutoUpdate: Inactive\n";
-    }
+  os << indent << "Width: " << this->Width << "\n";
 }
 
 //----------------------------------------------------------------------------
@@ -281,9 +258,5 @@ void vtkMRMLAstroPVDiagramParametersNode::UpdateReferenceID(const char *oldID, c
   if (this->FiducialsMarkupsID && !strcmp(this->FiducialsMarkupsID, oldID))
     {
     this->SetFiducialsMarkupsID(newID);
-    }
-  if (this->ModelID && !strcmp(this->ModelID, oldID))
-    {
-    this->SetModelID(newID);
     }
 }

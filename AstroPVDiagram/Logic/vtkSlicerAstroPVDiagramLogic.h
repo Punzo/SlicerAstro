@@ -22,19 +22,31 @@
 
 // Slicer includes
 #include "vtkSlicerModuleLogic.h"
-class vtkMRMLVolumeNode;
+
+// STD includes
 #include <string>
 
-class vtkSlicerAstroMomentMapsLogic;
+class vtkMRMLAstroPVDiagramParametersNode;
 class vtkMRMLAstroVolumeNode;
+class vtkMRMLMarkupsCurveNode;
+class vtkSlicerAstroMomentMapsLogic;
 class vtkSlicerAstroVolumeLogic;
 
 // AstroPVDiagrams includes
 #include "vtkSlicerAstroPVDiagramModuleLogicExport.h"
-class vtkMRMLAstroPVDiagramParametersNode;
 
 /// \class vtkSlicerAstroPVDiagramLogic
-/// \brief Generates a Position Velocity (PV) diagram from fiducial markups.
+/// \brief Position-velocity (PV) diagram of a data cube along a path drawn on
+/// its moment-0 map.
+///
+/// The path is a Markups open curve (GetPathName(), one per scene) with
+/// straight segments or a spline through its points, kept on the plane and in
+/// the extent of the moment-0 map of the cube (the map shared by the modules).
+/// Each column of the PV diagram is a sample of the path, one pixel apart
+/// along it: the spectrum of the cube at that position (bilinear
+/// interpolation), or the mean of Width spectra across the path. The PV
+/// diagram of a cube is referenced by the cube (GetPVDiagramReferenceRole())
+/// and updated in place when the path changes.
 ///
 /// \ingroup SlicerAstro_QtModules_AstroPVDiagram
 class VTK_SLICERASTRO_ASTROPVDIAGRAM_MODULE_LOGIC_EXPORT vtkSlicerAstroPVDiagramLogic
@@ -62,30 +74,73 @@ public:
   /// Gets called automatically when the MRMLScene is attached to this logic class
   virtual void RegisterNodes() override;
 
+  /// Name of the path (Markups open curve, one per scene)
+  static const char* GetPathName() { return "PVDiagramLine"; }
+
+  /// Node reference role of a cube to its PV diagram
+  static const char* GetPVDiagramReferenceRole() { return "SlicerAstroPVDiagram"; }
+
+  /// Node reference role of the 2nd moment map in the parameter node
+  static const char* GetSecondMomentMapReferenceRole();
+
+  /// The PV diagram of a cube (nullptr if none)
+  static vtkMRMLAstroVolumeNode* GetPVDiagram(vtkMRMLAstroVolumeNode* cube);
+
+  /// Error of the last call that failed (empty if none)
+  const char* GetLastError() { return this->LastError.c_str(); }
+
   /// Calculate a moment map of the input volume: the 0th moment map (order
-  /// 0, Red view: the line of the PV diagram is drawn on it), set as moment
-  /// map of the parameter node, or the 2nd moment map (order 2, velocity
-  /// dispersion, Green view), referenced by the parameter node with the
-  /// GetSecondMomentMapReferenceRole() role.
+  /// 0, the path is drawn on it), set as moment map of the parameter node,
+  /// or the 2nd moment map (order 2, velocity dispersion, Green view of the
+  /// module), referenced by the parameter node with the
+  /// GetSecondMomentMapReferenceRole() role. The maps shared by the modules
+  /// ("<cube>_mom0", "<cube>_mom2") are used if they exist.
   /// \param MRML parameter node
   /// \param order 0 or 2
   /// \return Success flag
   bool CalculateMomentMap(vtkMRMLAstroPVDiagramParametersNode *pnode, int order);
 
-  /// Set the moment maps in the views: 0th moment map in the Red view, 2nd
-  /// moment map in the Green view (XY orientation); the Yellow view is prepared for the PV
-  /// diagram.
-  /// \param MRML parameter node
-  /// \return Success flag
-  bool SetMomentMapsOnViews(vtkMRMLAstroPVDiagramParametersNode *pnode);
+  /// The input of the PV diagram of the cube of the parameters node: its
+  /// moment-0 map (computed if missing), its PV diagram (if any) as output
+  /// and the path (created if missing) with its curve type and its points
+  /// on the map.
+  bool PreparePath(vtkMRMLAstroPVDiagramParametersNode *pnode);
 
-  /// Node reference role of the 2nd moment map in the parameter node
-  static const char* GetSecondMomentMapReferenceRole();
+  /// The path of the parameters node (nullptr if none)
+  vtkMRMLMarkupsCurveNode* GetPath(vtkMRMLAstroPVDiagramParametersNode *pnode);
 
-  /// Run the calculation to generate the PV diagram along the line (Markups
-  /// open curve, linear or spline) and set it in the layout
-  /// \param MRML parameter node
-  /// \return Success flag
+  /// The points of the path on the plane and in the extent of the moment-0
+  /// map. Returns true if points were moved.
+  bool ConstrainPath(vtkMRMLAstroPVDiagramParametersNode *pnode);
+
+  /// Curve type of the path from the Interpolation of the parameters node:
+  /// cardinal spline or straight segments
+  bool UpdatePathCurveType(vtkMRMLAstroPVDiagramParametersNode *pnode);
+
+  /// Remove the points of the path (the PV diagram is kept)
+  bool ClearPath(vtkMRMLAstroPVDiagramParametersNode *pnode);
+
+  /// Length of the path on the sky (arcmin) and number of columns of its PV
+  /// diagram (samples one pixel apart along the path). False without a path
+  /// of at least two points.
+  bool GetPathInfo(vtkMRMLAstroPVDiagramParametersNode *pnode, double* lengthArcmin, int* columns);
+
+  /// Calculate the PV diagram along the path, in the PV diagram of the cube
+  /// (created if missing: "<cube>_PVDiagram", the 2D colours of the cube)
+  /// set as output volume of the parameters node. Synchronous: one
+  /// interpolation per column and channel (vtkSMPTools over the columns).
+  /// \return Success flag (GetLastError() if false)
+  bool UpdatePVDiagram(vtkMRMLAstroPVDiagramParametersNode *pnode);
+
+  /// Moment maps in the views: the moment-0 map in the Red view (XY); with
+  /// secondMomentMap, the 2nd moment map in the Green view (XY, calculated
+  /// if missing). The Yellow view is prepared for the PV diagram.
+  bool SetMomentMapsOnViews(vtkMRMLAstroPVDiagramParametersNode *pnode, bool secondMomentMap = true);
+
+  /// The PV diagram in the Yellow view (fitted to it with fitView)
+  bool SetPVDiagramOnViews(vtkMRMLAstroPVDiagramParametersNode *pnode, bool fitView = true);
+
+  /// UpdatePVDiagram, then SetPVDiagramOnViews
   bool GenerateAndSetPVDiagram(vtkMRMLAstroPVDiagramParametersNode *pnode);
 
 protected:
@@ -99,13 +154,20 @@ protected:
                                                 const char* bunit,
                                                 const char* dataModel);
 
+  /// 2D astronomical volume for the PV diagram of a cube: offset along the
+  /// path (CDELT1 in degrees) and the spectral axis of the cube
+  vtkMRMLAstroVolumeNode* CreatePVDiagramVolume(vtkMRMLAstroVolumeNode* cube);
+
+  vtkMRMLAstroVolumeNode* GetInputVolume(vtkMRMLAstroPVDiagramParametersNode *pnode);
+  vtkMRMLAstroVolumeNode* GetMomentMap(vtkMRMLAstroPVDiagramParametersNode *pnode);
+
 private:
   vtkSlicerAstroPVDiagramLogic(const vtkSlicerAstroPVDiagramLogic&); // Not implemented
   void operator=(const vtkSlicerAstroPVDiagramLogic&);           // Not implemented
 
   class vtkInternal;
   vtkInternal* Internal;
+  std::string LastError;
 };
 
 #endif
-

@@ -1,10 +1,8 @@
 /**
 \defgroup SlicerAstro_QtModules_AstroPVDiagram AstroPVDiagram
 \ingroup SlicerAstro_QtModules
-The AstroPVDiagram module generates a Position Velocity (PV) diagram.
-The user can manually place fiducials in the 3D view or on a moment map
-in the red 2D view. Such fiducials will be connected and a PV Diagram from
-this selection will be generated. <br> <br>
-Users documents are available at the following
-<a href="https://github.com/Punzo/SlicerAstro/wiki/AstroPVDiagram-Module">link</a>.
+The AstroPVDiagram module makes the position-velocity (PV) diagram of a
+data cube along a path drawn on its moment-0 map (Markups open curve,
+straight segments or a spline, with a width); the PV diagram follows the
+path (vtkSlicerAstroPVDiagramLogic::UpdatePVDiagram).
 */

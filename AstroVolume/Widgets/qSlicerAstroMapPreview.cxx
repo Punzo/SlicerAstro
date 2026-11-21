@@ -24,6 +24,8 @@
 #include <vtkImageData.h>
 #include <vtkMatrix4x4.h>
 #include <vtkNew.h>
+#include <vtkPoints.h>
+#include <vtkVector.h>
 #include <vtkWeakPointer.h>
 
 // MRML includes
@@ -32,6 +34,7 @@
 #include <vtkMRMLMarkupsNode.h>
 #include <vtkMRMLVolumeNode.h>
 
+#include <algorithm>
 #include <cmath>
 #include <vector>
 
@@ -61,13 +64,22 @@ public:
   /// Rectangle of the map in the widget (aspect ratio of the map kept)
   QRectF mapRect(const QWidget* widget) const;
   int dimension(int axis) const;
-  /// Pixel coordinates (i, j) of the control points of the markups
-  std::vector<QPointF> points() const;
-  void setPoint(int index, const QPointF& ij);
+  /// Pixel coordinates (i, j) of the control points of the markups (the
+  /// defined ones; indices: their indices in the markups)
+  std::vector<QPointF> points(std::vector<int>* indices = nullptr) const;
+  /// Pixel coordinates (i, j) of the points of the curve (interpolated
+  /// between the control points: spline or straight segments)
+  std::vector<QPointF> curvePoints() const;
+  /// The nth point of points() moved to ij
+  void setPoint(int nth, const QPointF& ij);
+  /// The defined point of points() closest to a widget position (within the
+  /// grab tolerance), -1 if none
+  int pointAt(const QWidget* widget, const QPointF& position) const;
 
   vtkWeakPointer<vtkMRMLVolumeNode> Map;
   vtkWeakPointer<vtkMRMLMarkupsNode> Markups;
   QImage Image;
+  bool PointAdding{true};
   /// Dragged point (-1: none, -2: the whole line)
   int Dragged{-1};
   QPointF DragStart;
@@ -97,7 +109,7 @@ QRectF qSlicerAstroMapPreviewPrivate::mapRect(const QWidget* widget) const
 }
 
 //-----------------------------------------------------------------------------
-std::vector<QPointF> qSlicerAstroMapPreviewPrivate::points() const
+std::vector<QPointF> qSlicerAstroMapPreviewPrivate::points(std::vector<int>* indices) const
 {
   std::vector<QPointF> result;
   if (!this->Map || !this->Markups)
@@ -108,7 +120,7 @@ std::vector<QPointF> qSlicerAstroMapPreviewPrivate::points() const
   this->Map->GetRASToIJKMatrix(rasToIJK);
   for (int index = 0; index < this->Markups->GetNumberOfControlPoints(); index++)
     {
-    if (!this->Markups->GetNthControlPointPositionStatus(index))
+    if (this->Markups->GetNthControlPointPositionStatus(index) != vtkMRMLMarkupsNode::PositionDefined)
       {
       continue;
       }
@@ -117,19 +129,72 @@ std::vector<QPointF> qSlicerAstroMapPreviewPrivate::points() const
     double ijk[4] = {0., 0., 0., 1.};
     rasToIJK->MultiplyPoint(ras, ijk);
     result.push_back(QPointF(ijk[0], ijk[1]));
+    if (indices)
+      {
+      indices->push_back(index);
+      }
     }
   return result;
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroMapPreviewPrivate::setPoint(int index, const QPointF& ij)
+std::vector<QPointF> qSlicerAstroMapPreviewPrivate::curvePoints() const
 {
+  vtkMRMLMarkupsCurveNode* curve = vtkMRMLMarkupsCurveNode::SafeDownCast(this->Markups);
+  vtkPoints* curvePoints = curve ? curve->GetCurvePointsWorld() : nullptr;
+  if (!this->Map || !curvePoints || curve->GetNumberOfDefinedControlPoints() < 2)
+    {
+    return this->points();
+    }
+  std::vector<QPointF> result;
+  vtkNew<vtkMatrix4x4> rasToIJK;
+  this->Map->GetRASToIJKMatrix(rasToIJK);
+  for (vtkIdType index = 0; index < curvePoints->GetNumberOfPoints(); index++)
+    {
+    double ras[4] = {0., 0., 0., 1.};
+    curvePoints->GetPoint(index, ras);
+    double ijk[4] = {0., 0., 0., 1.};
+    rasToIJK->MultiplyPoint(ras, ijk);
+    result.push_back(QPointF(ijk[0], ijk[1]));
+    }
+  return result;
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroMapPreviewPrivate::setPoint(int nth, const QPointF& ij)
+{
+  std::vector<int> indices;
+  this->points(&indices);
+  if (nth < 0 || nth >= static_cast<int>(indices.size()))
+    {
+    return;
+    }
   vtkNew<vtkMatrix4x4> ijkToRAS;
   this->Map->GetIJKToRASMatrix(ijkToRAS);
   const double ijk[4] = {ij.x(), ij.y(), 0., 1.};
   double ras[4] = {0., 0., 0., 1.};
   ijkToRAS->MultiplyPoint(ijk, ras);
-  this->Markups->SetNthControlPointPosition(index, ras[0], ras[1], ras[2]);
+  this->Markups->SetNthControlPointPosition(indices[nth], ras[0], ras[1], ras[2]);
+}
+
+//-----------------------------------------------------------------------------
+int qSlicerAstroMapPreviewPrivate::pointAt(const QWidget* widget, const QPointF& position) const
+{
+  const qSlicerAstroMapPreview* preview = static_cast<const qSlicerAstroMapPreview*>(widget);
+  const std::vector<QPointF> points = this->points();
+  int found = -1;
+  double best = GrabTolerance;
+  for (size_t index = 0; index < points.size(); index++)
+    {
+    const QPointF point = preview->mapToWidget(points[index].x(), points[index].y());
+    const double distance = std::hypot(point.x() - position.x(), point.y() - position.y());
+    if (distance <= best)
+      {
+      best = distance;
+      found = static_cast<int>(index);
+      }
+    }
+  return found;
 }
 
 //-----------------------------------------------------------------------------
@@ -279,16 +344,29 @@ void qSlicerAstroMapPreview::paintEvent(QPaintEvent* event)
     {
     path << this->mapToWidget(point.x(), point.y());
     }
+  // the curve (spline or straight segments) through the points
+  QPolygonF curve;
+  for (const QPointF& point : d->curvePoints())
+    {
+    curve << this->mapToWidget(point.x(), point.y());
+    }
   QPen shadow(QColor(0, 0, 0, 140), 4.);
   painter.setPen(shadow);
-  painter.drawPolyline(path);
+  painter.drawPolyline(curve);
   painter.setPen(QPen(theme->color("accent"), 2.));
-  painter.drawPolyline(path);
+  painter.drawPolyline(curve);
   painter.setBrush(theme->color("accent"));
   painter.setPen(QPen(QColor(0, 0, 0, 160), 1.));
   for (const QPointF& point : path)
     {
     painter.drawEllipse(point, 4.5, 4.5);
+    }
+  // the start of a curve (e.g. offset 0 of a PV diagram): a ring
+  if (vtkMRMLMarkupsCurveNode::SafeDownCast(d->Markups) && !path.isEmpty())
+    {
+    painter.setBrush(Qt::NoBrush);
+    painter.setPen(QPen(theme->color("accent"), 1.5));
+    painter.drawEllipse(path.first(), 7.5, 7.5);
     }
   // the centre of a line
   if (vtkMRMLMarkupsLineNode::SafeDownCast(d->Markups) && path.size() >= 2)
@@ -304,24 +382,30 @@ void qSlicerAstroMapPreview::paintEvent(QPaintEvent* event)
 void qSlicerAstroMapPreview::mousePressEvent(QMouseEvent* event)
 {
   Q_D(qSlicerAstroMapPreview);
-  if (event->button() != Qt::LeftButton || !d->Markups)
+  if (!d->Markups || !d->Map)
     {
     return;
     }
   const QPointF position = EventPosition(event);
-  const std::vector<QPointF> points = d->points();
-  d->Dragged = -1;
-  double best = GrabTolerance;
-  for (size_t index = 0; index < points.size(); index++)
+  const bool curve = vtkMRMLMarkupsCurveNode::SafeDownCast(d->Markups) != nullptr;
+  if (event->button() == Qt::RightButton)
     {
-    const QPointF point = this->mapToWidget(points[index].x(), points[index].y());
-    const double distance = std::hypot(point.x() - position.x(), point.y() - position.y());
-    if (distance <= best)
+    // a point of a curve removed
+    std::vector<int> indices;
+    d->points(&indices);
+    const int nth = d->pointAt(this, position);
+    if (curve && d->PointAdding && nth >= 0)
       {
-      best = distance;
-      d->Dragged = static_cast<int>(index);
+      d->Markups->RemoveNthControlPoint(indices[nth]);
       }
+    return;
     }
+  if (event->button() != Qt::LeftButton)
+    {
+    return;
+    }
+  std::vector<QPointF> points = d->points();
+  d->Dragged = d->pointAt(this, position);
   if (d->Dragged < 0 && vtkMRMLMarkupsLineNode::SafeDownCast(d->Markups) && points.size() >= 2)
     {
     const QPointF center = 0.5 * (this->mapToWidget(points[0].x(), points[0].y()) +
@@ -330,6 +414,21 @@ void qSlicerAstroMapPreview::mousePressEvent(QMouseEvent* event)
       {
       d->Dragged = -2;
       }
+    }
+  // a new point at the end of a curve (on the map), dragged until released
+  if (d->Dragged == -1 && curve && d->PointAdding && d->mapRect(this).contains(position))
+    {
+    const QPointF ij = this->widgetToMap(position);
+    const double i = std::clamp(ij.x(), 0., d->dimension(0) - 1.);
+    const double j = std::clamp(ij.y(), 0., d->dimension(1) - 1.);
+    vtkNew<vtkMatrix4x4> ijkToRAS;
+    d->Map->GetIJKToRASMatrix(ijkToRAS);
+    const double ijk[4] = {i, j, 0., 1.};
+    double ras[4] = {0., 0., 0., 1.};
+    ijkToRAS->MultiplyPoint(ijk, ras);
+    d->Markups->AddControlPoint(vtkVector3d(ras[0], ras[1], ras[2]));
+    points = d->points();
+    d->Dragged = static_cast<int>(points.size()) - 1;
     }
   d->DragStart = this->widgetToMap(position);
   d->DragPoints = points;
@@ -343,20 +442,17 @@ void qSlicerAstroMapPreview::mouseMoveEvent(QMouseEvent* event)
   if (d->Dragged == -1)
     {
     // the cursor over a point or the centre of the line
-    bool over = false;
     const std::vector<QPointF> points = d->points();
-    for (const QPointF& point : points)
-      {
-      const QPointF widgetPoint = this->mapToWidget(point.x(), point.y());
-      over = over || std::hypot(widgetPoint.x() - position.x(), widgetPoint.y() - position.y()) <= GrabTolerance;
-      }
+    bool over = d->pointAt(this, position) >= 0;
     if (vtkMRMLMarkupsLineNode::SafeDownCast(d->Markups) && points.size() >= 2)
       {
       const QPointF center = 0.5 * (this->mapToWidget(points[0].x(), points[0].y()) +
                                     this->mapToWidget(points[1].x(), points[1].y()));
       over = over || std::hypot(center.x() - position.x(), center.y() - position.y()) <= GrabTolerance;
       }
-    this->setCursor(over ? Qt::OpenHandCursor : Qt::ArrowCursor);
+    const bool adding = d->PointAdding && vtkMRMLMarkupsCurveNode::SafeDownCast(d->Markups) &&
+                        d->mapRect(this).contains(position);
+    this->setCursor(over ? Qt::OpenHandCursor : (adding ? Qt::CrossCursor : Qt::ArrowCursor));
     return;
     }
   if (!d->Markups || !d->Map)
@@ -386,4 +482,18 @@ void qSlicerAstroMapPreview::mouseReleaseEvent(QMouseEvent* event)
   Q_UNUSED(event);
   Q_D(qSlicerAstroMapPreview);
   d->Dragged = -1;
+}
+
+//-----------------------------------------------------------------------------
+bool qSlicerAstroMapPreview::pointAdding() const
+{
+  Q_D(const qSlicerAstroMapPreview);
+  return d->PointAdding;
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroMapPreview::setPointAdding(bool adding)
+{
+  Q_D(qSlicerAstroMapPreview);
+  d->PointAdding = adding;
 }
