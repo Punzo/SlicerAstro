@@ -73,8 +73,9 @@ qSlicerAstroReprojectModule::~qSlicerAstroReprojectModule()
 QString qSlicerAstroReprojectModule::helpText()const
 {
   return tr(
-    "<p>Reprojection, resampling and mosaicking of astronomical images and data cubes: the input volumes are "
-    "put on a new grid of sky pixels and channels.</p>"
+    "<p>Reprojection, resampling and mosaicking of astronomical images and data cubes: the input data are "
+    "put on a new grid of sky pixels and channels (in the background: progress and Cancel in the Reproject "
+    "button). Add data with + for a mosaic.</p>"
     "<ul>"
     "<li><b>Output grid</b>: sky pixels from a reference volume, from the input (optionally with larger or "
     "smaller pixels), covering all the inputs (mosaic), their common area, or defined manually (celestial "
@@ -165,16 +166,26 @@ void qSlicerAstroReprojectModule::setup()
   // reprojection service of the AstroVolume module (contours of other data)
   vtkWeakPointer<vtkSlicerAstroReprojectLogic> weakLogic = AstroReprojectLogic;
   astroVolumeLogic->SetReprojectFunction(
-    [weakLogic](vtkMRMLAstroReprojectParametersNode* pnode, std::string& error) -> bool
+    [weakLogic](vtkMRMLAstroReprojectParametersNode* pnode,
+                const vtkSlicerAstroVolumeLogic::ReprojectDoneType& done, bool synchronous, std::string& error) -> bool
     {
     if (!weakLogic)
       {
       error = "the AstroReproject logic was deleted";
       return false;
       }
-    const bool success = weakLogic->Reproject(pnode);
-    error = weakLogic->GetLastError();
-    return success;
+    const bool started = weakLogic->StartReproject(pnode, [weakLogic, done](bool success)
+      {
+      if (done)
+        {
+        done(success, weakLogic ? weakLogic->GetLastError() : std::string("the AstroReproject logic was deleted"));
+        }
+      }, synchronous);
+    if (!started)
+      {
+      error = weakLogic->GetLastError();
+      }
+    return started;
     });
 }
 

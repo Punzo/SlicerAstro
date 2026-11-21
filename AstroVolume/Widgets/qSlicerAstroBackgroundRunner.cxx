@@ -150,10 +150,11 @@ void qSlicerAstroBackgroundRunner::start(QWidget* parent, const QString& label, 
   job->Finished = finished;
   job->Thread = QThread::create(work);
   const QString text = label.endsWith("...") ? label.left(label.size() - 3) : label;
-  // the progress in the run button of the panel that started the work, or
-  // in a dialog that blocks nothing
+  // the progress in the run button of the panel that started the work (also
+  // when the button is hidden, e.g. in a collapsed section: shown when it is
+  // opened), or in a dialog that blocks nothing
   qSlicerAstroRunButton* runButton = qSlicerAstroRunButton::activeButton();
-  if (runButton && runButton->isVisible())
+  if (runButton)
     {
     job->Button = runButton;
     runButton->setProgressText(text);
@@ -241,10 +242,19 @@ void qSlicerAstroBackgroundRunner::finish()
     this->Dialog->deleteLater();
     }
   RunningJobs().removeAll(QPointer<qSlicerAstroBackgroundRunner>(this));
-  // results to the scene, in the GUI thread
+  // results to the scene, in the GUI thread; work started by finished (a
+  // next step, e.g. the contours after a reprojection) reports its progress
+  // to the same run button (no dialog)
   if (this->Finished)
     {
-    this->Finished();
+    if (this->Button)
+      {
+      this->Button->runAsActive(this->Finished);
+      }
+    else
+      {
+      this->Finished();
+      }
     }
   this->deleteLater();
 }

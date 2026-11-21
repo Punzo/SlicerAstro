@@ -268,7 +268,7 @@ qSlicerAstroContoursSection::qSlicerAstroContoursSection(QWidget* parent)
   d->DrawButton->pushButton()->setIcon(qSlicerAstroTheme::instance()->icon("contour", "on-accent"));
   d->DrawButton->setToolTip(tr("Draw the levels. The contours of the same source are replaced, those of other "
                                "sources are kept."));
-  QObject::connect(d->DrawButton, &qSlicerAstroRunButton::clicked, this, [this]() { this->drawContours(); });
+  QObject::connect(d->DrawButton, &qSlicerAstroRunButton::clicked, this, [this]() { this->startDrawContours(); });
   buttons->addWidget(d->DrawButton, 1);
   d->ShowButton = IconButton("eye", tr("Show or hide all the contours of the data."), "ContoursShow", true, this);
   d->SmoothButton = IconButton("smoothing", tr("Smooth contour lines (slower) instead of the outlines of the pixels."),
@@ -506,14 +506,13 @@ void qSlicerAstroContoursSection::onUnitChanged(int index)
 }
 
 //-----------------------------------------------------------------------------
-int qSlicerAstroContoursSection::drawContours()
+bool qSlicerAstroContoursSection::prepareContours(vtkDoubleArray* levels, vtkDoubleArray* colours)
 {
   Q_D(qSlicerAstroContoursSection);
   vtkMRMLAstroVolumeNode* source = d->sourceVolume();
-  vtkSlicerAstroVolumeLogic* logic = AstroVolumeLogic();
-  if (!d->Volume || !source || !logic)
+  if (!d->Volume || !source || !AstroVolumeLogic())
     {
-    return 0;
+    return false;
     }
   std::vector<double> values;
   for (QString text : d->Levels->text().replace(';', ',').split(',', Qt::SkipEmptyParts))
@@ -523,14 +522,14 @@ int qSlicerAstroContoursSection::drawContours()
     if (!ok)
       {
       d->Status->setText(tr("Levels: numbers separated by commas"));
-      return 0;
+      return false;
       }
     values.push_back(value);
     }
   if (values.empty())
     {
     d->Status->setText(tr("No levels"));
-    return 0;
+    return false;
     }
   double scale = 1.;
   if (d->Unit->currentIndex() == Sigma)
@@ -539,25 +538,28 @@ int qSlicerAstroContoursSection::drawContours()
     if (!(scale > 0.))
       {
       d->Status->setText(tr("The noise of the source is unknown: use values"));
-      return 0;
+      return false;
       }
     }
   else if (d->Unit->currentIndex() == ColumnDensity)
     {
     scale = ColumnDensityUnit / vtkSlicerAstroVolumeLogic::GetHIColumnDensityFactor(source);
     }
-  vtkNew<vtkDoubleArray> levels;
   for (double value : values)
     {
     levels->InsertNextValue(value * scale);
     }
-  vtkNew<vtkDoubleArray> colours;
   vtkSlicerAstroVolumeLogic::GetContourFamilyColors(d->Colours->currentText().toUtf8().constData(),
                                                     static_cast<int>(values.size()), colours);
-  QApplication::setOverrideCursor(Qt::WaitCursor);
-  const int created = logic->CreateContours(d->Volume, source, levels, false, true, colours, false);
-  QApplication::restoreOverrideCursor();
-  const QString message = QString::fromStdString(logic->GetLastContoursMessage());
+  return true;
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroContoursSection::showContoursResult(int created)
+{
+  Q_D(qSlicerAstroContoursSection);
+  vtkSlicerAstroVolumeLogic* logic = AstroVolumeLogic();
+  const QString message = logic ? QString::fromStdString(logic->GetLastContoursMessage()) : QString();
   if (created > 0)
     {
     d->Status->setText((created == 1 ? tr("1 level drawn") : tr("%1 levels drawn").arg(created)) +
@@ -565,10 +567,59 @@ int qSlicerAstroContoursSection::drawContours()
     }
   else
     {
-    d->Status->setText(message.isEmpty() ? tr("No contours") : message);
+    d->Status->setText(message == "cancelled" ? tr("Cancelled") : (message.isEmpty() ? tr("No contours") : message));
     }
   this->updateSources();
+}
+
+//-----------------------------------------------------------------------------
+int qSlicerAstroContoursSection::drawContours()
+{
+  Q_D(qSlicerAstroContoursSection);
+  vtkNew<vtkDoubleArray> levels;
+  vtkNew<vtkDoubleArray> colours;
+  if (!this->prepareContours(levels, colours))
+    {
+    return 0;
+    }
+  int created = 0;
+  // synchronous (scripts): the progress in the run button of the section
+  d->DrawButton->runAsActive([this, d, &levels, &colours, &created]()
+    {
+    AstroVolumeLogic()->StartCreateContours(d->Volume, d->sourceVolume(), levels, false, true, colours, false,
+                                            [&created](int count) { created = count; }, true);
+    });
+  this->showContoursResult(created);
   return created;
+}
+
+//-----------------------------------------------------------------------------
+bool qSlicerAstroContoursSection::startDrawContours()
+{
+  Q_D(qSlicerAstroContoursSection);
+  vtkNew<vtkDoubleArray> levels;
+  vtkNew<vtkDoubleArray> colours;
+  if (d->DrawButton->isRunning() || !this->prepareContours(levels, colours))
+    {
+    return false;
+    }
+  // in the background: the reprojection of other data and the levels show
+  // their progress and Cancel in the run button of the section (no dialog,
+  // the user interface is not blocked)
+  d->Status->clear();
+  QPointer<qSlicerAstroContoursSection> self(this);
+  d->DrawButton->runAsActive([this, d, &levels, &colours, self]()
+    {
+    AstroVolumeLogic()->StartCreateContours(d->Volume, d->sourceVolume(), levels, false, true, colours, false,
+      [self](int count)
+      {
+      if (self)
+        {
+        self->showContoursResult(count);
+        }
+      }, false);
+    });
+  return true;
 }
 
 //-----------------------------------------------------------------------------

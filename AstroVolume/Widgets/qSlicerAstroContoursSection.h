@@ -27,6 +27,7 @@
 #include "qSlicerAstroVolumeModuleWidgetsExport.h"
 
 class qSlicerAstroContoursSectionPrivate;
+class vtkDoubleArray;
 class vtkMRMLNode;
 class vtkObject;
 
@@ -61,8 +62,13 @@ public slots:
   void setSourceNode(vtkMRMLNode* node);
   /// Levels separated by commas, in unit (LevelUnit)
   void setLevels(const QString& levels, int unit);
-  /// Draws the levels; returns the number of levels drawn
+  /// Draws the levels and returns the number of levels drawn (synchronous,
+  /// for scripts and tests)
   int drawContours();
+  /// Draws the levels in the background (the Draw button): the user
+  /// interface is not blocked, the progress and Cancel are in the Draw
+  /// button, the result in status() at the end. False if not started.
+  bool startDrawContours();
   void setContoursVisible(bool visible);
   void setContoursSmooth(bool smooth);
   void deleteContours();
@@ -78,6 +84,11 @@ protected slots:
   void onSceneNodeAddedOrRemoved();
 
 protected:
+  /// Levels (data units) and colours of the fields; false (status set) if
+  /// they are not valid
+  bool prepareContours(vtkDoubleArray* levels, vtkDoubleArray* colours);
+  /// Status after the contours were drawn
+  void showContoursResult(int created);
   QScopedPointer<qSlicerAstroContoursSectionPrivate> d_ptr;
 
 private:

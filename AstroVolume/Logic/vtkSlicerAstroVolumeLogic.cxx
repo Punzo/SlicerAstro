@@ -2467,6 +2467,22 @@ void vtkSlicerAstroVolumeLogic::SetReprojectFunction(const ReprojectFunctionType
 //---------------------------------------------------------------------------
 bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *pnode)
 {
+  bool result = false;
+  if (!this->StartReproject(pnode, [this, &result](bool success, const std::string& error)
+      {
+      result = success;
+      this->LastReprojectError = error;
+      }, true))
+    {
+    return false;
+    }
+  return result;
+}
+
+//---------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::StartReproject(vtkMRMLAstroReprojectParametersNode* pnode,
+                                               const ReprojectDoneType& done, bool synchronous)
+{
   this->LastReprojectError.clear();
   if (!pnode)
     {
@@ -2478,7 +2494,7 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
     this->LastReprojectError = "the AstroReproject module is not loaded";
     return false;
     }
-  return this->ReprojectFunction(pnode, this->LastReprojectError);
+  return this->ReprojectFunction(pnode, done, synchronous, this->LastReprojectError);
 }
 
 //---------------------------------------------------------------------------
@@ -6373,23 +6389,290 @@ int vtkSlicerAstroVolumeLogic::CreateContours(vtkMRMLAstroVolumeNode* target, vt
                                               vtkDoubleArray* levels, bool bands, bool overlay,
                                               vtkDoubleArray* colors, bool visible3D)
 {
+  int created = 0;
+  this->StartCreateContours(target, source, levels, bands, overlay, colors, visible3D,
+                            [&created](int count) { created = count; }, true);
+  return created;
+}
+
+//----------------------------------------------------------------------------
+namespace
+{
+/// A contour level (or band) selected for the data
+struct ContourLevel
+{
+  double Lower;
+  double Upper;
+  int Index;  // position of the level (of the band) in the input
+};
+
+/// The levels of a contours job, computed in the worker thread
+struct ContoursJob
+{
+  vtkSmartPointer<vtkImageData> Data;
+  std::vector<ContourLevel> Levels;
+  std::vector<vtkSmartPointer<vtkImageData> > Labelmaps;
+  std::atomic<bool> Cancel{false};
+  std::atomic<int> Progress{0};
+};
+} // end of anonymous namespace
+
+//----------------------------------------------------------------------------
+void vtkSlicerAstroVolumeLogic::StartCreateContours(vtkMRMLAstroVolumeNode* target, vtkMRMLAstroVolumeNode* source,
+                                                    vtkDoubleArray* levels, bool bands, bool overlay,
+                                                    vtkDoubleArray* colors, bool visible3D,
+                                                    const std::function<void(int created)>& done, bool synchronous)
+{
   this->LastContoursMessage.clear();
+  std::function<void(int)> finished = done ? done : std::function<void(int)>([](int) {});
   vtkMRMLScene* scene = this->GetMRMLScene();
   if (!scene || !target || !source || !source->GetImageData() || !target->GetImageData() ||
       !source->GetAstroVolumeDisplayNode() || !levels)
     {
     this->LastContoursMessage = "the data of the contours were not found";
-    return 0;
+    finished(0);
+    return;
     }
+
+  // own copies of the levels and colours (the arrays of the caller may be
+  // gone at the end); the volumes may be removed meanwhile
+  vtkSmartPointer<vtkDoubleArray> levelValues = vtkSmartPointer<vtkDoubleArray>::New();
+  levelValues->DeepCopy(levels);
+  vtkSmartPointer<vtkDoubleArray> colorValues;
+  if (colors)
+    {
+    colorValues = vtkSmartPointer<vtkDoubleArray>::New();
+    colorValues->DeepCopy(colors);
+    }
+  vtkWeakPointer<vtkMRMLAstroVolumeNode> weakTarget = target;
+  vtkWeakPointer<vtkMRMLAstroVolumeNode> weakSource = source;
+  const std::string sourceID = source->GetID();
+  const std::string sourceName = source->GetName() ? source->GetName() : "";
+
+  // the levels of the data (the source, or the source reprojected on the
+  // grid of the target: temporary volume) in the background, the segments
+  // in the GUI thread
+  std::function<void(vtkMRMLAstroVolumeNode*, vtkMRMLAstroVolumeNode*)> contoursOfData =
+    [this, weakTarget, weakSource, sourceID, sourceName, levelValues, colorValues, bands, overlay, visible3D,
+     finished, synchronous](vtkMRMLAstroVolumeNode* data, vtkMRMLAstroVolumeNode* temporaryVolume)
+    {
+    vtkMRMLScene* scene = this->GetMRMLScene();
+    vtkWeakPointer<vtkMRMLAstroVolumeNode> weakTemporary = temporaryVolume;
+    std::function<void()> removeTemporary = [this, weakTemporary]()
+      {
+      vtkMRMLScene* currentScene = this->GetMRMLScene();
+      if (weakTemporary && currentScene && currentScene->IsNodePresent(weakTemporary))
+        {
+        currentScene->RemoveNode(weakTemporary->GetAstroVolumeDisplayNode());
+        currentScene->RemoveNode(weakTemporary);
+        }
+      };
+
+    // levels within the data (bands: pairs of levels)
+    const double dataMin = StringToDouble(data->GetAttribute("SlicerAstro.DATAMIN"));
+    const double dataMax = StringToDouble(data->GetAttribute("SlicerAstro.DATAMAX"));
+    std::shared_ptr<ContoursJob> job = std::make_shared<ContoursJob>();
+    job->Data = data->GetImageData();
+    int skipped = 0;
+    const int step = bands ? 2 : 1;
+    for (vtkIdType ii = 0; ii + step - 1 < levelValues->GetNumberOfValues(); ii += step)
+      {
+      const double level = levelValues->GetValue(ii);
+      const double next = bands ? levelValues->GetValue(ii + 1) : 0.;
+      if (level < dataMin || level > dataMax || (bands && (next < dataMin || next > dataMax)))
+        {
+        skipped++;
+        continue;
+        }
+      ContourLevel entry;
+      entry.Index = static_cast<int>(ii);
+      if (!bands)
+        {
+        entry.Lower = level < 0. ? dataMin : level;
+        entry.Upper = level < 0. ? level : dataMax;
+        }
+      else
+        {
+        entry.Lower = level < 0. ? next : level;
+        entry.Upper = level < 0. ? level : next;
+        }
+      job->Levels.push_back(entry);
+      }
+    if (job->Levels.empty())
+      {
+      removeTemporary();
+      std::ostringstream message;
+      message << "all the contour levels are outside the range of the data (" << dataMin << ", " << dataMax << ")";
+      this->LastContoursMessage = message.str();
+      finished(0);
+      return;
+      }
+    std::string skippedMessage;
+    if (skipped > 0)
+      {
+      std::ostringstream message;
+      message << skipped << " contour level" << (skipped > 1 ? "s are" : " is") << " outside the range of the data ("
+              << dataMin << ", " << dataMax << ") and " << (skipped > 1 ? "are" : "is") << " ignored";
+      skippedMessage = message.str();
+      }
+    vtkSmartPointer<vtkMatrix4x4> ijkToRAS = vtkSmartPointer<vtkMatrix4x4>::New();
+    data->GetIJKToRASMatrix(ijkToRAS);
+
+    // the binary labelmaps of the levels, in the worker thread (the voxels
+    // held, read only)
+    std::function<void()> work = [job]()
+      {
+      const int count = static_cast<int>(job->Levels.size());
+      for (int index = 0; index < count && !job->Cancel; index++)
+        {
+        vtkNew<vtkImageThreshold> threshold;
+        threshold->SetInputData(job->Data);
+        threshold->ThresholdBetween(job->Levels[index].Lower, job->Levels[index].Upper);
+        threshold->SetInValue(1);
+        threshold->SetOutValue(0);
+        threshold->SetOutputScalarType(VTK_SHORT);
+        threshold->Update();
+        vtkSmartPointer<vtkImageData> labelmap = threshold->GetOutput();
+        job->Labelmaps.push_back(labelmap);
+        job->Progress = static_cast<int>(100. * (index + 1) / count);
+        }
+      };
+
+    // the segments of the contours, in the GUI thread
+    std::function<void()> finish = [this, job, weakTarget, weakSource, sourceID, sourceName, colorValues, overlay,
+                                    visible3D, ijkToRAS, removeTemporary, skippedMessage, finished]()
+      {
+      removeTemporary();
+      vtkMRMLScene* scene = this->GetMRMLScene();
+      if (job->Cancel)
+        {
+        this->LastContoursMessage = "cancelled";
+        finished(0);
+        return;
+        }
+      if (!scene || !weakTarget || !weakSource || !scene->IsNodePresent(weakTarget) ||
+          !scene->IsNodePresent(weakSource) || job->Labelmaps.size() != job->Levels.size())
+        {
+        this->LastContoursMessage = "the data of the contours were removed";
+        finished(0);
+        return;
+        }
+      vtkMRMLAstroVolumeNode* target = weakTarget;
+      vtkMRMLAstroVolumeNode* source = weakSource;
+      vtkMRMLSegmentationNode* contours = this->GetContoursSegmentationForVolume(target, true);
+      if (!contours || !contours->GetSegmentation())
+        {
+        this->LastContoursMessage = "the contours segmentation of the volume could not be created";
+        finished(0);
+        return;
+        }
+      if (!contours->GetDisplayNode())
+        {
+        contours->CreateDefaultDisplayNodes();
+        }
+
+      // the new contours replace the previous ones: all of them, or with
+      // overlay only those of the same data (contours of other data stay)
+      vtkSegmentation* segmentation = contours->GetSegmentation();
+      std::vector<std::string> previousSegmentIDs;
+      segmentation->GetSegmentIDs(previousSegmentIDs);
+      for (const std::string& previousSegmentID : previousSegmentIDs)
+        {
+        vtkSegment* previousSegment = segmentation->GetSegment(previousSegmentID);
+        std::string previousSourceID;
+        if (!overlay || (previousSegment &&
+            previousSegment->GetTag(vtkSlicerAstroVolumeLogic::GetContoursVolumeTagName(), previousSourceID) &&
+            previousSourceID == sourceID))
+          {
+          segmentation->RemoveSegment(previousSegmentID);
+          }
+        }
+
+      vtkDoubleArray* defaultColor = source->GetAstroVolumeDisplayNode() ?
+        source->GetAstroVolumeDisplayNode()->GetContoursColor() : nullptr;
+      const std::string contoursEntry = vtkSlicerTerminologiesModuleLogic::GetDefaultTerminologyEntryAsString(contours);
+      std::vector<std::string> segmentIDs;
+      for (size_t level = 0; level < job->Levels.size(); level++)
+        {
+        const std::string segmentID = sourceName + "Contour" + std::to_string(job->Levels[level].Index + 1);
+        vtkNew<vtkOrientedImageData> labelmap;
+        labelmap->ShallowCopy(job->Labelmaps[level]);
+        labelmap->SetGeometryFromImageToWorldMatrix(ijkToRAS);
+
+        vtkSlicerAstroVolumeLogic::PrepareContoursUpdate(contours);
+        // each level has its own labelmap (own layer and geometry): contours
+        // of data with different grids and overlapping levels are kept as
+        // they are
+        if (segmentation->GetSegment(segmentID))
+          {
+          segmentation->RemoveSegment(segmentID);
+          }
+        vtkNew<vtkSegment> segment;
+        segment->SetName(segmentID.c_str());
+        double rgb[3] = {defaultColor ? defaultColor->GetValue(0) : 1., defaultColor ? defaultColor->GetValue(1) : 1.,
+                         defaultColor ? defaultColor->GetValue(2) : 1.};
+        if (colorValues && colorValues->GetNumberOfComponents() == 3 &&
+            static_cast<vtkIdType>(level) < colorValues->GetNumberOfTuples())
+          {
+          colorValues->GetTuple(static_cast<vtkIdType>(level), rgb);
+          }
+        segment->SetColor(rgb);
+        segment->SetTerminology(contoursEntry.empty() ? vtkMRMLAstroTerminology::GetContourEntry() : contoursEntry);
+        segment->SetTag(vtkSlicerAstroVolumeLogic::GetContoursVolumeTagName(), sourceID);
+        segment->SetLabelValue(1);
+        segment->AddRepresentation(vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName(), labelmap);
+        if (segmentation->AddSegment(segment, segmentID))
+          {
+          segmentIDs.push_back(segmentID);
+          }
+        else
+          {
+          vtkErrorMacro("CreateContours: failed to add the contour segment " << segmentID);
+          }
+        }
+
+      for (int ii = 0; ii < contours->GetNumberOfDisplayNodes(); ii++)
+        {
+        vtkMRMLSegmentationDisplayNode* displayNode =
+          vtkMRMLSegmentationDisplayNode::SafeDownCast(contours->GetNthDisplayNode(ii));
+        if (!displayNode)
+          {
+          continue;
+          }
+        if (!overlay)
+          {
+          displayNode->SetAllSegmentsVisibility(false);
+          }
+        for (const std::string& segmentID : segmentIDs)
+          {
+          displayNode->SetSegmentVisibility(segmentID, true);
+          displayNode->SetSegmentVisibility3D(segmentID, visible3D);
+          displayNode->SetSegmentVisibility2DFill(segmentID, false);
+          displayNode->SetSegmentVisibility2DOutline(segmentID, true);
+          }
+        }
+
+      // closed surfaces in 2D, binary labelmaps in 3D (not a mask)
+      vtkSlicerAstroVolumeLogic::SetContoursDisplay(contours);
+      if (contours->GetDisplayNode())
+        {
+        contours->GetDisplayNode()->SetVisibility(true);
+        }
+      this->LastContoursMessage = skippedMessage;
+      finished(static_cast<int>(segmentIDs.size()));
+      };
+    (void)scene;
+    this->StartInBackground("Contours of " + sourceName, work, [job]() { return job->Progress.load(); },
+                            [job]() { job->Cancel = true; }, finish, synchronous);
+    };
 
   // contours of other data: reprojected on the celestial grid of the target
   // (temporary volume with the channels of the other data). Rotated grids
   // and different celestial frames are handled by the reprojection.
-  vtkMRMLAstroVolumeNode* data = source;
-  vtkMRMLAstroVolumeNode* temporaryVolume = nullptr;
+  bool sameGrid = true;
   if (source != target)
     {
-    bool sameGrid = target->GetImageData()->GetDimensions()[0] == source->GetImageData()->GetDimensions()[0] &&
+    sameGrid = target->GetImageData()->GetDimensions()[0] == source->GetImageData()->GetDimensions()[0] &&
       target->GetImageData()->GetDimensions()[1] == source->GetImageData()->GetDimensions()[1];
     const char* gridKeys[] = {"CTYPE1", "CTYPE2", "CRVAL1", "CRVAL2", "CRPIX1", "CRPIX2", "CDELT1", "CDELT2",
                               "CROTA2", "PC1_1", "PC1_2", "PC2_1", "PC2_2", "EQUINOX", "RADESYS"};
@@ -6403,214 +6686,70 @@ int vtkSlicerAstroVolumeLogic::CreateContours(vtkMRMLAstroVolumeNode* target, vt
         sameGrid = false;
         }
       }
-    if (!sameGrid)
-      {
-      vtkInfoMacro("Contours: the data of the contours (" << source->GetName() << ") are reprojected on the grid of "
-                   << target->GetName() << " (bilinear interpolation).");
-      vtkNew<vtkMRMLAstroReprojectParametersNode> reprojectParameters;
-      reprojectParameters->SetInputVolumeNodeID(source->GetID());
-      reprojectParameters->SetInputVolumeNodeIDs(source->GetID());
-      reprojectParameters->SetReferenceVolumeNodeID(target->GetID());
-      reprojectParameters->SetSpatialGridMode(vtkMRMLAstroReprojectParametersNode::SpatialReference);
-      reprojectParameters->SetSpectralGridMode(vtkMRMLAstroReprojectParametersNode::SpectralInput);
-      reprojectParameters->SetInterpolationOrder(vtkMRMLAstroReprojectParametersNode::Bilinear);
-      if (!this->Reproject(reprojectParameters))
-        {
-        this->LastContoursMessage = this->LastReprojectError == "cancelled" ? std::string("cancelled") :
-          "the reprojection of " + std::string(source->GetName()) + " on the grid of " + target->GetName() +
-          " failed: " + this->LastReprojectError;
-        return 0;
-        }
-      temporaryVolume = vtkMRMLAstroVolumeNode::SafeDownCast(
-        scene->GetNodeByID(reprojectParameters->GetOutputVolumeNodeID()));
-      if (!temporaryVolume || !temporaryVolume->GetImageData())
-        {
-        this->LastContoursMessage = "the reprojected data of the contours were not found";
-        return 0;
-        }
-      for (int ii = temporaryVolume->GetNumberOfDisplayNodes() - 1; ii >= 0; ii--)
-        {
-        if (vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(temporaryVolume->GetNthDisplayNode(ii)))
-          {
-          temporaryVolume->RemoveNthDisplayNodeID(ii);
-          }
-        }
-      this->CenterVolume(target);
-      this->CenterVolume(temporaryVolume);
-      data = temporaryVolume;
-      }
+    }
+  if (sameGrid)
+    {
+    contoursOfData(source, nullptr);
+    return;
     }
 
-  // levels within the data (bands: pairs of levels)
-  const double dataMin = StringToDouble(data->GetAttribute("SlicerAstro.DATAMIN"));
-  const double dataMax = StringToDouble(data->GetAttribute("SlicerAstro.DATAMAX"));
-  struct Level
+  vtkInfoMacro("Contours: the data of the contours (" << source->GetName() << ") are reprojected on the grid of "
+               << target->GetName() << " (bilinear interpolation).");
+  vtkSmartPointer<vtkMRMLAstroReprojectParametersNode> reprojectParameters =
+    vtkSmartPointer<vtkMRMLAstroReprojectParametersNode>::New();
+  reprojectParameters->SetInputVolumeNodeID(source->GetID());
+  reprojectParameters->SetInputVolumeNodeIDs(source->GetID());
+  reprojectParameters->SetReferenceVolumeNodeID(target->GetID());
+  reprojectParameters->SetSpatialGridMode(vtkMRMLAstroReprojectParametersNode::SpatialReference);
+  reprojectParameters->SetSpectralGridMode(vtkMRMLAstroReprojectParametersNode::SpectralInput);
+  reprojectParameters->SetInterpolationOrder(vtkMRMLAstroReprojectParametersNode::Bilinear);
+  const std::string targetName = target->GetName() ? target->GetName() : "";
+  const bool started = this->StartReproject(reprojectParameters,
+    [this, reprojectParameters, weakTarget, weakSource, sourceName, targetName, contoursOfData, finished]
+    (bool success, const std::string& error)
     {
-    double Lower;
-    double Upper;
-    int Index;  // position of the level (of the band) in the input
-    };
-  std::vector<Level> selected;
-  int skipped = 0;
-  const int step = bands ? 2 : 1;
-  for (vtkIdType ii = 0; ii + step - 1 < levels->GetNumberOfValues(); ii += step)
-    {
-    const double level = levels->GetValue(ii);
-    const double next = bands ? levels->GetValue(ii + 1) : 0.;
-    if (level < dataMin || level > dataMax || (bands && (next < dataMin || next > dataMax)))
+    vtkMRMLScene* scene = this->GetMRMLScene();
+    vtkMRMLAstroVolumeNode* temporaryVolume = vtkMRMLAstroVolumeNode::SafeDownCast(
+      success && scene && reprojectParameters->GetOutputVolumeNodeID() ?
+      scene->GetNodeByID(reprojectParameters->GetOutputVolumeNodeID()) : nullptr);
+    if (!success)
       {
-      skipped++;
-      continue;
+      this->LastContoursMessage = error == "cancelled" ? std::string("cancelled") :
+        "the reprojection of " + sourceName + " on the grid of " + targetName + " failed: " + error;
+      finished(0);
+      return;
       }
-    Level entry;
-    entry.Index = static_cast<int>(ii);
-    if (!bands)
+    if (!temporaryVolume || !temporaryVolume->GetImageData())
       {
-      entry.Lower = level < 0. ? dataMin : level;
-      entry.Upper = level < 0. ? level : dataMax;
+      this->LastContoursMessage = "the reprojected data of the contours were not found";
+      finished(0);
+      return;
       }
-    else
+    for (int ii = temporaryVolume->GetNumberOfDisplayNodes() - 1; ii >= 0; ii--)
       {
-      entry.Lower = level < 0. ? next : level;
-      entry.Upper = level < 0. ? level : next;
+      if (vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(temporaryVolume->GetNthDisplayNode(ii)))
+        {
+        temporaryVolume->RemoveNthDisplayNodeID(ii);
+        }
       }
-    selected.push_back(entry);
-    }
-  if (selected.empty())
-    {
-    if (temporaryVolume)
+    if (!weakTarget || !weakSource || !scene->IsNodePresent(weakTarget) || !scene->IsNodePresent(weakSource))
       {
       scene->RemoveNode(temporaryVolume->GetAstroVolumeDisplayNode());
       scene->RemoveNode(temporaryVolume);
+      this->LastContoursMessage = "the data of the contours were removed";
+      finished(0);
+      return;
       }
-    std::ostringstream message;
-    message << "all the contour levels are outside the range of the data (" << dataMin << ", " << dataMax << ")";
-    this->LastContoursMessage = message.str();
-    return 0;
-    }
-  if (skipped > 0)
+    this->CenterVolume(weakTarget);
+    this->CenterVolume(temporaryVolume);
+    contoursOfData(temporaryVolume, temporaryVolume);
+    }, synchronous);
+  if (!started)
     {
-    std::ostringstream message;
-    message << skipped << " contour level" << (skipped > 1 ? "s are" : " is") << " outside the range of the data ("
-            << dataMin << ", " << dataMax << ") and " << (skipped > 1 ? "are" : "is") << " ignored";
-    this->LastContoursMessage = message.str();
+    this->LastContoursMessage = "the reprojection of " + sourceName + " on the grid of " + targetName + " failed: " +
+      this->LastReprojectError;
+    finished(0);
     }
-
-  vtkMRMLSegmentationNode* contours = this->GetContoursSegmentationForVolume(target, true);
-  if (!contours || !contours->GetSegmentation())
-    {
-    if (temporaryVolume)
-      {
-      scene->RemoveNode(temporaryVolume->GetAstroVolumeDisplayNode());
-      scene->RemoveNode(temporaryVolume);
-      }
-    this->LastContoursMessage = "the contours segmentation of the volume could not be created";
-    return 0;
-    }
-  if (!contours->GetDisplayNode())
-    {
-    contours->CreateDefaultDisplayNodes();
-    }
-
-  // the new contours replace the previous ones: all of them, or with overlay
-  // only those of the same data (contours of other data stay)
-  vtkSegmentation* segmentation = contours->GetSegmentation();
-  std::vector<std::string> previousSegmentIDs;
-  segmentation->GetSegmentIDs(previousSegmentIDs);
-  for (const std::string& previousSegmentID : previousSegmentIDs)
-    {
-    vtkSegment* previousSegment = segmentation->GetSegment(previousSegmentID);
-    std::string sourceVolumeID;
-    if (!overlay || (previousSegment &&
-        previousSegment->GetTag(vtkSlicerAstroVolumeLogic::GetContoursVolumeTagName(), sourceVolumeID) &&
-        sourceVolumeID == source->GetID()))
-      {
-      segmentation->RemoveSegment(previousSegmentID);
-      }
-    }
-
-  vtkDoubleArray* defaultColor = source->GetAstroVolumeDisplayNode()->GetContoursColor();
-  const std::string contoursEntry = vtkSlicerTerminologiesModuleLogic::GetDefaultTerminologyEntryAsString(contours);
-  vtkNew<vtkMatrix4x4> ijkToRAS;
-  data->GetIJKToRASMatrix(ijkToRAS);
-  std::vector<std::string> segmentIDs;
-  for (size_t level = 0; level < selected.size(); level++)
-    {
-    const std::string segmentID = std::string(source->GetName()) + "Contour" + std::to_string(selected[level].Index + 1);
-    vtkNew<vtkImageThreshold> threshold;
-    threshold->SetInputData(data->GetImageData());
-    threshold->ThresholdBetween(selected[level].Lower, selected[level].Upper);
-    threshold->SetInValue(1);
-    threshold->SetOutValue(0);
-    threshold->SetOutputScalarType(VTK_SHORT);
-    threshold->Update();
-    vtkNew<vtkOrientedImageData> labelmap;
-    labelmap->ShallowCopy(threshold->GetOutput());
-    labelmap->SetGeometryFromImageToWorldMatrix(ijkToRAS);
-
-    vtkSlicerAstroVolumeLogic::PrepareContoursUpdate(contours);
-    // each level has its own labelmap (own layer and geometry): contours of
-    // data with different grids and overlapping levels are kept as they are
-    if (segmentation->GetSegment(segmentID))
-      {
-      segmentation->RemoveSegment(segmentID);
-      }
-    vtkNew<vtkSegment> segment;
-    segment->SetName(segmentID.c_str());
-    double rgb[3] = {defaultColor ? defaultColor->GetValue(0) : 1., defaultColor ? defaultColor->GetValue(1) : 1.,
-                     defaultColor ? defaultColor->GetValue(2) : 1.};
-    if (colors && colors->GetNumberOfComponents() == 3 && static_cast<vtkIdType>(level) < colors->GetNumberOfTuples())
-      {
-      colors->GetTuple(static_cast<vtkIdType>(level), rgb);
-      }
-    segment->SetColor(rgb);
-    segment->SetTerminology(contoursEntry.empty() ? vtkMRMLAstroTerminology::GetContourEntry() : contoursEntry);
-    segment->SetTag(vtkSlicerAstroVolumeLogic::GetContoursVolumeTagName(), source->GetID());
-    segment->SetLabelValue(1);
-    segment->AddRepresentation(vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName(), labelmap);
-    if (segmentation->AddSegment(segment, segmentID))
-      {
-      segmentIDs.push_back(segmentID);
-      }
-    else
-      {
-      vtkErrorMacro("CreateContours: failed to add the contour segment " << segmentID);
-      }
-    }
-
-  for (int ii = 0; ii < contours->GetNumberOfDisplayNodes(); ii++)
-    {
-    vtkMRMLSegmentationDisplayNode* displayNode =
-      vtkMRMLSegmentationDisplayNode::SafeDownCast(contours->GetNthDisplayNode(ii));
-    if (!displayNode)
-      {
-      continue;
-      }
-    if (!overlay)
-      {
-      displayNode->SetAllSegmentsVisibility(false);
-      }
-    for (const std::string& segmentID : segmentIDs)
-      {
-      displayNode->SetSegmentVisibility(segmentID, true);
-      displayNode->SetSegmentVisibility3D(segmentID, visible3D);
-      displayNode->SetSegmentVisibility2DFill(segmentID, false);
-      displayNode->SetSegmentVisibility2DOutline(segmentID, true);
-      }
-    }
-
-  // closed surfaces in 2D, binary labelmaps in 3D (not a mask)
-  vtkSlicerAstroVolumeLogic::SetContoursDisplay(contours);
-  if (temporaryVolume)
-    {
-    scene->RemoveNode(temporaryVolume->GetAstroVolumeDisplayNode());
-    scene->RemoveNode(temporaryVolume);
-    }
-  if (contours->GetDisplayNode())
-    {
-    contours->GetDisplayNode()->SetVisibility(true);
-    }
-  return static_cast<int>(segmentIDs.size());
 }
 
 //----------------------------------------------------------------------------

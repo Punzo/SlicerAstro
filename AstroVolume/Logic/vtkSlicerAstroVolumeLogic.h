@@ -677,6 +677,18 @@ public:
   ///   explains a failure (0) or the levels left out (outside the data)
   int CreateContours(vtkMRMLAstroVolumeNode* target, vtkMRMLAstroVolumeNode* source, vtkDoubleArray* levels,
                      bool bands, bool overlay, vtkDoubleArray* colors = nullptr, bool visible3D = false);
+#ifndef __VTK_WRAP__
+  /// CreateContours without blocking the user interface: the reprojection of
+  /// other data and the levels are computed in the background (progress and
+  /// Cancel in the run button that started it), the segments are added in
+  /// the GUI thread and done(created) is called at the end (0: failure or
+  /// cancelled, reason in GetLastContoursMessage, "cancelled" if cancelled).
+  /// Synchronous if synchronous is true. The contours are not made if the
+  /// target or the source is removed meanwhile.
+  void StartCreateContours(vtkMRMLAstroVolumeNode* target, vtkMRMLAstroVolumeNode* source, vtkDoubleArray* levels,
+                           bool bands, bool overlay, vtkDoubleArray* colors, bool visible3D,
+                           const std::function<void(int created)>& done, bool synchronous = false);
+#endif
   std::string GetLastContoursMessage() { return this->LastContoursMessage; }
 
   /// Channel map: contours of a cube over a 2D image. The image is placed at
@@ -834,8 +846,17 @@ public:
 
 
 #ifndef __VTK_WRAP__
-  typedef std::function<bool(vtkMRMLAstroReprojectParametersNode* pnode, std::string& error)> ReprojectFunctionType;
+  /// Reprojection service of the AstroReproject module: starts the
+  /// reprojection of pnode (in the background unless synchronous) and calls
+  /// done(success, error) in the GUI thread at its end. Returns false if it
+  /// could not start (error set, done not called).
+  typedef std::function<void(bool success, const std::string& error)> ReprojectDoneType;
+  typedef std::function<bool(vtkMRMLAstroReprojectParametersNode* pnode, const ReprojectDoneType& done,
+                             bool synchronous, std::string& error)> ReprojectFunctionType;
   void SetReprojectFunction(const ReprojectFunctionType& function);
+  /// Start a reprojection with the service (false: not started, reason in
+  /// GetLastReprojectError)
+  bool StartReproject(vtkMRMLAstroReprojectParametersNode* pnode, const ReprojectDoneType& done, bool synchronous);
 #endif
 
   /// Layout with a plot of SlicerAstro: the channel map (red) and the 3D

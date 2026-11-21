@@ -1,5 +1,7 @@
 import os
 
+import qt
+
 import slicer
 import vtk
 from slicer.ScriptedLoadableModule import (
@@ -272,6 +274,39 @@ class AstroVolumeSegmentationsTestTest(ScriptedLoadableModuleTest):
             expected = math.pi * 2. * sigma * sigma * math.log(1. / level) / pixelArea
             self.assertAlmostEqual(float(np.count_nonzero(mask)) / expected, 1., delta=0.2,
                                    msg=f"level {level}")
+
+        # the Draw button: in the background (reprojection, then the levels),
+        # the progress in the button (no progress dialog), the user interface
+        # not blocked
+        segmentation.RemoveAllSegments()
+        self.assertTrue(displayWidget.startDrawContours())
+        drawButton = slicer.util.findChild(displayWidget, "ContoursDraw")
+        self.assertTrue(drawButton.running)
+        runner = slicer.qSlicerAstroBackgroundRunner()
+        sawDialog = False
+        for _ in range(400):
+            slicer.app.processEvents()
+            for widget in slicer.app.topLevelWidgets():
+                if isinstance(widget, qt.QProgressDialog) and widget.visible:
+                    sawDialog = True
+            if not drawButton.running:
+                break
+            qt.QThread.msleep(5)
+        self.assertTrue(runner.waitForJobs())
+        slicer.app.processEvents()
+        self.assertFalse(sawDialog, "the contours showed a progress dialog")
+        self.assertEqual(displayWidget.status(), "3 levels drawn")
+        self.assertEqual(segmentation.GetNumberOfSegments(), 3)
+        self.assertEqual(slicer.mrmlScene.GetNumberOfNodesByClass("vtkMRMLAstroVolumeNode"), numberOfVolumes)
+
+        # the source removed during the work: no contours, no temporary volume
+        segmentation.RemoveAllSegments()
+        self.assertTrue(displayWidget.startDrawContours())
+        slicer.mrmlScene.RemoveNode(sourceNode)
+        self.assertTrue(runner.waitForJobs())
+        slicer.app.processEvents()
+        self.assertEqual(segmentation.GetNumberOfSegments(), 0)
+        self.assertEqual(slicer.mrmlScene.GetNumberOfNodesByClass("vtkMRMLAstroVolumeNode"), numberOfVolumes - 1)
         self.delayDisplay("Test passed")
 
     def test_ContoursOfOtherCube(self):
