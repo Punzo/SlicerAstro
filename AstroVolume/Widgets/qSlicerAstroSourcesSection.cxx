@@ -22,14 +22,19 @@
 #include <QHBoxLayout>
 #include <QItemSelectionModel>
 #include <QLabel>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QSignalBlocker>
 #include <QTimer>
 #include <QToolButton>
 #include <QVBoxLayout>
 
+// STD includes
+#include <algorithm>
+
 // VTK includes
 #include <vtkCollection.h>
+#include <vtkIntArray.h>
 #include <vtkNew.h>
 #include <vtkTable.h>
 #include <vtkWeakPointer.h>
@@ -54,7 +59,9 @@
 #include <qSlicerCoreIOManager.h>
 #include <qSlicerModuleManager.h>
 
+#include "qSlicerAstroColorPicker.h"
 #include "qSlicerAstroSourcesSection.h"
+#include "qSlicerAstroValueField.h"
 #include "qSlicerAstroTheme.h"
 
 namespace
@@ -92,11 +99,18 @@ public:
   vtkWeakPointer<vtkMRMLScene> Scene;
   QComboBox* Catalogue{nullptr};
   QPushButton* LoadButton{nullptr};
+  QToolButton* RemoveButton{nullptr};
   qMRMLTableView* Table{nullptr};
   QLabel* Empty{nullptr};
   QToolButton* PointsButton{nullptr};
   QToolButton* LabelsButton{nullptr};
   QToolButton* SlicesButton{nullptr};
+  QToolButton* MoveButton{nullptr};
+  QToolButton* ColorButton{nullptr};
+  QToolButton* SelectedColorButton{nullptr};
+  qSlicerAstroValueField* SizeField{nullptr};
+  QPushButton* DeleteButton{nullptr};
+  QWidget* PointsRow{nullptr};
   QLabel* Status{nullptr};
   QTimer* UpdateTimer{nullptr};
   QString SelectedSegmentID;
@@ -143,8 +157,15 @@ qSlicerAstroSourcesSection::qSlicerAstroSourcesSection(QWidget* parent)
   d->LoadButton->setToolTip(tr("Import a catalogue (SoFiA text or VOTable, CSV or text with RA, Dec and velocity "
                                "or frequency) and place its sources on the data."));
   QObject::connect(d->LoadButton, &QPushButton::clicked, this, [this]() { this->loadCatalogue(); });
+  d->RemoveButton = new QToolButton(this);
+  d->RemoveButton->setObjectName("SourcesRemoveCatalogue");
+  d->RemoveButton->setProperty("astroRole", "iconButton");
+  d->RemoveButton->setIcon(qSlicerAstroTheme::instance()->icon("trash", "muted"));
+  d->RemoveButton->setToolTip(tr("Remove the catalogue from the scene (its table and the points of its sources)."));
+  QObject::connect(d->RemoveButton, &QToolButton::clicked, this, [this]() { this->removeCatalogue(true); });
   row->addWidget(d->Catalogue, 1);
   row->addWidget(d->LoadButton);
+  row->addWidget(d->RemoveButton);
   layout->addLayout(row);
 
   d->Table = new qMRMLTableView(this);
@@ -153,13 +174,16 @@ qSlicerAstroSourcesSection::qSlicerAstroSourcesSection(QWidget* parent)
   d->Table->setMaximumHeight(240);
   d->Table->setMinimumWidth(80);
   d->Table->setSelectionBehavior(QAbstractItemView::SelectRows);
-  d->Table->setSelectionMode(QAbstractItemView::SingleSelection);
-  d->Table->setToolTip(tr("Sources of the catalogue: click a source to centre the views on it."));
+  d->Table->setSelectionMode(QAbstractItemView::ExtendedSelection);
+  d->Table->setToolTip(tr("Sources of the catalogue: click a source to centre the views on it (Ctrl/Shift: "
+                          "several sources, drawn with the selected colour)."));
   layout->addWidget(d->Table);
   if (d->Table->selectionModel())
     {
     QObject::connect(d->Table->selectionModel(), &QItemSelectionModel::currentRowChanged,
                      this, &qSlicerAstroSourcesSection::onCurrentRowChanged);
+    QObject::connect(d->Table->selectionModel(), &QItemSelectionModel::selectionChanged,
+                     this, &qSlicerAstroSourcesSection::onSelectionChanged);
     }
   d->Empty = new QLabel(tr("No catalogue"), this);
   d->Empty->setObjectName("SourcesEmpty");
@@ -177,13 +201,78 @@ qSlicerAstroSourcesSection::qSlicerAstroSourcesSection(QWidget* parent)
                                               "them)."), "SourcesSlices", this);
   QObject::connect(d->PointsButton, SIGNAL(toggled(bool)), this, SLOT(setPointsVisible(bool)));
   QObject::connect(d->LabelsButton, SIGNAL(toggled(bool)), this, SLOT(setLabelsVisible(bool)));
+  d->MoveButton = OptionButton(tr("Move"), tr("Move the points of the sources with the mouse (the points are "
+                                             "locked otherwise)."), "SourcesMove", this);
   QObject::connect(d->SlicesButton, SIGNAL(toggled(bool)), this, SLOT(setSlicesVisible(bool)));
-  for (QToolButton* button : {d->PointsButton, d->LabelsButton, d->SlicesButton})
+  QObject::connect(d->MoveButton, SIGNAL(toggled(bool)), this, SLOT(setPointsMovable(bool)));
+  for (QToolButton* button : {d->PointsButton, d->LabelsButton, d->SlicesButton, d->MoveButton})
     {
     toggles->addWidget(button);
     }
   toggles->addStretch(1);
   layout->addLayout(toggles);
+
+  // colours and size of the points, deletion of the selected sources
+  d->PointsRow = new QWidget(this);
+  QHBoxLayout* pointsRow = new QHBoxLayout(d->PointsRow);
+  pointsRow->setContentsMargins(0, 0, 0, 0);
+  pointsRow->setSpacing(4);
+  d->ColorButton = new QToolButton(d->PointsRow);
+  d->ColorButton->setObjectName("SourcesColor");
+  d->ColorButton->setProperty("astroRole", "iconButton");
+  d->ColorButton->setToolTip(tr("Colour of the points of the sources."));
+  d->SelectedColorButton = new QToolButton(d->PointsRow);
+  d->SelectedColorButton->setObjectName("SourcesSelectedColor");
+  d->SelectedColorButton->setProperty("astroRole", "iconButton");
+  d->SelectedColorButton->setToolTip(tr("Colour of the points of the sources selected in the table."));
+  QObject::connect(d->ColorButton, &QToolButton::clicked, this, [this, d]()
+    {
+    vtkMRMLMarkupsDisplayNode* display = d->pointsDisplay();
+    if (!display)
+      {
+      return;
+      }
+    bool ok = false;
+    const QColor color = qSlicerAstroColorPicker::getColor(QColor::fromRgbF(display->GetColor()[0],
+      display->GetColor()[1], display->GetColor()[2]), this->window(), tr("Colour of the sources"), &ok);
+    if (ok)
+      {
+      this->setPointColor(color);
+      }
+    });
+  QObject::connect(d->SelectedColorButton, &QToolButton::clicked, this, [this, d]()
+    {
+    vtkMRMLMarkupsDisplayNode* display = d->pointsDisplay();
+    if (!display)
+      {
+      return;
+      }
+    bool ok = false;
+    const QColor color = qSlicerAstroColorPicker::getColor(QColor::fromRgbF(display->GetSelectedColor()[0],
+      display->GetSelectedColor()[1], display->GetSelectedColor()[2]), this->window(),
+      tr("Colour of the selected sources"), &ok);
+    if (ok)
+      {
+      this->setSelectedPointColor(color);
+      }
+    });
+  d->SizeField = new qSlicerAstroValueField(d->PointsRow);
+  d->SizeField->setObjectName("SourcesSize");
+  d->SizeField->setLeadingText(tr("Size"));
+  d->SizeField->setDecimals(1);
+  d->SizeField->setRange(0.1, 20.);
+  d->SizeField->setSingleStep(0.5);
+  d->SizeField->setToolTip(tr("Size of the points (relative to the views)."));
+  QObject::connect(d->SizeField, SIGNAL(valueChanged(double)), this, SLOT(setPointSize(double)));
+  d->DeleteButton = new QPushButton(qSlicerAstroTheme::instance()->icon("trash", "text"), tr("Delete"), d->PointsRow);
+  d->DeleteButton->setObjectName("SourcesDeleteSelected");
+  d->DeleteButton->setToolTip(tr("Delete the selected sources from the catalogue (rows of the table and points)."));
+  QObject::connect(d->DeleteButton, SIGNAL(clicked()), this, SLOT(deleteSelectedSources()));
+  pointsRow->addWidget(d->ColorButton);
+  pointsRow->addWidget(d->SelectedColorButton);
+  pointsRow->addWidget(d->SizeField, 1);
+  pointsRow->addWidget(d->DeleteButton);
+  layout->addWidget(d->PointsRow);
   d->Status = new QLabel(this);
   d->Status->setObjectName("SourcesStatus");
   d->Status->setProperty("astroRole", "monoLabel");
@@ -315,6 +404,24 @@ void qSlicerAstroSourcesSection::onCatalogueChanged(int index)
     buttons[i]->setChecked(states[i]);
     buttons[i]->setEnabled(displayNode != nullptr);
     }
+  {
+  const QSignalBlocker blocker(d->MoveButton);
+  d->MoveButton->setChecked(displayNode && !vtkSlicerAstroVolumeLogic::GetSourcePointsLocked(table));
+  d->MoveButton->setEnabled(displayNode != nullptr);
+  }
+  d->RemoveButton->setVisible(hasCatalogue);
+  d->PointsRow->setVisible(displayNode != nullptr);
+  if (displayNode)
+    {
+    const double* color = displayNode->GetColor();
+    const double* selected = displayNode->GetSelectedColor();
+    d->ColorButton->setIcon(qSlicerAstroColorPicker::swatchIcon(QColor::fromRgbF(color[0], color[1], color[2])));
+    d->SelectedColorButton->setIcon(qSlicerAstroColorPicker::swatchIcon(
+      QColor::fromRgbF(selected[0], selected[1], selected[2])));
+    const QSignalBlocker blocker(d->SizeField);
+    d->SizeField->setValue(displayNode->GetGlyphScale());
+    }
+  this->onSelectionChanged();
 }
 
 //-----------------------------------------------------------------------------
@@ -369,6 +476,142 @@ void qSlicerAstroSourcesSection::onCurrentRowChanged(const QModelIndex& current,
   if (current.isValid())
     {
     this->selectSource(current.row());
+    // several sources selected: all their points drawn as selected
+    this->onSelectionChanged();
+    }
+}
+
+//-----------------------------------------------------------------------------
+QList<int> qSlicerAstroSourcesSection::selectedRows() const
+{
+  Q_D(const qSlicerAstroSourcesSection);
+  QList<int> rows;
+  QItemSelectionModel* selection = d->Table->selectionModel();
+  if (!selection || !d->catalogue())
+    {
+    return rows;
+    }
+  for (const QModelIndex& index : selection->selectedRows())
+    {
+    if (!rows.contains(index.row()))
+      {
+      rows << index.row();
+      }
+    }
+  std::sort(rows.begin(), rows.end());
+  return rows;
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroSourcesSection::onSelectionChanged()
+{
+  Q_D(qSlicerAstroSourcesSection);
+  const QList<int> rows = this->selectedRows();
+  d->DeleteButton->setEnabled(!rows.isEmpty());
+  vtkMRMLTableNode* table = d->catalogue();
+  if (!table || rows.isEmpty())
+    {
+    return;
+    }
+  vtkNew<vtkIntArray> selected;
+  for (int row : rows)
+    {
+    selected->InsertNextValue(row);
+    }
+  vtkSlicerAstroVolumeLogic::SetSelectedSources(table, selected);
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroSourcesSection::deleteSelectedSources()
+{
+  Q_D(qSlicerAstroSourcesSection);
+  const QList<int> rows = this->selectedRows();
+  vtkMRMLTableNode* table = d->catalogue();
+  if (!table || rows.isEmpty())
+    {
+    return;
+    }
+  vtkNew<vtkIntArray> deleted;
+  for (int row : rows)
+    {
+    deleted->InsertNextValue(row);
+    }
+  d->Table->clearSelection();
+  vtkSlicerAstroVolumeLogic::DeleteSources(table, deleted);
+  d->Status->setText(rows.size() == 1 ? tr("1 source deleted") : tr("%1 sources deleted").arg(rows.size()));
+  d->SelectedSegmentID.clear();
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroSourcesSection::removeCatalogue(bool ask)
+{
+  Q_D(qSlicerAstroSourcesSection);
+  vtkMRMLTableNode* table = d->catalogue();
+  if (!table)
+    {
+    return;
+    }
+  if (ask)
+    {
+    // a dialog of the window with the whole theme
+    QMessageBox box(QMessageBox::Question, tr("Remove catalogue"),
+                    tr("Remove %1 and the points of its sources from the scene?")
+                      .arg(QString::fromUtf8(table->GetName())),
+                    QMessageBox::Yes | QMessageBox::No, this->window());
+    box.setDefaultButton(QMessageBox::No);
+    qSlicerAstroTheme::instance()->applyToDialog(&box);
+    if (box.exec() != QMessageBox::Yes)
+      {
+      return;
+      }
+    }
+  d->Table->setMRMLTableNode(static_cast<vtkMRMLTableNode*>(nullptr));
+  vtkSlicerAstroVolumeLogic::RemoveSourceCatalogue(table);
+  d->Status->clear();
+  d->SelectedSegmentID.clear();
+  this->updateFromScene();
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroSourcesSection::setPointsMovable(bool movable)
+{
+  Q_D(qSlicerAstroSourcesSection);
+  vtkSlicerAstroVolumeLogic::SetSourcePointsLocked(d->catalogue(), !movable);
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroSourcesSection::setPointColor(const QColor& color)
+{
+  Q_D(qSlicerAstroSourcesSection);
+  vtkMRMLMarkupsDisplayNode* displayNode = d->pointsDisplay();
+  if (displayNode && color.isValid())
+    {
+    displayNode->SetColor(color.redF(), color.greenF(), color.blueF());
+    d->ColorButton->setIcon(qSlicerAstroColorPicker::swatchIcon(color));
+    }
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroSourcesSection::setSelectedPointColor(const QColor& color)
+{
+  Q_D(qSlicerAstroSourcesSection);
+  vtkMRMLMarkupsDisplayNode* displayNode = d->pointsDisplay();
+  if (displayNode && color.isValid())
+    {
+    displayNode->SetSelectedColor(color.redF(), color.greenF(), color.blueF());
+    d->SelectedColorButton->setIcon(qSlicerAstroColorPicker::swatchIcon(color));
+    }
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroSourcesSection::setPointSize(double size)
+{
+  Q_D(qSlicerAstroSourcesSection);
+  vtkMRMLMarkupsDisplayNode* displayNode = d->pointsDisplay();
+  if (displayNode && size > 0.)
+    {
+    displayNode->SetGlyphScale(size);
+    displayNode->SetTextScale(std::max(1., size));
     }
 }
 

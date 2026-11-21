@@ -422,6 +422,18 @@ public:
   /// selected one and the slice views are centred on it. Returns the SoFiA
   /// id of the source ("" if it has none, or for an invalid row).
   static std::string SelectSource(vtkMRMLTableNode* table, int row);
+  /// The points of the sources of the rows are selected (drawn with the
+  /// selected colour of the points), the others not
+  static bool SetSelectedSources(vtkMRMLTableNode* table, vtkIntArray* rows);
+  /// Delete sources of a catalogue: the rows of the table and their points
+  static bool DeleteSources(vtkMRMLTableNode* table, vtkIntArray* rows);
+  /// Remove a catalogue from the scene: its table and the points of its
+  /// sources
+  static bool RemoveSourceCatalogue(vtkMRMLTableNode* table);
+  /// The points of the sources of a catalogue locked (not moved with the
+  /// mouse; the default of loaded catalogues) or not
+  static bool SetSourcePointsLocked(vtkMRMLTableNode* table, bool locked);
+  static bool GetSourcePointsLocked(vtkMRMLTableNode* table);
   /// Segment of a source (SoFiA id, segment tag SlicerAstro.SourceID) in a
   /// mask; "" if none
   static std::string GetSourceSegmentID(vtkMRMLSegmentationNode* mask, const char* sourceID);

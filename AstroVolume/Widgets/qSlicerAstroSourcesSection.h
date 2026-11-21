@@ -35,8 +35,9 @@ class vtkObject;
 /// Source catalogues of an astronomical volume, a reusable section
 /// (AstroVolume panel, Workbench): the catalogues placed on the volume (SoFiA
 /// or other catalogues with positions), their table, load, points, labels
-/// and 2D display of the sources; a click on a source centres the views on
-/// it, selects its point and its segment in the mask.
+/// and 2D display of the sources, their colours and size; a click on a
+/// source centres the views on it, selects its point and its segment in the
+/// mask; several sources can be selected (Ctrl/Shift) and deleted.
 class Q_SLICERASTRO_QTMODULES_ASTROVOLUME_WIDGETS_EXPORT qSlicerAstroSourcesSection : public QWidget
 {
   Q_OBJECT
@@ -53,6 +54,8 @@ public:
   Q_INVOKABLE QString status() const;
   /// Segment of the selected source in the mask of the volume ("" if none)
   Q_INVOKABLE QString selectedSegmentID() const;
+  /// Rows of the sources selected in the table
+  Q_INVOKABLE QList<int> selectedRows() const;
 
 public slots:
   /// The volume whose catalogues are shown (nullptr: none)
@@ -67,12 +70,24 @@ public slots:
   void setPointsVisible(bool visible);
   void setLabelsVisible(bool visible);
   void setSlicesVisible(bool visible);
+  /// Points moved with the mouse (unlocked) or not
+  void setPointsMovable(bool movable);
+  /// Colour of the points, and of the points of the selected sources
+  void setPointColor(const QColor& color);
+  void setSelectedPointColor(const QColor& color);
+  /// Size of the points (glyph scale of the markups)
+  void setPointSize(double size);
+  /// Delete the selected sources (rows of the table and points)
+  void deleteSelectedSources();
+  /// Remove the catalogue shown from the scene (ask: after a confirmation)
+  void removeCatalogue(bool ask = true);
   /// Updates the list of the catalogues and the buttons
   void updateFromScene();
 
 protected slots:
   void onCatalogueChanged(int index);
   void onCurrentRowChanged(const QModelIndex& current, const QModelIndex& previous);
+  void onSelectionChanged();
 
 protected:
   QScopedPointer<qSlicerAstroSourcesSectionPrivate> d_ptr;

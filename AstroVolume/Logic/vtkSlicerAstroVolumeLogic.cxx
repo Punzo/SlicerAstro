@@ -104,6 +104,7 @@
 #include <vtkSMPTools.h>
 #include <vtkSegmentation.h>
 #include <vtkIntArray.h>
+#include <vtkTable.h>
 #include <vtkMatrix3x3.h>
 #include <vtkMatrix4x4.h>
 #include <vtkNew.h>
@@ -4718,6 +4719,132 @@ std::string vtkSlicerAstroVolumeLogic::SelectSource(vtkMRMLTableNode* table, int
                                   vtkMRMLSliceNode::CenteredJumpSlice);
   const std::string description = points->GetNthControlPointDescription(row);
   return description.compare(0, 3, "id ") == 0 ? description.substr(3) : std::string();
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::SetSelectedSources(vtkMRMLTableNode* table, vtkIntArray* rows)
+{
+  vtkMRMLMarkupsFiducialNode* points = vtkSlicerAstroVolumeLogic::GetSourceCataloguePoints(table);
+  if (!points)
+    {
+    return false;
+    }
+  std::vector<bool> selected(points->GetNumberOfControlPoints(), false);
+  for (vtkIdType index = 0; rows && index < rows->GetNumberOfValues(); index++)
+    {
+    const int row = rows->GetValue(index);
+    if (row >= 0 && row < static_cast<int>(selected.size()))
+      {
+      selected[row] = true;
+      }
+    }
+  const int wasModifying = points->StartModify();
+  for (int index = 0; index < static_cast<int>(selected.size()); index++)
+    {
+    if (points->GetNthControlPointSelected(index) != selected[index])
+      {
+      points->SetNthControlPointSelected(index, selected[index]);
+      }
+    }
+  points->EndModify(wasModifying);
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::DeleteSources(vtkMRMLTableNode* table, vtkIntArray* rows)
+{
+  vtkTable* data = table ? table->GetTable() : nullptr;
+  if (!data || !rows)
+    {
+    return false;
+    }
+  vtkMRMLMarkupsFiducialNode* points = vtkSlicerAstroVolumeLogic::GetSourceCataloguePoints(table);
+  std::vector<int> sorted;
+  for (vtkIdType index = 0; index < rows->GetNumberOfValues(); index++)
+    {
+    sorted.push_back(rows->GetValue(index));
+    }
+  std::sort(sorted.begin(), sorted.end());
+  sorted.erase(std::unique(sorted.begin(), sorted.end()), sorted.end());
+  const int wasModifying = table->StartModify();
+  const int wasModifyingPoints = points ? points->StartModify() : 0;
+  for (std::vector<int>::reverse_iterator it = sorted.rbegin(); it != sorted.rend(); ++it)
+    {
+    if (*it >= 0 && *it < data->GetNumberOfRows())
+      {
+      data->RemoveRow(*it);
+      }
+    if (points && *it >= 0 && *it < points->GetNumberOfControlPoints())
+      {
+      points->RemoveNthControlPoint(*it);
+      }
+    }
+  data->Modified();
+  table->Modified();
+  if (points)
+    {
+    points->EndModify(wasModifyingPoints);
+    }
+  table->EndModify(wasModifying);
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::RemoveSourceCatalogue(vtkMRMLTableNode* table)
+{
+  vtkMRMLScene* scene = table ? table->GetScene() : nullptr;
+  if (!scene)
+    {
+    return false;
+    }
+  vtkMRMLMarkupsFiducialNode* points = vtkSlicerAstroVolumeLogic::GetSourceCataloguePoints(table);
+  if (points)
+    {
+    scene->RemoveNode(points);
+    }
+  scene->RemoveNode(table);
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::SetSourcePointsLocked(vtkMRMLTableNode* table, bool locked)
+{
+  vtkMRMLMarkupsFiducialNode* points = vtkSlicerAstroVolumeLogic::GetSourceCataloguePoints(table);
+  if (!points)
+    {
+    return false;
+    }
+  // the points are locked one by one by the catalogue reader
+  const int wasModifying = points->StartModify();
+  points->SetLocked(locked);
+  for (int index = 0; index < points->GetNumberOfControlPoints(); index++)
+    {
+    points->SetNthControlPointLocked(index, locked);
+    }
+  points->EndModify(wasModifying);
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::GetSourcePointsLocked(vtkMRMLTableNode* table)
+{
+  vtkMRMLMarkupsFiducialNode* points = vtkSlicerAstroVolumeLogic::GetSourceCataloguePoints(table);
+  if (!points)
+    {
+    return false;
+    }
+  if (points->GetLocked())
+    {
+    return true;
+    }
+  for (int index = 0; index < points->GetNumberOfControlPoints(); index++)
+    {
+    if (!points->GetNthControlPointLocked(index))
+      {
+      return false;
+      }
+    }
+  return points->GetNumberOfControlPoints() > 0;
 }
 
 //----------------------------------------------------------------------------

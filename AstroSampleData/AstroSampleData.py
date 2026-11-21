@@ -177,7 +177,7 @@ def loadSoFiASample(source):
     if tables and hasattr(slicer.modules, "astrosofiacatalog"):
         slicer.util.selectModule("AstroSoFiACatalog")
         widget = slicer.modules.astrosofiacatalog.widgetRepresentation().self()
-        widget.catalogSelector.setCurrentNode(tables[-1])
+        widget.showCatalogue(tables[-1])
     return nodes
 
 

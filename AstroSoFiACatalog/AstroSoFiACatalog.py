@@ -5,7 +5,6 @@ import re
 import shlex
 import xml.etree.ElementTree as ElementTree
 
-import ctk
 import qt
 import vtk
 
@@ -36,8 +35,11 @@ plain text (<i>name</i>_cat.txt, SoFiA 1 <i>name</i>_cat.ascii) and VOTable (<i>
 Each catalogue is loaded as a table (all the columns) and as a point list with
 a labelled point at the centroid of each source. The pixel positions of the
 catalogue are placed on the data cube or on the mask of the catalogue (load
-the cube or the mask first). Selecting a source in the table centers the
-views on it.
+the cube or the mask first). Other catalogues (CSV, text or VOTable with
+RA, Dec and a velocity or frequency) are placed with the WCS of the cube.
+The panel shows the catalogues of a dataset: selecting a source centres
+the views on it (Ctrl/Shift: several sources); points, labels, 2D views,
+moving, colours, size and deletion of sources.
 """
         self.parent.acknowledgementText = """
 This module was developed by Davide Punzo. <br>
@@ -46,278 +48,70 @@ This work was supported by ERC grant nr. 291531 and the Slicer Community.
 
 
 class AstroSoFiACatalogWidget(ScriptedLoadableModuleWidget):
+    """The catalogues of a dataset: the reusable C++ Sources section of
+    SlicerAstro (the same widget as the Sources tab of AstroVolume and of the
+    AstroWorkbench), with a dataset selector that follows the active volume."""
+
     def setup(self):
         ScriptedLoadableModuleWidget.setup(self)
-
         self.logic = AstroSoFiACatalogLogic()
+        theme = slicer.app.property("SlicerAstroTheme")
 
-        # Load
-        loadSection = ctk.ctkCollapsibleButton()
-        loadSection.text = "Load catalogue"
-        self.layout.addWidget(loadSection)
-        loadLayout = qt.QFormLayout(loadSection)
+        panel = qt.QWidget()
+        panelLayout = qt.QVBoxLayout(panel)
+        panelLayout.setContentsMargins(0, 0, 0, 0)
+        panelLayout.setSpacing(0)
+        header = slicer.qSlicerAstroPanelHeader()
+        header.title = "Source catalogues"
+        header.iconName = "module-sofia-sources"
+        panelLayout.addWidget(header)
+        body = qt.QWidget()
+        bodyLayout = qt.QVBoxLayout(body)
+        bodyLayout.setContentsMargins(12, 12, 12, 14)
+        bodyLayout.setSpacing(12)
+        panelLayout.addWidget(body)
 
-        self.catalogPathEdit = ctk.ctkPathLineEdit()
-        self.catalogPathEdit.filters = ctk.ctkPathLineEdit.Files
-        self.catalogPathEdit.nameFilters = [
-            "SoFiA catalogue (*_cat.txt *_cat.xml *_cat.ascii)",
-            "Source catalogue (*.csv *.tsv *.txt *.xml *.vot)", "All files (*)"]
-        self.catalogPathEdit.settingKey = "AstroSoFiACatalog/CatalogPath"
-        self.catalogPathEdit.toolTip = (
-            "Plain text (_cat.txt, _cat.ascii) or VOTable (_cat.xml) catalogue of SoFiA, or another source "
-            "catalogue (CSV, plain text table or VOTable) with the columns ra and dec (degrees) and "
-            "optionally v_opt, v_rad, v_app (km/s, or the unit in the column name, e.g. v_opt [m/s]) or "
-            "freq (Hz).")
-        loadLayout.addRow("Catalogue:", self.catalogPathEdit)
+        self.datasetSelector = slicer.qSlicerAstroDatasetSelector()
+        self.datasetSelector.setObjectName("InputVolumeNodeSelector")
+        self.datasetSelector.nodeTypes = ["vtkMRMLAstroVolumeNode"]
+        self.datasetSelector.noneText = "Select a dataset"
+        self.datasetSelector.toolTip = "Dataset whose catalogues of sources are shown (and on which they are placed)."
+        self.datasetSelector.setMRMLScene(slicer.mrmlScene)
+        bodyLayout.addWidget(self.datasetSelector)
 
-        self.referenceSelector = slicer.qMRMLNodeComboBox()
-        self.referenceSelector.nodeTypes = ["vtkMRMLAstroVolumeNode", "vtkMRMLSegmentationNode"]
-        self.referenceSelector.noneEnabled = True
-        self.referenceSelector.noneDisplay = "Automatic (mask of the catalogue, or active cube)"
-        self.referenceSelector.addEnabled = False
-        self.referenceSelector.removeEnabled = False
-        self.referenceSelector.showChildNodeTypes = False
-        self.referenceSelector.setMRMLScene(slicer.mrmlScene)
-        self.referenceSelector.toolTip = ("Data cube or mask on which the pixel positions of the catalogue are "
-                                          "placed (the SoFiA catalogue must have been created from it), or data "
-                                          "cube whose world coordinates place the celestial positions of other "
-                                          "catalogues.")
-        loadLayout.addRow("Positions on:", self.referenceSelector)
-
-        self.loadButton = qt.QPushButton("Load")
-        self.loadButton.toolTip = "Load the catalogue as a table and as labelled source points."
-        loadLayout.addRow(self.loadButton)
-
-        # Sources
-        sourcesSection = ctk.ctkCollapsibleButton()
-        sourcesSection.text = "Sources"
-        self.layout.addWidget(sourcesSection)
-        sourcesLayout = qt.QVBoxLayout(sourcesSection)
-
-        selectorLayout = qt.QFormLayout()
-        sourcesLayout.addLayout(selectorLayout)
-        self.catalogSelector = slicer.qMRMLNodeComboBox()
-        self.catalogSelector.nodeTypes = ["vtkMRMLTableNode"]
-        self.catalogSelector.addAttribute("vtkMRMLTableNode", "SlicerAstro.SoFiASources")
-        self.catalogSelector.noneEnabled = True
-        self.catalogSelector.addEnabled = False
-        self.catalogSelector.removeEnabled = True
-        self.catalogSelector.renameEnabled = True
-        self.catalogSelector.setMRMLScene(slicer.mrmlScene)
-        self.catalogSelector.toolTip = "Loaded SoFiA catalogues."
-        selectorLayout.addRow("Catalogue:", self.catalogSelector)
-
-        self.tableView = slicer.qMRMLTableView()
-        self.tableView.setMRMLScene(slicer.mrmlScene)
-        self.tableView.setSelectionBehavior(qt.QAbstractItemView.SelectRows)
-        self.tableView.setSelectionMode(qt.QAbstractItemView.ExtendedSelection)
-        self.tableView.minimumHeight = 250
-        self.tableView.toolTip = ("Select sources (Ctrl/Shift for several): the views are centered on the "
-                                  "current one and their points are shown with the selected color.")
-        sourcesLayout.addWidget(self.tableView)
-
-        editLayout = qt.QHBoxLayout()
-        self.deleteSelectedButton = qt.QPushButton("Delete selected")
-        self.deleteSelectedButton.toolTip = "Delete the selected sources (table rows and points)."
-        self.deleteAllButton = qt.QPushButton("Delete all points")
-        self.deleteAllButton.toolTip = "Delete all the source points of the catalogue (the table is kept)."
-        editLayout.addWidget(self.deleteSelectedButton)
-        editLayout.addWidget(self.deleteAllButton)
-        editLayout.addStretch(1)
-        sourcesLayout.addLayout(editLayout)
-
-        # Source points (markups point list of the catalogue)
-        pointsSection = ctk.ctkCollapsibleButton()
-        pointsSection.text = "Source points"
-        self.layout.addWidget(pointsSection)
-        pointsLayout = qt.QVBoxLayout(pointsSection)
-
-        togglesLayout = qt.QHBoxLayout()
-        self.showPointsCheckBox = qt.QCheckBox("Show points")
-        self.showPointsCheckBox.checked = True
-        self.show2DCheckBox = qt.QCheckBox("Show in 2D views")
-        self.show2DCheckBox.checked = False
-        self.show2DCheckBox.toolTip = ("Show the source points also in the slice views, where a slice passes "
-                                       "through the centre of the source (by default only in the 3D views).")
-        self.showNamesCheckBox = qt.QCheckBox("Show names")
-        self.showNamesCheckBox.checked = True
-        self.lockedCheckBox = qt.QCheckBox("Lock positions")
-        self.lockedCheckBox.checked = True
-        self.lockedCheckBox.toolTip = "Unlock to move the source points with the mouse."
-        self.markupsModuleButton = qt.QPushButton("Edit in Markups")
-        self.markupsModuleButton.toolTip = "Open the source points in the Markups module."
-        for widget in (self.showPointsCheckBox, self.show2DCheckBox, self.showNamesCheckBox, self.lockedCheckBox):
-            togglesLayout.addWidget(widget)
-        togglesLayout.addStretch(1)
-        togglesLayout.addWidget(self.markupsModuleButton)
-        pointsLayout.addLayout(togglesLayout)
-
-        colorsLayout = qt.QHBoxLayout()
-        colorsLayout.addWidget(qt.QLabel("Color:"))
-        self.colorButton = ctk.ctkColorPickerButton()
-        self.colorButton.toolTip = "Color of the source points."
-        colorsLayout.addWidget(self.colorButton)
-        colorsLayout.addWidget(qt.QLabel("Selected color:"))
-        self.selectedColorButton = ctk.ctkColorPickerButton()
-        self.selectedColorButton.toolTip = "Color of the points of the sources selected in the table."
-        colorsLayout.addWidget(self.selectedColorButton)
-        colorsLayout.addStretch(1)
-        pointsLayout.addLayout(colorsLayout)
-
-        # opacity, glyph and text size; Advanced: glyph type, text, 2D projection
-        self.markupsDisplayWidget = slicer.qMRMLMarkupsDisplayNodeWidget()
-        self.markupsDisplayWidget.setMRMLScene(slicer.mrmlScene)
-        for groupName in ("CollapsibleGroupBox", "ScalarsCollapsibleGroupBox"):  # interaction handles, scalars
-            group = slicer.util.findChild(self.markupsDisplayWidget, groupName)
-            group.hide()
-        pointsLayout.addWidget(self.markupsDisplayWidget)
-
+        self.sourcesSection = slicer.qSlicerAstroSourcesSection()
+        bodyLayout.addWidget(self.sourcesSection)
+        bodyLayout.addStretch(1)
+        self.layout.addWidget(panel)
         self.layout.addStretch(1)
+        if theme:
+            theme.applyTo(panel)
 
-        self.catalogPathEdit.connect("currentPathChanged(QString)", self.updateLoadButton)
-        self.loadButton.connect("clicked()", self.onLoad)
-        self.catalogSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.onCatalogChanged)
-        self.showPointsCheckBox.connect("toggled(bool)", self.updatePointDisplay)
-        self.show2DCheckBox.connect("toggled(bool)", self.updatePointDisplay)
-        self.showNamesCheckBox.connect("toggled(bool)", self.updatePointDisplay)
-        self.lockedCheckBox.connect("toggled(bool)", self.updatePointDisplay)
-        self.markupsModuleButton.connect("clicked()", self.onEditInMarkups)
-        self.deleteSelectedButton.connect("clicked()", self.onDeleteSelected)
-        self.deleteAllButton.connect("clicked()", self.onDeleteAllPoints)
-        self.colorButton.connect("colorChanged(QColor)", self.onColorChanged)
-        self.selectedColorButton.connect("colorChanged(QColor)", self.onColorChanged)
-        self.tableView.selectionModel().connect(
-            "selectionChanged(QItemSelection,QItemSelection)", self.onSelectionChanged)
-        self.tableView.selectionModel().connect(
-            "currentRowChanged(QModelIndex,QModelIndex)", self.onSourceSelected)
-        self.updateLoadButton()
-        self.onCatalogChanged(self.catalogSelector.currentNode())
+        self.datasetSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.sourcesSection.setVolumeNode)
+        self.selectionNode = slicer.app.applicationLogic().GetSelectionNode()
+        self.selectionObserver = self.selectionNode.AddObserver(vtk.vtkCommand.ModifiedEvent,
+                                                                self.onSelectionNodeModified)
+        self.onSelectionNodeModified()
 
-    def updateLoadButton(self, path=None):
-        path = self.catalogPathEdit.currentPath
-        self.loadButton.enabled = bool(path) and os.path.isfile(path)
+    def cleanup(self):
+        if getattr(self, "selectionObserver", None):
+            self.selectionNode.RemoveObserver(self.selectionObserver)
+            self.selectionObserver = None
 
-    def onLoad(self):
-        path = self.catalogPathEdit.currentPath
-        try:
-            tableNode, _ = self.logic.loadCatalog(path, self.referenceSelector.currentNode())
-        except Exception as e:
-            slicer.util.errorDisplay(f"Failed to load the catalogue {os.path.basename(path)}: {e}")
-            return
-        self.catalogPathEdit.addCurrentPathToHistory()
-        self.catalogSelector.setCurrentNode(tableNode)
+    def onSelectionNodeModified(self, caller=None, event=None):
+        """The panel follows the active volume."""
+        activeID = self.selectionNode.GetActiveVolumeID()
+        volume = slicer.mrmlScene.GetNodeByID(activeID) if activeID else None
+        if volume and volume.IsA("vtkMRMLAstroVolumeNode") and volume != self.datasetSelector.currentNode():
+            self.datasetSelector.setCurrentNode(volume)
 
-    def pointListNode(self):
-        tableNode = self.catalogSelector.currentNode()
-        pointListID = tableNode.GetAttribute("SlicerAstro.SoFiASources") if tableNode else None
-        return slicer.mrmlScene.GetNodeByID(pointListID) if pointListID else None
-
-    def onCatalogChanged(self, tableNode):
-        self.tableView.setMRMLTableNode(tableNode)
-        pointListNode = self.pointListNode()
-        self.markupsDisplayWidget.setMRMLMarkupsNode(pointListNode)
-        toggles = (self.showPointsCheckBox, self.show2DCheckBox, self.showNamesCheckBox, self.lockedCheckBox,
-                   self.colorButton, self.selectedColorButton)
-        enabled = pointListNode is not None and pointListNode.GetDisplayNode() is not None
-        for widget in toggles + (self.markupsModuleButton, self.markupsDisplayWidget,
-                                 self.deleteSelectedButton, self.deleteAllButton):
-            widget.enabled = enabled
-        if not enabled:
-            return
-        displayNode = pointListNode.GetDisplayNode()
-        for widget in toggles:
-            widget.blockSignals(True)
-        self.colorButton.color = qt.QColor.fromRgbF(*displayNode.GetColor())
-        self.selectedColorButton.color = qt.QColor.fromRgbF(*displayNode.GetSelectedColor())
-        self.showPointsCheckBox.checked = displayNode.GetVisibility()
-        self.show2DCheckBox.checked = displayNode.GetVisibility2D()
-        self.showNamesCheckBox.checked = displayNode.GetPointLabelsVisibility()
-        self.lockedCheckBox.checked = pointListNode.GetLocked() or all(
-            pointListNode.GetNthControlPointLocked(index) for index in range(pointListNode.GetNumberOfControlPoints()))
-        for widget in toggles:
-            widget.blockSignals(False)
-
-    def updatePointDisplay(self, value=None):
-        pointListNode = self.pointListNode()
-        displayNode = pointListNode.GetDisplayNode() if pointListNode else None
-        if not displayNode:
-            return
-        wasModifying = displayNode.StartModify()
-        displayNode.SetVisibility(self.showPointsCheckBox.checked)
-        displayNode.SetVisibility2D(self.show2DCheckBox.checked)
-        displayNode.SetPointLabelsVisibility(self.showNamesCheckBox.checked)
-        displayNode.EndModify(wasModifying)
-        # the points are locked one by one by the catalogue reader
-        locked = self.lockedCheckBox.checked
-        wasModifying = pointListNode.StartModify()
-        pointListNode.SetLocked(locked)
-        for index in range(pointListNode.GetNumberOfControlPoints()):
-            pointListNode.SetNthControlPointLocked(index, locked)
-        pointListNode.EndModify(wasModifying)
-
-    def selectedRows(self):
-        return sorted({index.row() for index in self.tableView.selectionModel().selectedRows()})
-
-    def onSelectionChanged(self, selected=None, deselected=None):
-        """Points of the selected sources are drawn with the selected color."""
-        pointListNode = self.pointListNode()
-        if not pointListNode:
-            return
-        rows = set(self.selectedRows())
-        wasModifying = pointListNode.StartModify()
-        for index in range(pointListNode.GetNumberOfControlPoints()):
-            pointListNode.SetNthControlPointSelected(index, index in rows)
-        pointListNode.EndModify(wasModifying)
-
-    def onColorChanged(self, color=None):
-        pointListNode = self.pointListNode()
-        displayNode = pointListNode.GetDisplayNode() if pointListNode else None
-        if not displayNode:
-            return
-        color = self.colorButton.color
-        selectedColor = self.selectedColorButton.color
-        wasModifying = displayNode.StartModify()
-        displayNode.SetColor(color.redF(), color.greenF(), color.blueF())
-        displayNode.SetSelectedColor(selectedColor.redF(), selectedColor.greenF(), selectedColor.blueF())
-        displayNode.EndModify(wasModifying)
-
-    def onDeleteSelected(self):
-        """Delete the selected sources: rows of the table and points."""
-        tableNode = self.catalogSelector.currentNode()
-        pointListNode = self.pointListNode()
-        rows = self.selectedRows()
-        if not tableNode or not rows:
-            return
-        self.logic.deleteSources(tableNode, rows)
-        self.tableView.clearSelection()
-
-    def onDeleteAllPoints(self):
-        pointListNode = self.pointListNode()
-        if not pointListNode:
-            return
-        if not slicer.util.confirmOkCancelDisplay(
-                f"Delete all the {pointListNode.GetNumberOfControlPoints()} source points of "
-                f"{self.catalogSelector.currentNode().GetName()}?"):
-            return
-        pointListNode.RemoveAllControlPoints()
-
-    def onEditInMarkups(self):
-        pointListNode = self.pointListNode()
-        if not pointListNode:
-            return
-        slicer.modules.markups.logic().SetActiveList(pointListNode)
-        slicer.util.selectModule("Markups")
-
-    def onSourceSelected(self, current, previous=None):
-        pointListNode = self.pointListNode()
-        if not pointListNode or not current.isValid():
-            return
-        row = current.row()
-        if row < 0 or row >= pointListNode.GetNumberOfControlPoints():
-            return
-        position = [0.0, 0.0, 0.0]
-        pointListNode.GetNthControlPointPositionWorld(row, position)
-        slicer.modules.markups.logic().JumpSlicesToLocation(position[0], position[1], position[2], True)
+    def showCatalogue(self, tableNode):
+        """Show a catalogue: its dataset selected, the catalogue in the table."""
+        volume = slicer.vtkSlicerAstroVolumeLogic.GetSourceCatalogueVolume(tableNode)
+        if volume:
+            self.datasetSelector.setCurrentNode(volume)
+            self.sourcesSection.setVolumeNode(volume)
+        self.sourcesSection.setCatalogueNode(tableNode)
 
 
 #
@@ -725,16 +519,10 @@ class AstroSoFiACatalogLogic(ScriptedLoadableModuleLogic):
     @staticmethod
     def deleteSources(tableNode, rows):
         """Delete sources of a loaded catalogue: rows of the table and their points."""
-        pointListID = tableNode.GetAttribute("SlicerAstro.SoFiASources")
-        pointListNode = slicer.mrmlScene.GetNodeByID(pointListID) if pointListID else None
-        table = tableNode.GetTable()
-        for row in sorted(set(rows), reverse=True):
-            if 0 <= row < table.GetNumberOfRows():
-                table.RemoveRow(row)
-            if pointListNode and 0 <= row < pointListNode.GetNumberOfControlPoints():
-                pointListNode.RemoveNthControlPoint(row)
-        table.Modified()
-        tableNode.Modified()
+        rowArray = vtk.vtkIntArray()
+        for row in rows:
+            rowArray.InsertNextValue(row)
+        return slicer.vtkSlicerAstroVolumeLogic.DeleteSources(tableNode, rowArray)
 
     def loadCatalog(self, catalogPath, referenceNode=None):
         """Load a SoFiA catalogue: table with all the columns, and point list of the sources.
@@ -913,59 +701,69 @@ class AstroSoFiACatalogTest(ScriptedLoadableModuleTest):
         self.delayDisplay("Test passed")
 
     def test_ModuleWidget(self):
-        maskPath = os.path.join(self.directory, "test_mask.fits")
+        """The panel: the C++ Sources section on the dataset (active volume)."""
+        cubePath = os.path.join(self.directory, "test.fits")
         textPath = os.path.join(self.directory, "test_cat.txt")
-        self.writeMask(maskPath)
+        self.writeMask(cubePath, cube=True)
         self.writeTextCatalog(textPath)
-        maskNode = slicer.util.loadSegmentation(maskPath)
+        cube = slicer.util.loadVolume(cubePath)
+        slicer.app.applicationLogic().GetSelectionNode().SetActiveVolumeID(cube.GetID())
 
         slicer.util.selectModule("AstroSoFiACatalog")
         widget = slicer.modules.astrosofiacatalog.widgetRepresentation().self()
-        widget.catalogPathEdit.currentPath = textPath
-        self.assertTrue(widget.loadButton.enabled)
-        widget.loadButton.click()
-        tableNode = widget.catalogSelector.currentNode()
-        self.assertIsNotNone(tableNode)
-        self.assertEqual(tableNode.GetName(), "test_catalogue")
-        pointListNode = widget.pointListNode()
-        self.checkSources(pointListNode, maskNode)
-        self.assertTrue(widget.showNamesCheckBox.checked)
-        self.assertTrue(widget.lockedCheckBox.checked)
+        section = widget.sourcesSection
+        self.assertEqual(widget.datasetSelector.currentNode(), cube)
+        self.assertEqual(section.catalogueCount(), 0)
+        # no node selectors, path editors or markups widgets of the old panel
+        panel = slicer.modules.astrosofiacatalog.widgetRepresentation()
+        self.assertEqual(slicer.util.findChildren(panel, className="qMRMLNodeComboBox"), [])
+        self.assertEqual(slicer.util.findChildren(panel, className="ctkPathLineEdit"), [])
+        self.assertEqual(slicer.util.findChildren(panel, className="qMRMLMarkupsDisplayNodeWidget"), [])
+
+        self.assertTrue(section.loadCatalogue(textPath))
+        self.assertEqual(section.catalogueCount(), 1)
+        self.assertEqual(section.sourceCount(), 2)
+        tableNode = slicer.util.getNode("test_catalogue")
+        pointListNode = slicer.vtkSlicerAstroVolumeLogic.GetSourceCataloguePoints(tableNode)
+        self.checkSources(pointListNode, cube)
 
         # only in the 3D views by default, never projected on all the slices
         displayNode = pointListNode.GetDisplayNode()
-        self.assertFalse(widget.show2DCheckBox.checked)
         self.assertFalse(displayNode.GetVisibility2D())
         self.assertTrue(displayNode.GetVisibility3D())
         self.assertFalse(displayNode.GetSliceProjection())
-        widget.show2DCheckBox.checked = True
+        slices = slicer.util.findChild(panel, "SourcesSlices")
+        slices.click()
         self.assertTrue(displayNode.GetVisibility2D())
         self.assertFalse(displayNode.GetSliceProjection())
-        widget.show2DCheckBox.checked = False
+        slices.click()
         self.assertFalse(displayNode.GetVisibility2D())
+        labels = slicer.util.findChild(panel, "SourcesLabels")
+        self.assertTrue(labels.checked)
+        labels.click()
+        self.assertFalse(displayNode.GetPointLabelsVisibility())
 
-        # display controls
-        widget.showNamesCheckBox.checked = False
-        self.assertFalse(pointListNode.GetDisplayNode().GetPointLabelsVisibility())
-        self.assertTrue(widget.markupsDisplayWidget.enabled)
-        widget.lockedCheckBox.checked = False
+        # locked points; Move unlocks them
+        move = slicer.util.findChild(panel, "SourcesMove")
+        self.assertFalse(move.checked)
+        move.click()
         self.assertFalse(pointListNode.GetNthControlPointLocked(0))
-        widget.lockedCheckBox.checked = True
+        move.click()
         self.assertTrue(pointListNode.GetNthControlPointLocked(1))
 
-        # only the Advanced group of the markups display options
-        self.assertFalse(slicer.util.findChild(widget.markupsDisplayWidget, "ScalarsCollapsibleGroupBox").visible)
-        self.assertFalse(slicer.util.findChild(widget.markupsDisplayWidget, "CollapsibleGroupBox").visible)
+        # colours and size of the points
+        section.setSelectedPointColor(qt.QColor(255, 0, 0))
+        self.assertEqual(displayNode.GetSelectedColor(), (1.0, 0.0, 0.0))
+        section.setPointColor(qt.QColor(0, 0, 255))
+        self.assertEqual(displayNode.GetColor(), (0.0, 0.0, 1.0))
+        slicer.util.findChild(panel, "SourcesSize").value = 4.0
+        self.assertAlmostEqual(displayNode.GetGlyphScale(), 4.0)
 
-        # selected sources: selected points (selected color)
-        widget.tableView.selectRow(0)
-        self.assertTrue(pointListNode.GetNthControlPointSelected(0))
-        self.assertFalse(pointListNode.GetNthControlPointSelected(1))
-        widget.selectedColorButton.color = qt.QColor(255, 0, 0)
-        self.assertEqual(pointListNode.GetDisplayNode().GetSelectedColor(), (1.0, 0.0, 0.0))
-
-        # selecting a source centers the slice views on it
-        widget.tableView.selectRow(1)
+        # a selected source: its point selected, the slice views centred on it
+        table = slicer.util.findChild(panel, "SourcesTable")
+        table.selectRow(1)
+        self.assertTrue(pointListNode.GetNthControlPointSelected(1))
+        self.assertFalse(pointListNode.GetNthControlPointSelected(0))
         position = [0.0, 0.0, 0.0]
         pointListNode.GetNthControlPointPositionWorld(1, position)
         redSliceNode = slicer.app.layoutManager().sliceWidget("Red").mrmlSliceNode()
@@ -973,14 +771,28 @@ class AstroSoFiACatalogTest(ScriptedLoadableModuleTest):
         vtk.vtkMatrix4x4.Invert(redSliceNode.GetXYToRAS(), rasToXY)
         self.assertAlmostEqual(rasToXY.MultiplyPoint(position + [1.0])[2], 0.0, places=3)
 
+        # several sources selected: all their points selected
+        table.selectAll()
+        self.assertEqual(list(section.selectedRows()), [0, 1])
+        self.assertTrue(pointListNode.GetNthControlPointSelected(0))
+        self.assertTrue(pointListNode.GetNthControlPointSelected(1))
+
         # delete the selected source: table row and point
+        table.selectRow(1)
         secondName = pointListNode.GetNthControlPointLabel(1)
-        widget.onDeleteSelected()
+        section.deleteSelectedSources()
         self.assertEqual(tableNode.GetNumberOfRows(), 1)
         self.assertEqual(pointListNode.GetNumberOfControlPoints(), 1)
         self.assertNotEqual(pointListNode.GetNthControlPointLabel(0), secondName)
         self.assertEqual(tableNode.GetTable().GetValueByName(0, "name").ToString(),
                          pointListNode.GetNthControlPointLabel(0))
+
+        # the catalogue removed with its points
+        pointListID = pointListNode.GetID()
+        section.removeCatalogue(False)
+        self.assertIsNone(slicer.mrmlScene.GetNodeByID(pointListID))
+        self.assertEqual(slicer.util.getNodesByClass("vtkMRMLTableNode"), [])
+        self.assertEqual(section.catalogueCount(), 0)
         self.delayDisplay("Test passed")
 
     def test_CelestialCatalogues(self):
