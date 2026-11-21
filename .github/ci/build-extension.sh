@@ -117,15 +117,18 @@ cd SlicerAstro-build/inner-build
 export SLICERASTRO_COMPRESS_MOUSE_MOVES=0
 status=0
 export QT_QPA_PLATFORM=xcb
+# (the GUI tests run on their own Xvfb displays when Xvfb is found at
+# configure time, SLICERASTRO_TEST_DISPLAYS: 4 at a time on the 4 cores of the
+# runner)
 if command -v xvfb-run > /dev/null; then
   xvfb-run -a -s "-screen 0 1600x1000x24" \
-    ctest -j 2 --output-on-failure --timeout 1800 ${CTEST_EXCLUDE:+-E "$CTEST_EXCLUDE"} > ctest.log 2>&1 || status=$?
+    ctest -j 4 --output-on-failure --timeout 1800 ${CTEST_EXCLUDE:+-E "$CTEST_EXCLUDE"} > ctest.log 2>&1 || status=$?
 else
   # no xvfb-run (e.g. AlmaLinux): an X server of our own
   Xvfb :98 -screen 0 1600x1000x24 +extension GLX +render -noreset > /dev/null 2>&1 &
   xvfbPid=$!
   sleep 2
-  DISPLAY=:98 ctest -j 2 --output-on-failure --timeout 1800 ${CTEST_EXCLUDE:+-E "$CTEST_EXCLUDE"} > ctest.log 2>&1 || status=$?
+  DISPLAY=:98 ctest -j 4 --output-on-failure --timeout 1800 ${CTEST_EXCLUDE:+-E "$CTEST_EXCLUDE"} > ctest.log 2>&1 || status=$?
   kill $xvfbPid 2> /dev/null || true
 fi
 cat ctest.log

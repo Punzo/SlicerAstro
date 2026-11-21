@@ -28,7 +28,8 @@ if(Slicer_USE_PYTHONQT)
     NAME AstroSceneTest
     SCRIPTS AstroSceneTest.py
     )
-  slicer_add_python_unittest(SCRIPT AstroSceneTest.py)
+  # one test per method (they run in parallel)
+  slicerastro_add_python_unittest_methods(SCRIPT AstroSceneTest.py CLASS AstroSceneTestTest)
 
   slicerMacroBuildScriptedModule(
     NAME AstroSceneCloseTest

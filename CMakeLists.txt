@@ -112,6 +112,7 @@ endif()
 if(SLICERASTRO_HAS_WEBGPU)
   add_subdirectory(vtkAstroWebGPUFilters)
 endif()
+include(${CMAKE_CURRENT_SOURCE_DIR}/CMake/SlicerAstroTesting.cmake)
 add_subdirectory(AstroVolume)
 add_subdirectory(AstroReproject)
 add_subdirectory(AstroStatistics)
@@ -128,6 +129,36 @@ add_subdirectory(AstroWorkbench)
 add_subdirectory(SlicerAstroDataProbe)
 
 #-----------------------------------------------------------------------------
+# Test displays (Linux): the GUI tests run on their own virtual X displays
+# (Xvfb), SLICERASTRO_TEST_DISPLAYS of them, so that they run in parallel
+# (ctest -j<N>) and never on the desktop of the user; 0: the display of the
+# environment, one GUI test at a time.
+if(BUILD_TESTING)
+  set(_default_test_displays 0)
+  if(UNIX AND NOT APPLE)
+    find_program(SLICERASTRO_XVFB_EXECUTABLE Xvfb)
+    if(SLICERASTRO_XVFB_EXECUTABLE)
+      set(_default_test_displays 8)
+    endif()
+  endif()
+  set(SLICERASTRO_TEST_DISPLAYS ${_default_test_displays} CACHE STRING
+    "Number of virtual X displays (Xvfb) of the GUI tests (0: the display of the environment)")
+  set(SLICERASTRO_TEST_FIRST_DISPLAY 120 CACHE STRING "Number of the first virtual X display of the tests")
+  if(SLICERASTRO_TEST_DISPLAYS GREATER 0)
+    set(_displays_state ${CMAKE_BINARY_DIR}/Testing/Displays)
+    add_test(NAME SlicerAstroTestDisplaysStart
+      COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/CMake/SlicerAstroTestDisplays.sh start
+        ${SLICERASTRO_XVFB_EXECUTABLE} ${SLICERASTRO_TEST_FIRST_DISPLAY} ${SLICERASTRO_TEST_DISPLAYS}
+        ${_displays_state})
+    set_property(TEST SlicerAstroTestDisplaysStart PROPERTY FIXTURES_SETUP SlicerAstroDisplays)
+    add_test(NAME SlicerAstroTestDisplaysStop
+      COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/CMake/SlicerAstroTestDisplays.sh stop ${_displays_state})
+    set_property(TEST SlicerAstroTestDisplaysStop PROPERTY FIXTURES_CLEANUP SlicerAstroDisplays)
+  endif()
+  set_property(GLOBAL PROPERTY SLICERASTRO_NEXT_TEST_DISPLAY 0)
+endif()
+
+#-----------------------------------------------------------------------------
 # Properties of all the tests:
 # - the Python tests download the sample data into the cache of Slicer: they
 #   are not run at the same time (concurrent downloads of a file conflict);
@@ -138,19 +169,45 @@ if(BUILD_TESTING)
   function(slicerastro_configure_tests directory)
     get_property(_tests DIRECTORY ${directory} PROPERTY TESTS)
     foreach(_test IN LISTS _tests)
-      if(_test MATCHES "^py_")
+      # the sample data are downloaded once before the Python tests (fixture
+      # SlicerAstroSampleData); the tests only read the cache
+      if(_test STREQUAL "py_AstroTestSampleData")
+        set_property(TEST ${_test} DIRECTORY ${directory} PROPERTY FIXTURES_SETUP SlicerAstroSampleData)
+      elseif(_test MATCHES "^py_")
         set_property(TEST ${_test} DIRECTORY ${directory} APPEND
-          PROPERTY RESOURCE_LOCK SlicerAstroSampleDataCache)
+          PROPERTY FIXTURES_REQUIRED SlicerAstroSampleData)
       endif()
-      # tests with windows on the display (the Slicer application, Qt
-      # widgets, OpenGL): one at a time, so that another application does not
-      # take the active window, the focus or the input events of a test
+      # tests with windows (the Slicer application, Qt widgets, OpenGL): on
+      # their own virtual display, or one at a time on a shared display, so
+      # that another application does not take the active window, the focus
+      # or the input events of a test
       if(_test MATCHES "^(py_|qSlicer|qMRML|vtkAstroOpenGL)")
-        set_property(TEST ${_test} DIRECTORY ${directory} APPEND
-          PROPERTY RESOURCE_LOCK SlicerAstroDisplay)
+        if(SLICERASTRO_TEST_DISPLAYS GREATER 0)
+          get_property(_slot GLOBAL PROPERTY SLICERASTRO_NEXT_TEST_DISPLAY)
+          math(EXPR _display "${SLICERASTRO_TEST_FIRST_DISPLAY} + ${_slot}")
+          math(EXPR _next "(${_slot} + 1) % ${SLICERASTRO_TEST_DISPLAYS}")
+          set_property(GLOBAL PROPERTY SLICERASTRO_NEXT_TEST_DISPLAY ${_next})
+          set_property(TEST ${_test} DIRECTORY ${directory} APPEND PROPERTY
+            ENVIRONMENT "DISPLAY=:${_display}" "QT_QPA_PLATFORM=xcb" "XDG_CURRENT_DESKTOP=KDE")
+          set_property(TEST ${_test} DIRECTORY ${directory} APPEND PROPERTY
+            ENVIRONMENT_MODIFICATION "WAYLAND_DISPLAY=unset:")
+          set_property(TEST ${_test} DIRECTORY ${directory} APPEND PROPERTY
+            RESOURCE_LOCK SlicerAstroDisplay${_slot})
+          set_property(TEST ${_test} DIRECTORY ${directory} APPEND PROPERTY
+            FIXTURES_REQUIRED SlicerAstroDisplays)
+        else()
+          set_property(TEST ${_test} DIRECTORY ${directory} APPEND
+            PROPERTY RESOURCE_LOCK SlicerAstroDisplay)
+        endif()
       endif()
       set_property(TEST ${_test} DIRECTORY ${directory} APPEND
         PROPERTY FAIL_REGULAR_EXPRESSION "vtkDebugLeaks has detected LEAKS")
+      # a test waiting forever (e.g. on a modal dialog) fails instead of
+      # blocking the suite
+      get_property(_timeout TEST ${_test} DIRECTORY ${directory} PROPERTY TIMEOUT)
+      if(NOT _timeout)
+        set_property(TEST ${_test} DIRECTORY ${directory} PROPERTY TIMEOUT 900)
+      endif()
     endforeach()
     get_property(_subdirectories DIRECTORY ${directory} PROPERTY SUBDIRECTORIES)
     foreach(_subdirectory IN LISTS _subdirectories)

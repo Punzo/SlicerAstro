@@ -4,5 +4,6 @@ if(Slicer_USE_PYTHONQT)
     NAME AstroModelingSelfTest
     SCRIPTS AstroModelingSelfTest.py
     )
-  slicer_add_python_unittest(SCRIPT AstroModelingSelfTest.py)
+  # one test per method (they run in parallel)
+  slicerastro_add_python_unittest_methods(SCRIPT AstroModelingSelfTest.py CLASS AstroModelingSelfTestTest)
 endif()

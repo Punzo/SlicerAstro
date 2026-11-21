@@ -4,14 +4,33 @@ The tests are run with CTest in the build directory of the extension:
 
 ```bash
 cd inner-build
-ctest -j4 --output-on-failure        # all the tests
+ctest -j8 --output-on-failure        # all the tests (about 3 minutes, Debug)
 ctest -R AstroReproject              # the tests of a module
 ```
 
 - C++ tests of the MRML nodes and of the libraries.
 - Python tests (`*/Testing/Python/*Test.py`) run in 3D Slicer: they load
-  synthetic FITS files or the sample data (downloaded and cached) and compare
-  the results with references (analytic models, numpy/scipy).
+  synthetic FITS files or the sample data and compare the results with
+  references (analytic models, numpy/scipy).
+
+How the tests run in parallel:
+
+- **Own displays.** On Linux with Xvfb, the tests with windows (Slicer, Qt
+  widgets, OpenGL) run on virtual X displays started for the tests
+  (`SLICERASTRO_TEST_DISPLAYS`, 8 by default, from display
+  `:SLICERASTRO_TEST_FIRST_DISPLAY`, 120): one test per display at a time,
+  never on the desktop. With `SLICERASTRO_TEST_DISPLAYS=0` they share the
+  display of the environment and run one at a time.
+- **Sample data once.** `py_AstroTestSampleData` downloads the sample data of
+  the tests into the cache of Slicer before them (CTest fixture); the tests
+  only read the cache.
+- **Long tests by method.** The Modeling, Workbench and scene tests are one
+  CTest test per test method (`py_<Script>_<method>`,
+  `slicerastro_add_python_unittest_methods` in
+  `CMake/SlicerAstroTesting.cmake`, which finds the `def test_...` methods).
+- **Time limit.** A test fails after 15 minutes (e.g. waiting on a dialog)
+  instead of blocking the others. Tests never show modal dialogs in testing
+  mode.
 
 `AstroFITSRealDataTest` reads FITS files of real instruments and archives
 (NVSS, 2MASS, SDSS, HST, Chandra from the `TestingData-v1` release; WSRT,

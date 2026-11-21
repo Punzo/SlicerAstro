@@ -28,5 +28,6 @@ slicerMacroBuildScriptedModule(
 
 #-----------------------------------------------------------------------------
 if(BUILD_TESTING)
-  slicer_add_python_unittest(SCRIPT ${MODULE_NAME}.py)
+  # one test per method (they run in parallel)
+  slicerastro_add_python_unittest_methods(SCRIPT ${MODULE_NAME}.py CLASS AstroWorkbenchTest)
 endif()
