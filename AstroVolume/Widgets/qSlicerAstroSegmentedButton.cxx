@@ -17,6 +17,7 @@
 // Qt includes
 #include <QAbstractButton>
 #include <QButtonGroup>
+#include <QSignalBlocker>
 #include <QHBoxLayout>
 #include <QToolButton>
 
@@ -95,4 +96,19 @@ void qSlicerAstroSegmentedButton::setCurrentIndex(int index)
     {
     button->setChecked(true);
     }
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroSegmentedButton::clearSelection()
+{
+  // an exclusive group keeps one button checked: not exclusive meanwhile
+  QAbstractButton* checked = this->Group->checkedButton();
+  if (!checked)
+    {
+    return;
+    }
+  const QSignalBlocker blocker(this->Group);
+  this->Group->setExclusive(false);
+  checked->setChecked(false);
+  this->Group->setExclusive(true);
 }

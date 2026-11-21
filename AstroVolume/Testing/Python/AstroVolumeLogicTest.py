@@ -434,6 +434,8 @@ class AstroVolumeLogicTestTest(ScriptedLoadableModuleTest):
         # the Workbench)
         section = slicer.qSlicerAstroDisplaySection()
         section.setVolumeNode(volume)
+        # no percentage shown as chosen before one is chosen
+        self.assertEqual(slicer.util.findChild(section, "DisplayPercentages").currentIndex, -1)
         section.applyPercentage(section.percentages().index(99.5))
         displayNode = volume.GetDisplayNode()
         window = [0.0, 0.0]

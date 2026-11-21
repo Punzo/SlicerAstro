@@ -343,6 +343,8 @@ void qSlicerAstroDisplaySection::setVolumeNode(vtkMRMLNode* node)
   this->qvtkReconnect(d->ObservedDisplay, displayNode, vtkCommand::ModifiedEvent, this, SLOT(updateFromVolume()));
   d->Volume = volume;
   d->ObservedDisplay = displayNode;
+  // the window of the data is not one chosen here (yet)
+  d->PercentageButton->clearSelection();
 
   // histogram of the data (computed once per volume, and again for the
   // zoomed values)
@@ -466,6 +468,8 @@ void qSlicerAstroDisplaySection::onWindowChanging(double minimum, double maximum
 //-----------------------------------------------------------------------------
 void qSlicerAstroDisplaySection::onHistogramWindowDragged(double minimum, double maximum)
 {
+  Q_D(qSlicerAstroDisplaySection);
+  d->PercentageButton->clearSelection();
   this->onWindowChanging(minimum, maximum);
   this->setWindow(minimum, maximum);
 }
@@ -551,6 +555,7 @@ void qSlicerAstroDisplaySection::onFieldsEdited()
     }
   if (d->MaximumField->value() > d->MinimumField->value())
     {
+    d->PercentageButton->clearSelection();
     this->setWindow(d->MinimumField->value(), d->MaximumField->value());
     }
   if (d->NoiseField->isEnabled())

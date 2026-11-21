@@ -47,6 +47,8 @@ public:
 
 public slots:
   void setCurrentIndex(int index);
+  /// No choice checked (e.g. a value set elsewhere); currentIndex is -1
+  void clearSelection();
 
 signals:
   void currentIndexChanged(int index);
