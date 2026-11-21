@@ -1,7 +1,5 @@
 <RCC>
     <qresource prefix="/">
         <file>Icons/AstroPVSlice.png</file>
-        <file>Icons/Parallel.png</file>
-        <file>Icons/Perpendicular.png</file>
     </qresource>
 </RCC>

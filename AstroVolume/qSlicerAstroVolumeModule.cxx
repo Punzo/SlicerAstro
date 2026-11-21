@@ -320,7 +320,7 @@ QStringList qSlicerAstroVolumeModule::contributors()const
 //-----------------------------------------------------------------------------
 QIcon qSlicerAstroVolumeModule::icon()const
 {
-  return QIcon(":/Icons/Medium/SlicerVolumes.png");
+  return QIcon(":/Icons/AstroVolume.png");
 }
 
 //-----------------------------------------------------------------------------
