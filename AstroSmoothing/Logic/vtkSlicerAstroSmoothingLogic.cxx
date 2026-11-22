@@ -615,9 +615,9 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
   vtkNew<vtkDoubleArray> kernel1D;
   kernel1D->DeepCopy(pnode->GetGaussianKernel1D());
   vtkSmartPointer<vtkAstroImageSeparableSmooth> filter = vtkSmartPointer<vtkAstroImageSeparableSmooth>::New();
-  filter->SetAxisKernel(0, pnode->GetParameterX() > 0.001 ? kernel1D : nullptr);
-  filter->SetAxisKernel(1, pnode->GetParameterY() > 0.001 ? kernel1D : nullptr);
-  filter->SetAxisKernel(2, pnode->GetParameterZ() > 0.001 ? kernel1D : nullptr);
+  filter->SetAxisKernel(0, pnode->GetParameterX() > 0.001 ? kernel1D.GetPointer() : nullptr);
+  filter->SetAxisKernel(1, pnode->GetParameterY() > 0.001 ? kernel1D.GetPointer() : nullptr);
+  filter->SetAxisKernel(2, pnode->GetParameterZ() > 0.001 ? kernel1D.GetPointer() : nullptr);
   return this->RunSmoothingFilter(pnode, filter, this->FilterName("Isotropic Gaussian Filter").c_str());
 }
 

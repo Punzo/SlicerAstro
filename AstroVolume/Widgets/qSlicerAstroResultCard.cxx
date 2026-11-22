@@ -22,6 +22,7 @@
 #include <QPushButton>
 #include <QToolButton>
 #include <QVBoxLayout>
+#include <QVariant>
 
 // MRML includes
 #include <vtkMRMLAstroVolumeNode.h>

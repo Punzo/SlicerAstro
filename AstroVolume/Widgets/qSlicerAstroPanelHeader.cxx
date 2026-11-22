@@ -17,6 +17,7 @@
 // Qt includes
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QVariant>
 
 #include "qSlicerAstroPanelHeader.h"
 #include "qSlicerAstroTheme.h"

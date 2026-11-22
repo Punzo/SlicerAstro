@@ -21,6 +21,7 @@
 #include <QPointer>
 #include <QPushButton>
 #include <QStackedWidget>
+#include <QVariant>
 
 #include "qSlicerAstroRunButton.h"
 #include "qSlicerAstroTheme.h"

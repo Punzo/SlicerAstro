@@ -20,6 +20,7 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QStyle>
+#include <QVariant>
 
 #include "qSlicerAstroMessageWidget.h"
 #include "qSlicerAstroTheme.h"

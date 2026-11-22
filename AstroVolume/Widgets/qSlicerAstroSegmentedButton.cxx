@@ -20,6 +20,7 @@
 #include <QSignalBlocker>
 #include <QHBoxLayout>
 #include <QToolButton>
+#include <QVariant>
 
 #include "qSlicerAstroSegmentedButton.h"
 

@@ -23,6 +23,7 @@
 #include <QStackedWidget>
 #include <QToolButton>
 #include <QVBoxLayout>
+#include <QVariant>
 
 // VTK includes
 #include <vtkNew.h>
