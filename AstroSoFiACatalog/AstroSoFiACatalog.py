@@ -437,7 +437,8 @@ class AstroSoFiACatalogLogic(ScriptedLoadableModuleLogic):
         if candidates:
             return candidates[-1]
         selectionNode = slicer.app.applicationLogic().GetSelectionNode()
-        activeVolume = slicer.mrmlScene.GetNodeByID(selectionNode.GetActiveVolumeID()) if selectionNode else None
+        activeID = selectionNode.GetActiveVolumeID() if selectionNode else None
+        activeVolume = slicer.mrmlScene.GetNodeByID(activeID) if activeID else None
         if activeVolume and activeVolume.IsA("vtkMRMLAstroVolumeNode"):
             return activeVolume
         volumes = slicer.util.getNodesByClass("vtkMRMLAstroVolumeNode")
@@ -536,12 +537,16 @@ class AstroSoFiACatalogLogic(ScriptedLoadableModuleLogic):
         base = self.CATALOG_SUFFIX.sub("", os.path.basename(catalogPath))
         if base == os.path.basename(catalogPath):
             base = os.path.splitext(base)[0]
-        tableNode = self.createTable(catalog, base + "_catalogue")
         if referenceNode is None:
             referenceNode = self.findReferenceNode(catalogPath)
         if referenceNode is None:
-            raise ValueError("load the data cube or the mask of the catalogue first: the source positions "
-                             "of the catalogue are pixel coordinates")
+            # nothing is added to the scene: the catalogue is loaded again
+            # once its data are there
+            raise ValueError(
+                f"The catalogue {os.path.basename(catalogPath)} places its sources on a data cube, and no data "
+                f"cube or mask is loaded. Load the data cube of the catalogue (e.g. {base}.fits) or its SoFiA mask "
+                f"(e.g. {base}_mask.fits) first, then load the catalogue again.")
+        tableNode = self.createTable(catalog, base + "_catalogue")
         pointListNode = self.createPointList(catalog, base + "_sources", referenceNode)
         tableNode.SetAttribute("SlicerAstro.SoFiASources", pointListNode.GetID())
         # the data the sources are placed on (a cube, or the mask of a cube)
@@ -853,4 +858,14 @@ class AstroSoFiACatalogTest(ScriptedLoadableModuleTest):
             f.write("name,flux\nA,1.0\n")
         with self.assertRaises(ValueError):
             logic.loadCatalog(badPath, cubeNode)
+
+        # no data cube or mask loaded (no active volume): a message that tells
+        # what to load first, and nothing added to the scene
+        slicer.mrmlScene.Clear(0)
+        slicer.app.applicationLogic().GetSelectionNode().SetActiveVolumeID(None)
+        tables = slicer.mrmlScene.GetNumberOfNodesByClass("vtkMRMLTableNode")
+        with self.assertRaises(ValueError) as context:
+            logic.loadCatalog(csvPath)
+        self.assertIn("Load the data cube of the catalogue", str(context.exception))
+        self.assertEqual(slicer.mrmlScene.GetNumberOfNodesByClass("vtkMRMLTableNode"), tables)
         self.delayDisplay("Test passed")
