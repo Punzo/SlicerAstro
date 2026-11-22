@@ -41,6 +41,9 @@ _directoryOverride = None
 def workspacesDirectory():
     if _directoryOverride:
         return _directoryOverride
+    if slicer.app.testingEnabled():
+        # tests never write in the folder of the user
+        return os.path.join(slicer.app.temporaryPath, "SlicerAstroWorkspaces")
     default = os.path.join(os.path.expanduser("~"), "SlicerAstro", "Workspaces")
     directory = qt.QSettings().value(SETTINGS_KEY, default) or default
     return str(directory)

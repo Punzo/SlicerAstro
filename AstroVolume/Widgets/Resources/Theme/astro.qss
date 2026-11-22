@@ -189,6 +189,20 @@ QRadioButton::indicator { border-radius: 8px; }
 QCheckBox::indicator:checked { background: @accent@; border-color: @accent@; image: url(@icon:check:on-accent@); }
 QRadioButton::indicator:checked { background: @accent@; border: 4px solid @raised@; outline: none; }
 QCheckBox::indicator:disabled, QRadioButton::indicator:disabled { background: @panel@; border-color: @line@; }
+/* check boxes of lists, tables and their headers (e.g. Add data, checkable headers) */
+QAbstractItemView::indicator, QHeaderView::indicator {
+  width: 14px; height: 14px;
+  border: 1px solid @line-strong@;
+  border-radius: 4px;
+  background: @raised@;
+}
+QAbstractItemView::indicator:checked, QHeaderView::indicator:checked {
+  background: @accent@; border-color: @accent@; image: url(@icon:check:on-accent@);
+}
+QAbstractItemView::indicator:indeterminate, QHeaderView::indicator:indeterminate {
+  background: @accent-soft@; border-color: @accent@;
+}
+QAbstractItemView::indicator:disabled, QHeaderView::indicator:disabled { background: @panel@; border-color: @line@; }
 
 /* Scroll areas of the panels: the background of the panel shows through */
 QScrollArea { background: transparent; border: none; }

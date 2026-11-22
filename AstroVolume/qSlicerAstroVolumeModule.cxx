@@ -20,6 +20,10 @@
 // Qt includes
 #include <QActionGroup>
 #include <QApplication>
+#include <QGuiApplication>
+
+// VTK includes
+#include <vtkRenderingOpenGLConfigure.h>
 #include <QDir>
 #include <QFile>
 #include <QLabel>
@@ -77,6 +81,7 @@
 #include <qSlicerAstroVolumeLayoutSliceViewFactory.h>
 #include <qSlicerAstroVolumeModule.h>
 #include "qSlicerAstroMouseMoveCompressor.h"
+#include <qSlicerAstroSettingsDialog.h>
 #include <qSlicerAstroTheme.h>
 #include <qSlicerAstroBackgroundRunner.h>
 #include <qSlicerAstroVolumeModuleWidget.h>
@@ -377,6 +382,19 @@ void qSlicerAstroVolumeModule::setup()
   // plot views must not exit Slicer (see SlicerAstroXErrorHandler)
   InstallXErrorHandler();
 #endif
+#if defined(VTK_OPENGL_HAS_EGL)
+  // On Wayland the views of Qt use EGL, not GLX: the render window that VTK
+  // 9.6 probes at every vtkRenderWindow::New() (e.g. each new plot view) is
+  // made with EGL instead of an offscreen GLX window, whose glXMakeCurrent
+  // fails there and whose initialization then reads the OpenGL state of
+  // another context ("Error in cache state" warnings). A choice of the user
+  // (VTK_DEFAULT_OPENGL_WINDOW) is kept.
+  if (QGuiApplication::platformName().startsWith("wayland") &&
+      qEnvironmentVariableIsEmpty("VTK_DEFAULT_OPENGL_WINDOW"))
+    {
+    qputenv("VTK_DEFAULT_OPENGL_WINDOW", "vtkEGLRenderWindow");
+    }
+#endif
 
   d->app = qSlicerApplication::application();
 
@@ -575,6 +593,9 @@ void qSlicerAstroVolumeModule::setup()
     return;
     }
   logic->SetVolumeRenderingLogic(vtkSlicerVolumeRenderingLogic::SafeDownCast(d->volumeRendering->logic()));
+  // the settings of SlicerAstro (Settings of the Welcome page and of the
+  // AstroWorkbench)
+  qSlicerAstroSettingsDialog::applySettings(logic);
 
   qSlicerAbstractModuleWidget*  volumeRenderingWidget =
       dynamic_cast<qSlicerAbstractModuleWidget*>

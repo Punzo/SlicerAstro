@@ -64,6 +64,7 @@
 
 // AstroVolume includes
 #include "qSlicerAstroSegmentedButton.h"
+#include "qSlicerAstroSettingsDialog.h"
 #include "qSlicerAstroTheme.h"
 #include "qSlicerAstroWelcomeWidget.h"
 
@@ -415,7 +416,7 @@ void qSlicerAstroWelcomeWidgetPrivate::init()
   QObject::connect(about, SIGNAL(clicked()), q, SLOT(showAbout()));
   QPushButton* settings = new QPushButton(theme->icon("settings", "text"), Tr("Settings"), this->Footer);
   settings->setObjectName("SettingsButton");
-  settings->setToolTip(Tr("The application settings of Slicer."));
+  settings->setToolTip(Tr("Settings of SlicerAstro: theme, saving, 3D views, loading."));
   QObject::connect(settings, SIGNAL(clicked()), q, SLOT(editApplicationSettings()));
   footer->addWidget(about, 1);
   footer->addWidget(settings, 1);
@@ -1087,11 +1088,8 @@ void qSlicerAstroWelcomeWidget::showAbout()
 //-----------------------------------------------------------------------------
 void qSlicerAstroWelcomeWidget::editApplicationSettings()
 {
-  qSlicerApplication* app = qSlicerApplication::application();
-  if (app && app->settingsDialog())
-    {
-    app->settingsDialog()->exec();
-    }
+  // the settings of SlicerAstro
+  qSlicerAstroSettingsDialog::showSettings(this->window());
 }
 
 //-----------------------------------------------------------------------------

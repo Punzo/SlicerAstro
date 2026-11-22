@@ -220,6 +220,17 @@ public:
   vtkGetMacro(AutoShow3DMaximumMegabytes, double);
   vtkSetMacro(AutoShowActiveVolume, bool);
   vtkGetMacro(AutoShowActiveVolume, bool);
+
+  /// New data (e.g. smoothed cubes, moment maps, models) are saved as
+  /// compressed FITS (.fits.gz) instead of .fits (the default write
+  /// extension of the astro volume storage nodes of the scene; loaded files
+  /// keep their own)
+  void SetSaveCompressed(bool compressed);
+  bool GetSaveCompressed() const { return this->SaveCompressed; }
+  /// Volume rendering quality of the 3D views (vtkMRMLViewNode::
+  /// VolumeRenderingQuality: Adaptive, Normal, Maximum), also of new 3D views
+  void SetDefaultVolumeRenderingQuality(int quality);
+  int GetDefaultVolumeRenderingQuality() const { return this->DefaultVolumeRenderingQuality; }
   vtkBooleanMacro(AutoShowActiveVolume, bool);
 
   /// Show or hide a cube in the 3D views (prepared by PrepareVolumeRendering
@@ -1042,6 +1053,10 @@ protected:
   vtkWeakPointer<vtkSlicerVolumeRenderingLogic> VolumeRenderingLogic;
   bool AutoShowActiveVolume{true};
   double AutoShow3DMaximumMegabytes{1024.};
+  bool SaveCompressed{false};
+  int DefaultVolumeRenderingQuality{-1};
+  /// the settings above on the scene (default nodes, 3D views)
+  void ApplySceneSettings();
 
 private:
 

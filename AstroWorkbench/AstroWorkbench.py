@@ -581,6 +581,15 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         background = plotWidget.plotView().chart().GetBackgroundBrush().GetColorObject()
         self.assertEqual((background.GetRed(), background.GetGreen(), background.GetBlue()),
                          (viewColour.red(), viewColour.green(), viewColour.blue()))
+        # another chart in the plot view (e.g. the rings of Modeling) is kept
+        # by the Workbench (not replaced by the profiles or by nothing)
+        other = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLPlotChartNode", "OtherChart")
+        plotWidget.mrmlPlotViewNode().SetPlotChartNodeID(other.GetID())
+        workbench().refresh()
+        self.process(20)
+        self.assertEqual(plotWidget.mrmlPlotViewNode().GetPlotChartNodeID(), other.GetID())
+        plotWidget.mrmlPlotViewNode().SetPlotChartNodeID(chart.GetID())
+        slicer.mrmlScene.RemoveNode(other)
         # "Open in plot view" of Profiles: the layout with a plot (3 views)
         layoutManager.setLayout(slicer.vtkMRMLLayoutNode.SlicerLayoutFourUpView)
         self.process(20)
@@ -1217,6 +1226,17 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
             self.assertEqual(len(Workspaces.listWorkspaces()), 1)
         finally:
             Workspaces.setWorkspacesDirectory(None, persistent=False)
+        # the settings button of the header opens the SlicerAstro settings
+        settingsButton = slicer.util.findChild(workbench().header, "SettingsButton")
+        qt.QTimer.singleShot(300, lambda: [widget.close() for widget in slicer.app.topLevelWidgets()
+                                           if widget.objectName == "SlicerAstroSettings" and widget.visible])
+        opened = []
+        def onShown():
+            opened.extend(widget for widget in slicer.app.topLevelWidgets()
+                          if widget.objectName == "SlicerAstroSettings" and widget.visible)
+        qt.QTimer.singleShot(150, onShown)
+        settingsButton.click()
+        self.assertEqual(len(opened), 1)
         # the Workspaces card opens the workspaces
         slicer.util.findChild(mainWindow, "Rail_home").click()
         self.process()

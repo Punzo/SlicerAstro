@@ -220,6 +220,53 @@ void vtkSlicerAstroVolumeLogic::SetMRMLSceneInternal(vtkMRMLScene * newScene)
   this->SetAndObserveMRMLSceneEventsInternal(newScene, events.GetPointer());
   this->ObserveSelectionNode();
   this->AddAstroColorTables();
+  this->ApplySceneSettings();
+}
+
+//----------------------------------------------------------------------------
+void vtkSlicerAstroVolumeLogic::SetSaveCompressed(bool compressed)
+{
+  this->SaveCompressed = compressed;
+  this->ApplySceneSettings();
+}
+
+//----------------------------------------------------------------------------
+void vtkSlicerAstroVolumeLogic::SetDefaultVolumeRenderingQuality(int quality)
+{
+  this->DefaultVolumeRenderingQuality = quality;
+  this->ApplySceneSettings();
+}
+
+//----------------------------------------------------------------------------
+void vtkSlicerAstroVolumeLogic::ApplySceneSettings()
+{
+  vtkMRMLScene* scene = this->GetMRMLScene();
+  if (!scene)
+    {
+    return;
+    }
+  // the write extension of new astro volume storage nodes
+  vtkNew<vtkMRMLAstroVolumeStorageNode> storageDefaults;
+  storageDefaults->SetDefaultWriteFileExtension(this->SaveCompressed ? "fits.gz" : "fits");
+  scene->AddDefaultNode(storageDefaults);
+  if (this->DefaultVolumeRenderingQuality < 0)
+    {
+    return;
+    }
+  // the quality of the 3D views (and of new ones)
+  vtkNew<vtkMRMLViewNode> viewDefaults;
+  viewDefaults->SetVolumeRenderingQuality(this->DefaultVolumeRenderingQuality);
+  scene->AddDefaultNode(viewDefaults);
+  std::vector<vtkMRMLNode*> viewNodes;
+  scene->GetNodesByClass("vtkMRMLViewNode", viewNodes);
+  for (vtkMRMLNode* node : viewNodes)
+    {
+    vtkMRMLViewNode* viewNode = vtkMRMLViewNode::SafeDownCast(node);
+    if (viewNode && viewNode->GetVolumeRenderingQuality() != this->DefaultVolumeRenderingQuality)
+      {
+      viewNode->SetVolumeRenderingQuality(this->DefaultVolumeRenderingQuality);
+      }
+    }
 }
 
 //----------------------------------------------------------------------------

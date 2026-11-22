@@ -206,6 +206,10 @@ class HeaderBar(qt.QFrame):
         helpButton.setObjectName("AboutButton")
         helpButton.connect("clicked()", lambda: About.showAbout())
         layout.addWidget(helpButton)
+        settingsButton = iconButton("settings", "Settings of SlicerAstro: theme, saving, 3D views, loading")
+        settingsButton.setObjectName("SettingsButton")
+        settingsButton.connect("clicked()", self.showSettings)
+        layout.addWidget(settingsButton)
         self.developerButton = iconButton("terminal", "Developer: Python console", checkable=True)
         self.developerButton.setObjectName("DeveloperButton")
         self.developerButton.connect("toggled(bool)", self.workbench.setPythonConsoleVisible)
@@ -223,6 +227,12 @@ class HeaderBar(qt.QFrame):
         line.setFixedSize(1, 22)
         line.setStyleSheet(f"background: {theme().color('line').name()};")
         return line
+
+    def showSettings(self):
+        """The settings of SlicerAstro (a dialog of the main window)."""
+        dialog = slicer.qSlicerAstroSettingsDialog(slicer.util.mainWindow())
+        dialog.exec()
+        return dialog
 
     def toggleTheme(self):
         theme().setMode("light" if theme().dark else "dark")
@@ -853,6 +863,7 @@ class Workbench:
             return
         if node.IsA("vtkMRMLSegmentationNode"):
             self.visibility.addToView(node, viewNodeID)
+            self.setMaskShown(node, True)
             self.setActiveView(key)
             return
         if not Astro.isAstroVolume(node):
@@ -941,9 +952,9 @@ class Workbench:
         if node is None:
             return
         if node.IsA("vtkMRMLSegmentationNode"):
-            displayNode = node.GetDisplayNode()
-            if displayNode is not None:
-                displayNode.SetVisibility(not displayNode.GetVisibility())
+            # shown (also when its segments were hidden, e.g. the eye of the
+            # Mask tab), or hidden if it is shown
+            self.setMaskShown(node, not self.isMaskShown(node))
             return
         if node.IsA("vtkMRMLTableNode"):
             # a catalogue: its sources in the Sources tab
@@ -964,6 +975,29 @@ class Workbench:
         slicer.modules.astrovolume.logic().ToggleProductInViews(node, dataset)
         self.visibility.update()
         self.views.refresh()
+
+    @staticmethod
+    def isMaskShown(segmentation):
+        """The mask is shown: its display and at least one of its segments."""
+        displayNode = segmentation.GetDisplayNode()
+        if displayNode is None or not displayNode.GetVisibility():
+            return False
+        ids = segmentation.GetSegmentation().GetSegmentIDs() if segmentation.GetSegmentation() else []
+        return any(displayNode.GetSegmentVisibility(segmentID) for segmentID in ids)
+
+    @staticmethod
+    def setMaskShown(segmentation, shown):
+        displayNode = segmentation.GetDisplayNode()
+        if displayNode is None:
+            segmentation.CreateDefaultDisplayNodes()
+            displayNode = segmentation.GetDisplayNode()
+        if displayNode is None:
+            return
+        if shown:
+            displayNode.SetVisibility(True)
+            displayNode.SetAllSegmentsVisibility(True)
+        else:
+            displayNode.SetVisibility(False)
 
     def fitSliceView(self, sliceNode):
         """Fit one view to its data, keeping its orientation (the fit of the
@@ -1079,7 +1113,13 @@ class Workbench:
                     break
         viewNode = plotWidget.mrmlPlotViewNode()
         chartID = chart.GetID() if chart is not None else None
-        if viewNode.GetPlotChartNodeID() != chartID:
+        # another chart shown in the view (e.g. the rings of Modeling) stays:
+        # only an empty view or the profiles are replaced
+        currentID = viewNode.GetPlotChartNodeID()
+        current = slicer.mrmlScene.GetNodeByID(currentID) if currentID else None
+        if current is not None and current is not profiles:
+            return current
+        if currentID != chartID:
             viewNode.SetPlotChartNodeID(chartID)
         return chart
 

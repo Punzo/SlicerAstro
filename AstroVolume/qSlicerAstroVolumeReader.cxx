@@ -20,6 +20,7 @@
 // Qt includes
 #include <QDebug>
 #include <QFileInfo>
+#include <QSettings>
 
 // SlicerQt includes
 #include "qSlicerAstroVolumeIOOptionsWidget.h"
@@ -131,7 +132,12 @@ qSlicerIOOptions* qSlicerAstroVolumeReader::options()const
 namespace
 {
 /// Data larger than this fraction of the memory: a part may be loaded
-const double LargeDataFraction = 0.25;
+/// (SlicerAstro settings, default 25%)
+double LargeDataFraction()
+{
+  const double fraction = QSettings().value("SlicerAstro/LargeDataFraction", 0.25).toDouble();
+  return fraction > 0. ? fraction : 0.25;
+}
 }
 
 //-----------------------------------------------------------------------------
@@ -205,7 +211,7 @@ bool qSlicerAstroVolumeReader::load(const IOProperties& properties)
     {
     const double bytes = qSlicerAstroSubCubeDialog::dataBytes(fileName, hdu);
     const double memory = qSlicerAstroSubCubeDialog::physicalMemory();
-    if (bytes > 0. && memory > 0. && bytes > LargeDataFraction * memory)
+    if (bytes > 0. && memory > 0. && bytes > LargeDataFraction() * memory)
       {
       const QList<QWidget*> hiddenProgress = qSlicerAstroTheme::suspendProgressDialogs();
       const int choice = qSlicerAstroSubCubeDialog::ask(fileName, &hdu, app->mainWindow(), subExtent);

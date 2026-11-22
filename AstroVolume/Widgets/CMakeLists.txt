@@ -62,6 +62,8 @@ set(${KIT}_SRCS
   qSlicerAstroSourcesSection.h
   qSlicerAstroWelcomeWidget.cxx
   qSlicerAstroWelcomeWidget.h
+  qSlicerAstroSettingsDialog.cxx
+  qSlicerAstroSettingsDialog.h
   qSlicerAstroContoursSection.h
   qSlicerAstroDisplaySection.h
   qSlicerAstroDatasetCard.h
@@ -124,6 +126,7 @@ set(${KIT}_MOC_SRCS
   qSlicerAstroInfoSection.h
   qSlicerAstroSourcesSection.h
   qSlicerAstroWelcomeWidget.h
+  qSlicerAstroSettingsDialog.h
   qSlicerAstroFoldSection.h
   qSlicerAstroHistogramWidget.h
   qSlicerAstroMapPreview.h
