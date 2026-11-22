@@ -73,6 +73,8 @@ qSlicerAstroRingPlot::qSlicerAstroRingPlot(QWidget* parent)
 {
   this->setObjectName("RingPlot");
   this->setMouseTracking(true);
+  this->setToolTip(tr("A parameter of the rings against the radius. Drag a point up or down to change the value "
+                      "of its ring (the table of the rings follows; Calculate model makes the new model)."));
   this->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
   this->PlaceholderText = tr("No rings");
   QObject::connect(qSlicerAstroTheme::instance(), SIGNAL(themeChanged()), this, SLOT(update()));
@@ -100,6 +102,13 @@ void qSlicerAstroRingPlot::setRings(const QVector<double>& radii, const QVector<
   this->Values = values;
   this->Values.resize(this->Radii.size());
   this->Unit = unit;
+  if (this->DragIndex >= 0 && this->DragIndex < this->Radii.size())
+    {
+    // during a drag the axes stay (the point follows the mouse)
+    this->update();
+    return;
+    }
+  this->DragIndex = -1;
   this->HoverIndex = -1;
   // the radii from 0, the values with a margin
   double xMax = 0.;
@@ -259,9 +268,107 @@ void qSlicerAstroRingPlot::paintEvent(QPaintEvent* event)
 }
 
 //-----------------------------------------------------------------------------
+void qSlicerAstroRingPlot::setEditable(bool editable)
+{
+  this->Editable = editable;
+}
+
+//-----------------------------------------------------------------------------
+bool qSlicerAstroRingPlot::isEditable() const
+{
+  return this->Editable;
+}
+
+//-----------------------------------------------------------------------------
+int qSlicerAstroRingPlot::draggedRing() const
+{
+  return this->DragIndex;
+}
+
+//-----------------------------------------------------------------------------
+double qSlicerAstroRingPlot::valueAt(double y) const
+{
+  const QRectF plot = this->plotRect();
+  return this->YMin + (plot.bottom() - y) / plot.height() * (this->YMax - this->YMin);
+}
+
+//-----------------------------------------------------------------------------
+QPointF qSlicerAstroRingPlot::pointPosition(int ring) const
+{
+  if (ring < 0 || ring >= this->Radii.size())
+    {
+    return QPointF();
+    }
+  return this->toWidget(this->Radii[ring], this->Values[ring]);
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroRingPlot::mousePressEvent(QMouseEvent* event)
+{
+  const QPointF position = EventPosition(event);
+  if (!this->Editable || event->button() != Qt::LeftButton)
+    {
+    this->QWidget::mousePressEvent(event);
+    return;
+    }
+  // the point under the mouse (within a few pixels)
+  int closest = -1;
+  double best = 10.;
+  for (int index = 0; index < this->Radii.size(); index++)
+    {
+    if (!std::isfinite(this->Values[index]))
+      {
+      continue;
+      }
+    const QPointF point = this->toWidget(this->Radii[index], this->Values[index]);
+    const double distance = std::hypot(point.x() - position.x(), point.y() - position.y());
+    if (distance < best)
+      {
+      best = distance;
+      closest = index;
+      }
+    }
+  this->DragIndex = closest;
+  if (closest >= 0)
+    {
+    this->setCursor(Qt::SizeVerCursor);
+    this->HoverIndex = closest;
+    this->update();
+    }
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroRingPlot::mouseReleaseEvent(QMouseEvent* event)
+{
+  Q_UNUSED(event);
+  if (this->DragIndex < 0)
+    {
+    return;
+    }
+  const int ring = this->DragIndex;
+  this->DragIndex = -1;
+  this->unsetCursor();
+  // the axes for the new values
+  this->setRings(this->Radii, this->Values, this->Unit);
+  emit this->ringDragFinished(ring);
+}
+
+//-----------------------------------------------------------------------------
 void qSlicerAstroRingPlot::mouseMoveEvent(QMouseEvent* event)
 {
   const QPointF position = EventPosition(event);
+  if (this->DragIndex >= 0 && this->DragIndex < this->Values.size())
+    {
+    // only the value (vertical), within the plot
+    const QRectF plot = this->plotRect();
+    const double y = std::max(plot.top(), std::min(plot.bottom(), position.y()));
+    const double value = this->valueAt(y);
+    this->Values[this->DragIndex] = value;
+    this->HoverIndex = this->DragIndex;
+    this->update();
+    emit this->ringValueChanged(this->DragIndex, value);
+    return;
+    }
   int closest = -1;
   double best = 18.;
   for (int index = 0; index < this->Radii.size(); index++)

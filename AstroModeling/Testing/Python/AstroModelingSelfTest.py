@@ -195,8 +195,10 @@ class AstroModelingSelfTestTest(ScriptedLoadableModuleTest):
         self.assertTrue(np.all(rotation > 40.) and np.all(rotation < 180.), rotation)
         self.assertGreater(rotation[-1], rotation[0])
         self.assertTrue(np.all(dispersion > 2.) and np.all(dispersion < 40.), dispersion)
-        residualNode = slicer.mrmlScene.GetNodeByID(parametersNode.GetResidualVolumeNodeID() or "")
-        self.assertIsNotNone(residualNode)
+        # only the model cube (the data in the region of the model: Masking)
+        self.assertIsNone(parametersNode.GetResidualVolumeNodeID())
+        self.assertEqual(len([node for node in slicer.util.getNodesByClass("vtkMRMLAstroVolumeNode")
+                              if "_maskedByModel_" in node.GetName()]), 0)
 
         # results: the panel shows them
         results = slicer.util.findChild(widget, "Results")
@@ -212,7 +214,35 @@ class AstroModelingSelfTestTest(ScriptedLoadableModuleTest):
         self.assertIsNotNone(chart)
         self.assertEqual(chart.GetXAxisTitle(), "Radius (arcsec)")
         self.assertTrue(chart.GetYAxisTitle().startswith("Dispersion velocity"), chart.GetYAxisTitle())
+        # the points of the plot view move vertically only (set once the
+        # layout has made the plot view)
+        for _ in range(20):
+            slicer.app.processEvents()
+        for plotView in slicer.util.getNodesByClass("vtkMRMLPlotViewNode"):
+            self.assertEqual(plotView.GetInteractionMode(), plotView.InteractionModeMovePoints)
+            self.assertFalse(plotView.GetEnablePointMoveAlongX())
         widget.setRingParameter("VRot")
+        # a point of the panel plot dragged: the value of its ring in the table
+        plot = widget.ringPlot()
+        plot.show()
+        slicer.app.processEvents()
+        point = plot.pointPosition(1)
+        target = qt.QPointF(point.x(), point.y() - 20.)
+        expected = plot.valueAt(target.y())
+        for eventType, position, buttons in ((qt.QEvent.MouseButtonPress, point, qt.Qt.LeftButton),
+                                             (qt.QEvent.MouseMove, target, qt.Qt.LeftButton),
+                                             (qt.QEvent.MouseButtonRelease, target, qt.Qt.NoButton)):
+            button = qt.Qt.LeftButton if eventType != qt.QEvent.MouseMove else qt.Qt.NoButton
+            event = qt.QMouseEvent(eventType, position, position, button, buttons,
+                                   qt.Qt.NoModifier)
+            slicer.app.sendEvent(plot, event)
+        slicer.app.processEvents()
+        self.assertAlmostEqual(self.ringColumn(parametersNode, "VRot")[1], expected, places=6)
+        self.assertNotAlmostEqual(expected, rotation[1], places=2)
+        column = parametersNode.GetParamsTableNode().GetTable().GetColumnByName("VRot")
+        column.SetValue(1, rotation[1])
+        parametersNode.GetParamsTableNode().Modified()
+        slicer.app.processEvents()
         # the contours of the results: data, model, region of the model
         contours = slicer.util.getFirstNodeByName("AstroModelingContoursSeg")
         self.assertEqual(contours.GetSegmentation().GetNumberOfSegments(), 3)
@@ -221,6 +251,34 @@ class AstroModelingSelfTestTest(ScriptedLoadableModuleTest):
         modelContours.click()
         self.assertFalse(contours.GetDisplayNode().GetSegmentVisibility("ModelingModelContours"))
         modelContours.click()
+        # the rotation curve shown or hidden
+        markersButton = slicer.util.findChild(widget, "RingMarkersButton")
+        self.assertTrue(markersButton.checked)
+        markersButton.click()
+        majorPoints = slicer.util.getFirstNodeByName("MarkupsFiducialsMajor")
+        self.assertFalse(majorPoints.GetDisplayNode().GetVisibility())
+        markersButton.click()
+        self.assertTrue(majorPoints.GetDisplayNode().GetVisibility())
+        # leaving the module hides the results, entering shows them again
+        mainWindow = slicer.util.mainWindow()
+        mainWindow.moduleSelector().selectModule("AstroVolume")
+        slicer.app.processEvents()
+        self.assertFalse(contours.GetDisplayNode().GetVisibility())
+        self.assertFalse(majorPoints.GetDisplayNode().GetVisibility())
+        mainWindow.moduleSelector().selectModule("AstroModeling")
+        slicer.app.processEvents()
+        self.assertTrue(contours.GetDisplayNode().GetVisibility())
+        self.assertTrue(majorPoints.GetDisplayNode().GetVisibility())
+        self.assertTrue(modelContours.checked)
+        # Show in views: the cube in the 2D views, XY and the PV slices
+        for name in ("Red", "Yellow", "Green"):
+            slicer.mrmlScene.GetNodeByID(f"vtkMRMLSliceCompositeNode{name}").SetBackgroundVolumeID(None)
+        slicer.util.findChild(widget, "ShowResultsButton").click()
+        slicer.app.processEvents()
+        for name, orientation in (("Red", "XY"), ("Yellow", "PVMajor"), ("Green", "PVMinor")):
+            self.assertEqual(slicer.mrmlScene.GetNodeByID(f"vtkMRMLSliceCompositeNode{name}").GetBackgroundVolumeID(),
+                             volumeNode.GetID(), name)
+            self.assertEqual(slicer.mrmlScene.GetNodeByID(f"vtkMRMLSliceNode{name}").GetOrientation(), orientation)
         # the PV slices along the axes, with two points per ring crossing them
         yellow = slicer.mrmlScene.GetNodeByID("vtkMRMLSliceNodeYellow")
         self.assertEqual(yellow.GetOrientation(), "PVMajor")

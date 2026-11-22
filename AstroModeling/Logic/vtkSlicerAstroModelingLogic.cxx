@@ -1050,14 +1050,13 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
     return 0;
     }
 
-  vtkMRMLAstroVolumeNode *residualVolume =
-    vtkMRMLAstroVolumeNode::SafeDownCast
-      (this->GetOperationVolume(pnode->GetResidualVolumeNodeID()));
-  if(!residualVolume || !residualVolume->GetImageData())
+  // the data in the region of the model: only for scenes of earlier versions
+  // that have one (not made any more)
+  vtkMRMLAstroVolumeNode *residualVolume = pnode->GetResidualVolumeNodeID() ?
+    vtkMRMLAstroVolumeNode::SafeDownCast(this->GetOperationVolume(pnode->GetResidualVolumeNodeID())) : nullptr;
+  if (residualVolume && !residualVolume->GetImageData())
     {
-    vtkModelingErrorMacro("vtkSlicerAstroModelingLogic::OperateModel :"
-                  " residualVolume not found!");
-    return 0;
+    residualVolume = nullptr;
     }
 
   bool maskActive = pnode->GetMaskActive();
@@ -1713,27 +1712,31 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
           *(outFPixel + ii) = *(outarray + ii);
           }
 
-        float *residualFPixel = static_cast<float*> (residualVolume->GetImageData()->GetScalarPointer());
-        if (!residualFPixel)
+        float *residualFPixel = nullptr;
+        if (residualVolume)
           {
-          this->cleanPointers();
-          pnode->SetStatus(100);
-          pnode->SetFitSuccess(false);
-          inputVolumeDisplay->SetOpticalVelocityDefinition(false);
-          vtkModelingErrorMacro("vtkSlicerAstroModelingLogic::OperateModel : "
-                        "Unable to find residualFPixel pointer.");
-          return 0;
-          }
-
-        for (vtkIdType ii = 0; ii < numElements; ii++)
-          {
-          if (*(outFPixel + ii) < 1.E-6)
+          residualFPixel = static_cast<float*> (residualVolume->GetImageData()->GetScalarPointer());
+          if (!residualFPixel)
             {
-            *(residualFPixel + ii) = *(inFPixel + ii);
+            this->cleanPointers();
+            pnode->SetStatus(100);
+            pnode->SetFitSuccess(false);
+            inputVolumeDisplay->SetOpticalVelocityDefinition(false);
+            vtkModelingErrorMacro("vtkSlicerAstroModelingLogic::OperateModel : "
+                          "Unable to find residualFPixel pointer.");
+            return 0;
             }
-          else
+
+          for (vtkIdType ii = 0; ii < numElements; ii++)
             {
-            *(residualFPixel + ii) = 0.;
+            if (*(outFPixel + ii) < 1.E-6)
+              {
+              *(residualFPixel + ii) = *(inFPixel + ii);
+              }
+            else
+              {
+              *(residualFPixel + ii) = 0.;
+              }
             }
           }
 
@@ -1983,27 +1986,31 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
           *(outDPixel + ii) = *(outarray + ii);
           }
 
-        double *residualDPixel = static_cast<double*> (residualVolume->GetImageData()->GetScalarPointer());
-        if (!residualDPixel)
+        double *residualDPixel = nullptr;
+        if (residualVolume)
           {
-          this->cleanPointers();
-          pnode->SetStatus(100);
-          pnode->SetFitSuccess(false);
-          inputVolumeDisplay->SetOpticalVelocityDefinition(false);
-          vtkModelingErrorMacro("vtkSlicerAstroModelingLogic::OperateModel : "
-                        "Unable to find residualDPixel pointer.");
-          return 0;
-          }
-
-        for (vtkIdType ii = 0; ii < numElements; ii++)
-          {
-          if (*(outDPixel + ii) < 1.E-6)
+          residualDPixel = static_cast<double*> (residualVolume->GetImageData()->GetScalarPointer());
+          if (!residualDPixel)
             {
-            *(residualDPixel + ii) = *(inDPixel + ii);
+            this->cleanPointers();
+            pnode->SetStatus(100);
+            pnode->SetFitSuccess(false);
+            inputVolumeDisplay->SetOpticalVelocityDefinition(false);
+            vtkModelingErrorMacro("vtkSlicerAstroModelingLogic::OperateModel : "
+                          "Unable to find residualDPixel pointer.");
+            return 0;
             }
-          else
+
+          for (vtkIdType ii = 0; ii < numElements; ii++)
             {
-            *(residualDPixel + ii) = 0.;
+            if (*(outDPixel + ii) < 1.E-6)
+              {
+              *(residualDPixel + ii) = *(inDPixel + ii);
+              }
+            else
+              {
+              *(residualDPixel + ii) = 0.;
+              }
             }
           }
 

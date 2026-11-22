@@ -134,8 +134,8 @@ public:
   /// Start an operation of 3DBarolo on the cube of the parameters node:
   /// vtkMRMLAstroModelingParametersNode::ESTIMATE, CREATE, FIT or UPDATE (the
   /// model of the rings of the parameters table). Prepares it in the calling
-  /// (GUI) thread: checks (GetLastError()), beam, model and residual cubes
-  /// ("<cube>_model_N", "<cube>_maskedByModel_N", replacing the previous
+  /// (GUI) thread: checks (GetLastError()), beam, model cube
+  /// ("<cube>_model_N", replacing the previous
   /// ones of the module), mask (SelectMaskSegment), optical velocities. The
   /// work runs in the background (AstroVolume StartInBackground) on private
   /// copies of the parameters and of the table, and FinishOperation applies
@@ -208,10 +208,21 @@ public:
   /// results (e.g. a failed operation)
   void ClearResults(vtkMRMLAstroModelingParametersNode* pnode);
 
-  /// Show the results: the cube, the model and the residuals prepared for
-  /// the 3D views (the cube shown), the PV slices; with setLayout, the
-  /// layout with a plot view (classic Slicer; the Workbench keeps its own).
+  /// Show the results: the cube in every view (the red view XY, the yellow
+  /// and green views the PV slices along the major and minor axes, the cube
+  /// in 3D; the model prepared for the 3D views), the contours and the
+  /// rotation curve; with setLayout, the layout with a plot view (classic
+  /// Slicer; the Workbench keeps its own).
   bool ShowResults(vtkMRMLAstroModelingParametersNode* pnode, bool setLayout);
+
+  /// The points of the rotation curve on the PV slices shown or hidden
+  /// (saved with the parameters, default shown)
+  void SetRingMarkersVisibility(vtkMRMLAstroModelingParametersNode* pnode, bool visible);
+  bool GetRingMarkersVisibility(vtkMRMLAstroModelingParametersNode* pnode);
+  /// The results in the views (contours, model region, rotation curve, as
+  /// their visibility settings) or all hidden (e.g. when the Modeling panel
+  /// is left); the settings are kept
+  void SetResultsShown(vtkMRMLAstroModelingParametersNode* pnode, bool shown);
 
   /// Plot chart of a parameter of the rings (a column of the parameters
   /// table, e.g. "VRot") against the radius: chart "ModelingRingsChart"

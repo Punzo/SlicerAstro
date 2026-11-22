@@ -325,8 +325,9 @@ bool vtkSlicerAstroModelingLogic::CreateOutputVolumes(vtkMRMLAstroModelingParame
     return false;
     }
   const int serial = pnode->GetOutputSerial();
-  // the model and the residuals of the previous operation of the module are
-  // replaced
+  // the model (and the residuals of scenes of earlier versions) of the
+  // previous operation of the module are replaced; the data in the region
+  // of the model are not made any more (Masking: blank with the model region)
   const char* previousIDs[2] = {pnode->GetOutputVolumeNodeID(), pnode->GetResidualVolumeNodeID()};
   const char* tokens[2] = {"_model_", "_maskedByModel_"};
   for (int index = 0; index < 2; index++)
@@ -339,33 +340,29 @@ bool vtkSlicerAstroModelingLogic::CreateOutputVolumes(vtkMRMLAstroModelingParame
       scene->RemoveNode(previous);
       }
     }
-  vtkMRMLAstroVolumeNode* outputs[2] = {nullptr, nullptr};
-  for (int index = 0; index < 2; index++)
+  const std::string name = std::string(cube->GetName() ? cube->GetName() : "") + "_model_" + std::to_string(serial);
+  vtkMRMLAstroVolumeNode* model =
+    vtkMRMLAstroVolumeNode::SafeDownCast(astroVolumeLogic->CloneVolume(scene, cube, name.c_str()));
+  if (!model)
     {
-    const std::string name = std::string(cube->GetName() ? cube->GetName() : "") +
-      (index == 0 ? "_model_" : "_maskedByModel_") + std::to_string(serial);
-    outputs[index] = vtkMRMLAstroVolumeNode::SafeDownCast(astroVolumeLogic->CloneVolume(scene, cube, name.c_str()));
-    if (!outputs[index])
-      {
-      return false;
-      }
-    vtkMRMLNode* noPreset = nullptr;
-    outputs[index]->SetPresetNode(noPreset);
-    for (int display = outputs[index]->GetNumberOfDisplayNodes() - 1; display >= 0; display--)
-      {
-      if (vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(outputs[index]->GetNthDisplayNode(display)))
-        {
-        outputs[index]->RemoveNthDisplayNodeID(display);
-        }
-      }
-    vtkNew<vtkMatrix4x4> rasToIJK;
-    cube->GetRASToIJKMatrix(rasToIJK);
-    outputs[index]->SetRASToIJKMatrix(rasToIJK);
-    outputs[index]->SetAndObserveTransformNodeID(cube->GetTransformNodeID());
+    return false;
     }
+  vtkMRMLNode* noPreset = nullptr;
+  model->SetPresetNode(noPreset);
+  for (int display = model->GetNumberOfDisplayNodes() - 1; display >= 0; display--)
+    {
+    if (vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(model->GetNthDisplayNode(display)))
+      {
+      model->RemoveNthDisplayNodeID(display);
+      }
+    }
+  vtkNew<vtkMatrix4x4> rasToIJK;
+  cube->GetRASToIJKMatrix(rasToIJK);
+  model->SetRASToIJKMatrix(rasToIJK);
+  model->SetAndObserveTransformNodeID(cube->GetTransformNodeID());
   const int wasModifying = pnode->StartModify();
-  pnode->SetOutputVolumeNodeID(outputs[0]->GetID());
-  pnode->SetResidualVolumeNodeID(outputs[1]->GetID());
+  pnode->SetOutputVolumeNodeID(model->GetID());
+  pnode->SetResidualVolumeNodeID(nullptr);
   pnode->SetOutputSerial(serial + 1);
   pnode->EndModify(wasModifying);
   return true;
@@ -440,10 +437,7 @@ bool vtkSlicerAstroModelingLogic::StartOperation(vtkMRMLAstroModelingParametersN
     }
   vtkMRMLAstroVolumeNode* model = pnode->GetOutputVolumeNodeID() ?
     vtkMRMLAstroVolumeNode::SafeDownCast(scene->GetNodeByID(pnode->GetOutputVolumeNodeID())) : nullptr;
-  vtkMRMLAstroVolumeNode* residual = pnode->GetResidualVolumeNodeID() ?
-    vtkMRMLAstroVolumeNode::SafeDownCast(scene->GetNodeByID(pnode->GetResidualVolumeNodeID())) : nullptr;
-  if (operation != vtkMRMLAstroModelingParametersNode::UPDATE || !model || !residual || model == cube ||
-      residual == cube)
+  if (operation != vtkMRMLAstroModelingParametersNode::UPDATE || !model || model == cube)
     {
     if (operation != vtkMRMLAstroModelingParametersNode::UPDATE && table->GetNumberOfRows() > 0)
       {
@@ -452,7 +446,7 @@ bool vtkSlicerAstroModelingLogic::StartOperation(vtkMRMLAstroModelingParametersN
       }
     if (!this->CreateOutputVolumes(pnode))
       {
-      this->LastError = "The model and residual cubes could not be created.";
+      this->LastError = "The model cube could not be created.";
       return false;
       }
     }
@@ -461,17 +455,22 @@ bool vtkSlicerAstroModelingLogic::StartOperation(vtkMRMLAstroModelingParametersN
     this->LastError = "The table has no rings.";
     return false;
     }
-  // the model and the residuals on the voxels of the cube (same type and
-  // size: 3DBarolo writes them with the type of the cube)
+  // the model on the voxels of the cube (same type and size: 3DBarolo
+  // writes it with the type of the cube)
   if (!pnode->GetInputVolumeNodeID() || cubeID != pnode->GetInputVolumeNodeID())
     {
     this->LastError = "The data cube changed while the operation was prepared.";
     return false;
     }
   model = vtkMRMLAstroVolumeNode::SafeDownCast(scene->GetNodeByID(pnode->GetOutputVolumeNodeID()));
-  residual = vtkMRMLAstroVolumeNode::SafeDownCast(scene->GetNodeByID(pnode->GetResidualVolumeNodeID()));
+  vtkMRMLAstroVolumeNode* residual = pnode->GetResidualVolumeNodeID() ?
+    vtkMRMLAstroVolumeNode::SafeDownCast(scene->GetNodeByID(pnode->GetResidualVolumeNodeID())) : nullptr;
   for (vtkMRMLAstroVolumeNode* output : {model, residual})
     {
+    if (output == residual && !residual)
+      {
+      continue;
+      }
     int cubeDims[3] = {0, 0, 0}, outputDims[3] = {0, 0, 0};
     cube->GetImageData()->GetDimensions(cubeDims);
     if (output && output->GetImageData())
@@ -481,7 +480,7 @@ bool vtkSlicerAstroModelingLogic::StartOperation(vtkMRMLAstroModelingParametersN
     if (!output || !output->GetImageData() || output->GetImageData()->GetScalarType() !=
         cube->GetImageData()->GetScalarType() || !std::equal(cubeDims, cubeDims + 3, outputDims))
       {
-      this->LastError = "The model and residual cubes do not match the data cube.";
+      this->LastError = "The model cube does not match the data cube.";
       return false;
       }
     }
@@ -658,12 +657,16 @@ void vtkSlicerAstroModelingLogic::FinishOperation(int result)
       scene->GetNodeByID(pnode->GetResidualVolumeNodeID() ? pnode->GetResidualVolumeNodeID() : ""));
     const bool success = result == 1 &&
       (operation == vtkMRMLAstroModelingParametersNode::UPDATE || pnode->GetFitSuccess());
-    if (success && model && residual)
+    if (success && model)
       {
       vtkMRMLAstroVolumeNode* volumes[2] = {model, residual};
       const char* dataModels[2] = {"MODEL", "DATA"};
       for (int index = 0; index < 2; index++)
         {
+        if (!volumes[index])
+          {
+          continue;
+          }
         const int wasModifying = volumes[index]->StartModify();
         volumes[index]->UpdateRangeAttributes();
         volumes[index]->UpdateDisplayThresholdAttributes();
@@ -1189,20 +1192,11 @@ bool vtkSlicerAstroModelingLogic::ShowResults(vtkMRMLAstroModelingParametersNode
 {
   vtkMRMLScene* scene = this->GetMRMLScene();
   vtkSlicerAstroVolumeLogic* astroVolumeLogic = this->GetAstroVolumeLogic();
-  vtkMRMLAstroVolumeNode* volumes[3] = {nullptr, nullptr, nullptr};
-  const char* ids[3] = {pnode ? pnode->GetInputVolumeNodeID() : nullptr,
-                        pnode ? pnode->GetOutputVolumeNodeID() : nullptr,
-                        pnode ? pnode->GetResidualVolumeNodeID() : nullptr};
-  for (int index = 0; index < 3; index++)
-    {
-    volumes[index] = (scene && ids[index]) ? vtkMRMLAstroVolumeNode::SafeDownCast(scene->GetNodeByID(ids[index])) :
-                                             nullptr;
-    if (!volumes[index] || !volumes[index]->GetImageData())
-      {
-      return false;
-      }
-    }
-  if (!astroVolumeLogic)
+  vtkMRMLAstroVolumeNode* cube = (scene && pnode && pnode->GetInputVolumeNodeID()) ?
+    vtkMRMLAstroVolumeNode::SafeDownCast(scene->GetNodeByID(pnode->GetInputVolumeNodeID())) : nullptr;
+  vtkMRMLAstroVolumeNode* model = (scene && pnode && pnode->GetOutputVolumeNodeID()) ?
+    vtkMRMLAstroVolumeNode::SafeDownCast(scene->GetNodeByID(pnode->GetOutputVolumeNodeID())) : nullptr;
+  if (!cube || !cube->GetImageData() || !model || !model->GetImageData() || !astroVolumeLogic)
     {
     return false;
     }
@@ -1219,24 +1213,87 @@ bool vtkSlicerAstroModelingLogic::ShowResults(vtkMRMLAstroModelingParametersNode
       layoutNode->SetViewArrangement(vtkMRMLLayoutNode::SlicerLayoutConventionalPlotView);
       }
     }
-  // the model and the residuals ready for the 3D views, the cube shown
+  // the model ready for the 3D views, the cube shown in 3D
   const bool autoShow = astroVolumeLogic->GetAutoShowActiveVolume();
   astroVolumeLogic->SetAutoShowActiveVolume(false);
-  for (int index = 2; index >= 0; index--)
-    {
-    astroVolumeLogic->PrepareVolumeRendering(volumes[index]);
-    astroVolumeLogic->SetVolumeRenderingVisibility(volumes[index], index == 0, index == 0);
-    }
+  astroVolumeLogic->PrepareVolumeRendering(model);
+  astroVolumeLogic->SetVolumeRenderingVisibility(model, false, false);
+  astroVolumeLogic->PrepareVolumeRendering(cube);
+  astroVolumeLogic->SetVolumeRenderingVisibility(cube, true, true);
   vtkMRMLSelectionNode* selection = vtkMRMLSelectionNode::SafeDownCast(
     scene->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
   if (selection)
     {
-    selection->SetSecondaryVolumeID(volumes[1]->GetID());
-    selection->SetActiveVolumeID(volumes[0]->GetID());
+    selection->SetSecondaryVolumeID(model->GetID());
+    selection->SetActiveVolumeID(cube->GetID());
     }
   astroVolumeLogic->SetAutoShowActiveVolume(autoShow);
+  // the cube in the 2D views (not other data, e.g. moment maps): the red
+  // view on the sky, the yellow and green views the PV slices
+  for (const char* name : {"Red", "Yellow", "Green"})
+    {
+    vtkMRMLSliceCompositeNode* composite = vtkMRMLSliceCompositeNode::SafeDownCast(
+      scene->GetNodeByID((std::string("vtkMRMLSliceCompositeNode") + name).c_str()));
+    if (composite)
+      {
+      const int wasModifying = composite->StartModify();
+      composite->SetBackgroundVolumeID(cube->GetID());
+      composite->SetForegroundVolumeID(nullptr);
+      composite->SetLabelVolumeID(nullptr);
+      composite->EndModify(wasModifying);
+      }
+    }
+  vtkMRMLSliceNode* red = SliceNode(scene, "Red");
+  if (red && strcmp(red->GetOrientationString(), "XY"))
+    {
+    red->SetOrientation("XY");
+    }
   this->UpdateResultContours(pnode);
+  this->SetResultsShown(pnode, true);
   return this->SetPVSlices(pnode);
+}
+
+//----------------------------------------------------------------------------
+void vtkSlicerAstroModelingLogic::SetRingMarkersVisibility(vtkMRMLAstroModelingParametersNode* pnode, bool visible)
+{
+  if (pnode)
+    {
+    pnode->SetAttribute("SlicerAstro.RingMarkersVisible", visible ? "true" : "false");
+    }
+  for (bool major : {true, false})
+    {
+    vtkMRMLMarkupsFiducialNode* points = this->GetRingMarkers(major);
+    if (points && points->GetDisplayNode())
+      {
+      points->GetDisplayNode()->SetVisibility(visible);
+      }
+    }
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroModelingLogic::GetRingMarkersVisibility(vtkMRMLAstroModelingParametersNode* pnode)
+{
+  const char* value = pnode ? pnode->GetAttribute("SlicerAstro.RingMarkersVisible") : nullptr;
+  return !value || strcmp(value, "false");
+}
+
+//----------------------------------------------------------------------------
+void vtkSlicerAstroModelingLogic::SetResultsShown(vtkMRMLAstroModelingParametersNode* pnode, bool shown)
+{
+  vtkMRMLSegmentationNode* contours = this->GetResultContours();
+  if (contours && contours->GetDisplayNode())
+    {
+    contours->GetDisplayNode()->SetVisibility(shown);
+    }
+  const bool markers = shown && this->GetRingMarkersVisibility(pnode);
+  for (bool major : {true, false})
+    {
+    vtkMRMLMarkupsFiducialNode* points = this->GetRingMarkers(major);
+    if (points && points->GetDisplayNode())
+      {
+      points->GetDisplayNode()->SetVisibility(markers);
+      }
+    }
 }
 
 //----------------------------------------------------------------------------

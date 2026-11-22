@@ -29,7 +29,8 @@
 /// \ingroup SlicerAstro_QtModules_AstroModeling
 /// Plot of a parameter of the rings of a tilted-ring model against the
 /// radius (e.g. the rotation curve), in the colours of the SlicerAstro
-/// theme; the ring under the mouse is highlighted with its values.
+/// theme; the ring under the mouse is highlighted with its values, and its
+/// value can be changed by dragging its point vertically (ringValueChanged).
 class Q_SLICERASTRO_QTMODULES_ASTROMODELING_EXPORT qSlicerAstroRingPlot : public QWidget
 {
   Q_OBJECT
@@ -48,10 +49,25 @@ public:
   Q_INVOKABLE QVector<double> values() const;
   /// Text shown without rings
   Q_INVOKABLE void setPlaceholderText(const QString& text);
+  /// The value of a ring set by dragging its point vertically (true by default)
+  Q_INVOKABLE void setEditable(bool editable);
+  Q_INVOKABLE bool isEditable() const;
+  /// The ring dragged (-1: none)
+  Q_INVOKABLE int draggedRing() const;
+  /// Value at a vertical position of the widget (for tests and scripts)
+  Q_INVOKABLE double valueAt(double y) const;
+  Q_INVOKABLE QPointF pointPosition(int ring) const;
+
+signals:
+  /// A ring dragged to a new value (during the drag and at its end)
+  void ringValueChanged(int ring, double value);
+  void ringDragFinished(int ring);
 
 protected:
   void paintEvent(QPaintEvent* event) override;
   void mouseMoveEvent(QMouseEvent* event) override;
+  void mousePressEvent(QMouseEvent* event) override;
+  void mouseReleaseEvent(QMouseEvent* event) override;
   void leaveEvent(QEvent* event) override;
 
   QRectF plotRect() const;
@@ -66,6 +82,8 @@ protected:
   double YMin{0.};
   double YMax{1.};
   int HoverIndex{-1};
+  int DragIndex{-1};
+  bool Editable{true};
 };
 
 #endif

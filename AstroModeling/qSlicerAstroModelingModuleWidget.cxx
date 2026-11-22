@@ -29,6 +29,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QPlainTextEdit>
+#include <QPointer>
 #include <QPushButton>
 #include <QScrollBar>
 #include <QSignalBlocker>
@@ -50,6 +51,8 @@
 #include <qMRMLTableView.h>
 #include <qSlicerAbstractCoreModule.h>
 #include <qSlicerApplication.h>
+#include <qMRMLPlotView.h>
+#include <qMRMLPlotWidget.h>
 #include <qSlicerLayoutManager.h>
 #include <vtkSlicerApplicationLogic.h>
 
@@ -59,6 +62,7 @@
 #include <vtkMRMLLayoutLogic.h>
 #include <vtkMRMLLayoutNode.h>
 #include <vtkMRMLPlotChartNode.h>
+#include <vtkMRMLPlotViewNode.h>
 #include <vtkMRMLScene.h>
 #include <vtkMRMLSegmentationNode.h>
 #include <vtkMRMLSelectionNode.h>
@@ -231,11 +235,11 @@ public:
   QToolButton* DataContoursButton{nullptr};
   QToolButton* ModelContoursButton{nullptr};
   QToolButton* ModelRegionButton{nullptr};
+  QToolButton* RingMarkersButton{nullptr};
   qSlicerAstroValueField* ContourLevelField{nullptr};
   qSlicerAstroValueField* MajorOffsetField{nullptr};
   qSlicerAstroValueField* MinorOffsetField{nullptr};
   qSlicerAstroResultCard* ModelResult{nullptr};
-  qSlicerAstroResultCard* ResidualResult{nullptr};
 
   std::vector<std::pair<qSlicerAstroValueField*, NumberParameter> > Numbers;
   std::vector<std::pair<QToolButton*, NumberParameter> > FreeButtons;
@@ -1044,7 +1048,8 @@ QWidget* qSlicerAstroModelingModuleWidgetPrivate::buildResults(QWidget* parent)
   layout->addLayout(plotRow);
   this->RingPlot = new qSlicerAstroRingPlot(results);
   this->RingPlot->setToolTip(qSlicerAstroModelingModuleWidget::tr(
-    "The parameter of the rings against the radius; move the mouse over a ring for its values."));
+    "The parameter of the rings against the radius; move the mouse over a ring for its values, drag a point up "
+    "or down to change the value of its ring (the table follows; Calculate model makes the new model)."));
   layout->addWidget(this->RingPlot);
 
   this->TableView = new qMRMLTableView(results);
@@ -1098,7 +1103,11 @@ QWidget* qSlicerAstroModelingModuleWidgetPrivate::buildResults(QWidget* parent)
     "ModelRegionButton", results);
   contoursRow->addWidget(this->DataContoursButton);
   contoursRow->addWidget(this->ModelContoursButton);
+  this->RingMarkersButton = Chip(qSlicerAstroModelingModuleWidget::tr("Rotation curve"),
+    qSlicerAstroModelingModuleWidget::tr("The points of the rotation curve on the PV slices (yellow and green views)."),
+    "RingMarkersButton", results);
   contoursRow->addWidget(this->ModelRegionButton);
+  contoursRow->addWidget(this->RingMarkersButton);
   contoursRow->addStretch(1);
   layout->addLayout(contoursRow);
   QGridLayout* displayGrid = new QGridLayout();
@@ -1141,13 +1150,11 @@ QWidget* qSlicerAstroModelingModuleWidgetPrivate::buildResults(QWidget* parent)
     "contours."));
   layout->addWidget(showButton);
 
-  // the model and residual cubes
+  // the model cube (the data in the region of the model: Masking, blank
+  // outside the model region)
   this->ModelResult = new qSlicerAstroResultCard(results);
   this->ModelResult->setObjectName("ModelResult");
-  this->ResidualResult = new qSlicerAstroResultCard(results);
-  this->ResidualResult->setObjectName("ResidualResult");
   layout->addWidget(this->ModelResult);
-  layout->addWidget(this->ResidualResult);
 
   QObject::connect(this->RingParameterCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), q, [this](int index)
     {
@@ -1155,6 +1162,21 @@ QWidget* qSlicerAstroModelingModuleWidgetPrivate::buildResults(QWidget* parent)
     q->setRingParameter(this->RingParameterCombo->itemData(index).toString());
     });
   QObject::connect(plotView, SIGNAL(clicked()), q, SLOT(openPlotView()));
+  QObject::connect(this->RingPlot, &qSlicerAstroRingPlot::ringValueChanged, q, [this](int ring, double value)
+    {
+    vtkMRMLTableNode* table = this->parametersNode ? this->parametersNode->GetParamsTableNode() : nullptr;
+    vtkTable* data = table ? table->GetTable() : nullptr;
+    vtkDataArray* column = data ? vtkDataArray::SafeDownCast(data->GetColumnByName(
+      this->RingColumn.toUtf8().constData())) : nullptr;
+    if (!column || ring < 0 || ring >= column->GetNumberOfTuples())
+      {
+      return;
+      }
+    column->SetTuple1(ring, value);
+    column->Modified();
+    data->Modified();
+    table->Modified();
+    });
   QObject::connect(copy, SIGNAL(clicked()), this->TableView, SLOT(copySelection()));
   QObject::connect(paste, SIGNAL(clicked()), this->TableView, SLOT(pasteSelection()));
   QObject::connect(exportButton, &QToolButton::clicked, q, [q]() { q->exportTable(); });
@@ -1174,6 +1196,13 @@ QWidget* qSlicerAstroModelingModuleWidgetPrivate::buildResults(QWidget* parent)
         }
       });
     }
+  QObject::connect(this->RingMarkersButton, &QToolButton::toggled, q, [this](bool checked)
+    {
+    if (!this->Updating && this->logic())
+      {
+      this->logic()->SetRingMarkersVisibility(this->parametersNode, checked);
+      }
+    });
   QObject::connect(this->ContourLevelField, &qSlicerAstroValueField::editingFinished, q, [this]()
     {
     if (this->Updating || !this->parametersNode || !this->logic())
@@ -1202,7 +1231,7 @@ QWidget* qSlicerAstroModelingModuleWidgetPrivate::buildResults(QWidget* parent)
       this->logic()->SetPVSlices(this->parametersNode);
       });
     }
-  for (qSlicerAstroResultCard* card : {this->ModelResult, this->ResidualResult})
+  for (qSlicerAstroResultCard* card : {this->ModelResult})
     {
     QObject::connect(card, &qSlicerAstroResultCard::showRequested, q, [this, card]()
       {
@@ -1456,6 +1485,8 @@ void qSlicerAstroModelingModuleWidgetPrivate::updateResults()
   const QSignalBlocker blockData(this->DataContoursButton);
   const QSignalBlocker blockModel(this->ModelContoursButton);
   const QSignalBlocker blockRegion(this->ModelRegionButton);
+  const QSignalBlocker blockMarkers(this->RingMarkersButton);
+  this->RingMarkersButton->setChecked(logic && logic->GetRingMarkersVisibility(this->parametersNode));
   this->DataContoursButton->setChecked(logic &&
     logic->GetResultContoursVisibility(vtkSlicerAstroModelingLogic::GetDataContoursSegmentID()));
   this->ModelContoursButton->setChecked(logic &&
@@ -1464,19 +1495,13 @@ void qSlicerAstroModelingModuleWidgetPrivate::updateResults()
     logic->GetResultContoursVisibility(vtkSlicerAstroModelingLogic::GetModelMaskSegmentID()));
   }
   vtkMRMLAstroVolumeNode* model = this->volume(this->parametersNode->GetOutputVolumeNodeID());
-  vtkMRMLAstroVolumeNode* residual = this->volume(this->parametersNode->GetResidualVolumeNodeID());
   if (model)
     {
     this->ModelResult->setVolume(model);
     this->ModelResult->setSubtitle(qSlicerAstroModelingModuleWidget::tr("model cube"));
     }
-  if (residual)
-    {
-    this->ResidualResult->setVolume(residual);
-    this->ResidualResult->setSubtitle(qSlicerAstroModelingModuleWidget::tr("data in the region of the model"));
-    }
-  qSlicerAstroResultCard::setCardsVisible(QList<qSlicerAstroResultCard*>() << this->ModelResult << this->ResidualResult,
-                                          QList<bool>() << (model != nullptr) << (residual != nullptr));
+  qSlicerAstroResultCard::setCardsVisible(QList<qSlicerAstroResultCard*>() << this->ModelResult,
+                                          QList<bool>() << (model != nullptr));
   this->updateRingPlot();
 }
 
@@ -1934,6 +1959,11 @@ void qSlicerAstroModelingModuleWidget::onTableModified()
     {
     d->updateResults();
     }
+  // the rotation curve on the PV slices follows the edited rings
+  if (d->hasResults() && this->isEntered())
+    {
+    d->MarkersTimer->start();
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -1987,11 +2017,45 @@ void qSlicerAstroModelingModuleWidget::openPlotView()
     {
     layoutNode->SetViewArrangement(vtkSlicerAstroVolumeLogic::AddPlotLayout(layoutNode));
     }
+  // the chart in the plot view once the layout has made it (its OpenGL
+  // context is created with the view): then the points moved vertically
+  // (the values of the rings: the table follows) and the plot fitted
   vtkSlicerApplicationLogic* appLogic = this->module() ? this->module()->appLogic() : nullptr;
-  if (appLogic)
+  QPointer<qSlicerAstroModelingModuleWidget> self(this);
+  QTimer::singleShot(0, this, [self, appLogic, app]()
     {
-    appLogic->PropagatePlotChartSelection();
-    }
+    vtkMRMLScene* scene = self ? self->mrmlScene() : nullptr;
+    if (!scene)
+      {
+      return;
+      }
+    for (int index = 0; index < scene->GetNumberOfNodesByClass("vtkMRMLPlotViewNode"); index++)
+      {
+      vtkMRMLPlotViewNode* plotView = vtkMRMLPlotViewNode::SafeDownCast(
+        scene->GetNthNodeByClass(index, "vtkMRMLPlotViewNode"));
+      const int wasModifying = plotView->StartModify();
+      plotView->SetInteractionMode(vtkMRMLPlotViewNode::InteractionModeMovePoints);
+      plotView->SetEnablePointMoveAlongX(false);
+      plotView->SetEnablePointMoveAlongY(true);
+      plotView->EndModify(wasModifying);
+      }
+    if (appLogic)
+      {
+      appLogic->PropagatePlotChartSelection();
+      }
+    QTimer::singleShot(0, self, [app]()
+      {
+      qSlicerLayoutManager* layoutManager = app ? app->layoutManager() : nullptr;
+      for (int index = 0; layoutManager && index < layoutManager->plotViewCount(); index++)
+        {
+        qMRMLPlotWidget* widget = layoutManager->plotWidget(index);
+        if (widget && widget->plotView())
+          {
+          widget->plotView()->fitToContent();
+          }
+        }
+      });
+    });
 }
 
 //-----------------------------------------------------------------------------
@@ -2063,11 +2127,19 @@ void qSlicerAstroModelingModuleWidget::enter()
   this->onSelectionNodeModified();
   d->setSliceObservers(true);
   vtkSlicerAstroModelingLogic* logic = d->logic();
-  // the results of the cube in the views (the layout of classic Slicer; the
-  // Workbench keeps its own)
+  // the results of the cube in the views: in classic Slicer the layout and
+  // views of the results; in the Workbench (its own layout and views) the
+  // results shown again as they were (Show in views sets the views)
   if (logic && d->parametersNode && d->hasResults() && !logic->IsOperationRunning())
     {
-    logic->ShowResults(d->parametersNode, !d->embedded());
+    if (d->embedded())
+      {
+      logic->SetResultsShown(d->parametersNode, true);
+      }
+    else
+      {
+      logic->ShowResults(d->parametersNode, true);
+      }
     }
   d->updateFromNode();
 }
@@ -2077,5 +2149,11 @@ void qSlicerAstroModelingModuleWidget::exit()
 {
   Q_D(qSlicerAstroModelingModuleWidget);
   d->setSliceObservers(false);
+  // the contours, the model region and the rotation curve hidden outside the
+  // module (shown again, as they were, when it is entered)
+  if (d->logic() && d->parametersNode)
+    {
+    d->logic()->SetResultsShown(d->parametersNode, false);
+    }
   this->Superclass::exit();
 }
