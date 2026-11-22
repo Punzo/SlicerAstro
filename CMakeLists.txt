@@ -95,7 +95,6 @@ slicerastro_find_thirdparty_library(BBAROLO bbarolo)
 
 #-----------------------------------------------------------------------------
 # Extension modules
-add_subdirectory(SlicerAstroWelcome)
 add_subdirectory(vtkFits)
 add_subdirectory(vtkAstroCoordinates)
 add_subdirectory(vtkAstroReproject)
@@ -105,6 +104,8 @@ if(VTK_SLICER_ASTRO_SUPPORT_OPENGL)
 endif()
 include(${CMAKE_CURRENT_SOURCE_DIR}/CMake/SlicerAstroTesting.cmake)
 add_subdirectory(AstroVolume)
+# after AstroVolume: uses its widgets (qSlicerAstroVolumeModuleWidgets_INCLUDE_DIRS)
+add_subdirectory(SlicerAstroWelcome)
 add_subdirectory(AstroReproject)
 add_subdirectory(AstroStatistics)
 add_subdirectory(AstroSmoothing)
