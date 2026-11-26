@@ -158,8 +158,14 @@ class AstroCloudLassoTestTest(ScriptedLoadableModuleTest):
         effect.setParameter("AutomaticThresholdUpdating", "0")
 
         # Lasso in the 3D view (through the whole cube)
-        threeDView = layoutManager.threeDWidget(0).threeDView()
-        layoutManager.threeDWidget(0).threeDController().resetFocalPoint()
+        # the 3D widget shown in the layout (not a hidden one of a previous
+        # layout), rendered before the lasso (late under load)
+        threeDWidget = [layoutManager.threeDWidget(index) for index in range(layoutManager.threeDViewCount)
+                        if layoutManager.threeDWidget(index).isVisible()][0]
+        threeDView = threeDWidget.threeDView()
+        threeDWidget.threeDController().resetFocalPoint()
+        slicer.app.processEvents()
+        threeDView.forceRender()
         slicer.app.processEvents()
         before = np.count_nonzero(self.segmentVoxels(segmentationNode, segmentID, volumeNode))
         self.drawLasso(threeDView, (threeDView.width // 2, threeDView.height // 2),
@@ -190,9 +196,17 @@ class AstroCloudLassoTestTest(ScriptedLoadableModuleTest):
         import qt
 
         mainWindow = slicer.util.mainWindow()
+
+        def active():
+            # the shortcuts are matched in the focus window of Qt GUI, which
+            # follows the window system later than the active window of the
+            # widgets (late under load)
+            return (qt.QApplication.activeWindow() == mainWindow
+                    and qt.QGuiApplication.focusWindow() == mainWindow.windowHandle())
+
         mainWindow.activateWindow()
         timeout = time.time() + 10.0
-        while qt.QApplication.activeWindow() != mainWindow and time.time() < timeout:
+        while not active() and time.time() < timeout:
             mainWindow.activateWindow()
             slicer.app.processEvents()
             time.sleep(0.05)

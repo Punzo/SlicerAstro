@@ -704,7 +704,14 @@ class AstroFITSIOTestTest(ScriptedLoadableModuleTest):
         data = cubeData()
         data[1, 2, 3] = np.nan
         wcs = celestialWCS() + radioVelocityWCS() + beamCards()
-        temporaryFiles = set(glob.glob(os.path.join(tempfile.gettempdir(), "SlicerAstro-*")))
+        # the decompressed copies of the reader (SlicerAstro-<time>-<count>-<name>)
+        # of the files of this test (other tests run at the same time)
+
+        def readerFiles():
+            return {path for name in ("compressed.fits", "readonly.fits")
+                    for path in glob.glob(os.path.join(tempfile.gettempdir(), f"SlicerAstro-*-*-{name}*"))}
+
+        temporaryFiles = readerFiles()
 
         plainPath = os.path.join(self.directory, "plain.fits")
         writeFITS(plainPath, data, -32, wcs)
@@ -731,7 +738,7 @@ class AstroFITSIOTestTest(ScriptedLoadableModuleTest):
                 self.assertEqual(node.GetAttribute(key), reference.GetAttribute(key), f"{path}: {key}")
 
         self.assertEqual((sorted(os.listdir(self.directory)), sorted(os.listdir(readOnlyDirectory))), filesBefore)
-        self.assertEqual(set(glob.glob(os.path.join(tempfile.gettempdir(), "SlicerAstro-*"))), temporaryFiles)
+        self.assertEqual(readerFiles(), temporaryFiles)
         os.chmod(readOnlyDirectory, stat.S_IRWXU)
         self.delayDisplay("Test passed")
 

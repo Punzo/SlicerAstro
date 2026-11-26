@@ -819,9 +819,13 @@ void qSlicerAstroVolumeModule::setup()
     }
 
 
-  // Unregister RulerDisplayableManager
-  vtkMRMLThreeDViewDisplayableManagerFactory::GetInstance()->
-    UnRegisterDisplayableManager("vtkMRMLRulerDisplayableManager");
+  // Unregister RulerDisplayableManager (if registered in the 3D views)
+  vtkMRMLThreeDViewDisplayableManagerFactory* threeDViewFactory =
+    vtkMRMLThreeDViewDisplayableManagerFactory::GetInstance();
+  if (threeDViewFactory->IsDisplayableManagerRegistered("vtkMRMLRulerDisplayableManager"))
+    {
+    threeDViewFactory->UnRegisterDisplayableManager("vtkMRMLRulerDisplayableManager");
+    }
   // in the slice views the ruler is replaced by the WCS axes
   qSlicerAstroVolumeLayoutSliceViewFactory::removeSlicerRulers(d->app->layoutManager());
 

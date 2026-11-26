@@ -1225,9 +1225,12 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
 
     viewNode->DisableModifiedEventOff();
 
-    //unregister RulerDisplayableManager
-    vtkMRMLThreeDViewDisplayableManagerFactory::GetInstance()->
-      UnRegisterDisplayableManager("vtkMRMLRulerDisplayableManager");
+    // unregister RulerDisplayableManager (if registered)
+    vtkMRMLThreeDViewDisplayableManagerFactory* factory = vtkMRMLThreeDViewDisplayableManagerFactory::GetInstance();
+    if (factory->IsDisplayableManagerRegistered("vtkMRMLRulerDisplayableManager"))
+      {
+      factory->UnRegisterDisplayableManager("vtkMRMLRulerDisplayableManager");
+      }
     }
 
   if (node->IsA("vtkMRMLSliceNode"))
@@ -1249,9 +1252,12 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
 
     sliceNode->DisableModifiedEventOff();
 
-    //unregister RulerDisplayableManager
-    vtkMRMLSliceViewDisplayableManagerFactory::GetInstance()->
-      UnRegisterDisplayableManager("vtkMRMLRulerDisplayableManager");
+    // unregister RulerDisplayableManager (if registered)
+    vtkMRMLSliceViewDisplayableManagerFactory* factory = vtkMRMLSliceViewDisplayableManagerFactory::GetInstance();
+    if (factory->IsDisplayableManagerRegistered("vtkMRMLRulerDisplayableManager"))
+      {
+      factory->UnRegisterDisplayableManager("vtkMRMLRulerDisplayableManager");
+      }
     }
 
   if (node->IsA("vtkMRMLSegmentEditorNode"))
