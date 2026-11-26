@@ -1055,6 +1055,36 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         self.process()
         self.assertEqual(sliceView.backgroundColor.name(), "#070a12")
         self.assertAlmostEqual(viewNode.GetBackgroundColor2()[2], 18 / 255.0, places=6)
+        # new markups take the theme colours (selected accent-ink, points
+        # data, hovered ok) of the dark and the light mode
+        for themeMode in ("light", "dark"):
+            theme.setMode(themeMode)
+            self.process()
+            line = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsLineNode")
+            line.CreateDefaultDisplayNodes()
+            display = line.GetDisplayNode()
+            for value, token in ((display.GetSelectedColor(), "accent-ink"), (display.GetColor(), "data"),
+                                 (display.GetActiveColor(), "ok")):
+                expected = theme.color(token)
+                for component, reference in zip(value, (expected.redF(), expected.greenF(), expected.blueF())):
+                    self.assertAlmostEqual(component, reference, places=6, msg=f"{themeMode} {token}")
+            slicer.mrmlScene.RemoveNode(line)
+        # only the defaults follow the theme: the colours of existing markups
+        # (e.g. changed by the user) are kept when the theme changes
+        theme.setMode("dark")
+        self.process()
+        line = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsLineNode")
+        line.CreateDefaultDisplayNodes()
+        display = line.GetDisplayNode()
+        display.SetSelectedColor(0.1, 0.2, 0.3)
+        unchanged = display.GetColor()
+        theme.setMode("light")
+        self.process()
+        for component, reference in zip(display.GetSelectedColor(), (0.1, 0.2, 0.3)):
+            self.assertAlmostEqual(component, reference, places=6)
+        for component, reference in zip(display.GetColor(), unchanged):
+            self.assertAlmostEqual(component, reference, places=6)
+        slicer.mrmlScene.RemoveNode(line)
         theme.setMode(mode)
 
     def test_ViewsInteraction(self):
@@ -1076,8 +1106,10 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         # a click in a view makes it the active view
         view = layoutManager.sliceWidget("Green").sliceView()
         center = qt.QPointF(view.width / 2, view.height / 2)
+        # mapToGlobal of a QPoint: Qt 5 has no QPointF overload
+        globalCenter = qt.QPointF(view.mapToGlobal(qt.QPoint(int(center.x()), int(center.y()))))
         for eventType in (qt.QEvent.MouseButtonPress, qt.QEvent.MouseButtonRelease):
-            event = qt.QMouseEvent(eventType, center, view.mapToGlobal(center), qt.Qt.LeftButton,
+            event = qt.QMouseEvent(eventType, center, globalCenter, qt.Qt.LeftButton,
                                    qt.Qt.LeftButton if eventType == qt.QEvent.MouseButtonPress else qt.Qt.NoButton,
                                    qt.Qt.NoModifier)
             slicer.app.sendEvent(view, event)

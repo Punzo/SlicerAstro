@@ -81,6 +81,15 @@ public:
   /// Hover moves of the VTK views dropped (duplicates of the mouse moves)
   Q_INVOKABLE int droppedHoverMoves()const;
 
+  /// Default colours of new markups in the SlicerAstro theme (selected:
+  /// accent-ink, unselected points: data, hovered: ok; tokens of the current
+  /// dark or light mode). Set on the default markups display node of the
+  /// scene when the scene is set and when the theme changes; existing
+  /// markups keep their colours.
+  Q_INVOKABLE void applyMarkupsColors();
+
+  void setMRMLScene(vtkMRMLScene* scene) override;
+
 protected:
   /// Initialize the module. Register the AstroVolume reader/writer
   virtual void setup();

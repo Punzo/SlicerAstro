@@ -40,6 +40,9 @@
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
 #include <vtkLookupTable.h>
+#include <vtkMRMLMarkupsDisplayNode.h>
+#include <vtkMRMLScene.h>
+#include <vtkSmartPointer.h>
 
 //CTK includes
 #include <ctkCollapsibleButton.h>
@@ -337,8 +340,10 @@ QStringList qSlicerAstroVolumeModule::categories() const
 //-----------------------------------------------------------------------------
 QStringList qSlicerAstroVolumeModule::dependencies() const
 {
+  // Markups first: its scene setup reads the markups defaults of the
+  // settings, then applyMarkupsColors sets the SlicerAstro colours
   return QStringList() << "Data" << "Volumes" << "VolumeRendering" << "Segmentations" << "SegmentEditor"
-                       << "Terminologies";
+                       << "Terminologies" << "Markups";
 }
 
 //-----------------------------------------------------------------------------
@@ -408,6 +413,8 @@ void qSlicerAstroVolumeModule::setup()
   // created here (fonts registered, Python access through the application
   // property "SlicerAstroTheme"); the mode is chosen in View > SlicerAstro theme
   qSlicerAstroTheme* theme = qSlicerAstroTheme::instance();
+  // default colours of new markups follow the theme (dark or light)
+  QObject::connect(theme, &qSlicerAstroTheme::themeChanged, this, &qSlicerAstroVolumeModule::applyMarkupsColors);
   QMenu* viewMenu = d->app->mainWindow() ? d->app->mainWindow()->findChild<QMenu*>("ViewMenu") : nullptr;
   if (viewMenu && !viewMenu->findChild<QMenu*>("SlicerAstroThemeMenu"))
     {
@@ -855,6 +862,39 @@ void qSlicerAstroVolumeModule::setup()
     tempColorTableNode->SetAttribute("SlicerAstro.Inverse", "off");
     tempColorTableNode->SetAttribute("SlicerAstro.Log", "off");
     }
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroVolumeModule::setMRMLScene(vtkMRMLScene* scene)
+{
+  this->Superclass::setMRMLScene(scene);
+  this->applyMarkupsColors();
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroVolumeModule::applyMarkupsColors()
+{
+  vtkMRMLScene* scene = this->mrmlScene();
+  if (!scene)
+    {
+    return;
+    }
+  // the node whose properties new markups display nodes copy (the Markups
+  // logic uses the same one, GetDefaultMarkupsDisplayNode)
+  vtkSmartPointer<vtkMRMLMarkupsDisplayNode> defaults =
+    vtkMRMLMarkupsDisplayNode::SafeDownCast(scene->GetDefaultNodeByClass("vtkMRMLMarkupsDisplayNode"));
+  if (!defaults)
+    {
+    defaults = vtkSmartPointer<vtkMRMLMarkupsDisplayNode>::New();
+    scene->AddDefaultNode(defaults);
+    }
+  const qSlicerAstroTheme* theme = qSlicerAstroTheme::instance();
+  const QColor selected = theme->color("accent-ink");
+  const QColor unselected = theme->color("data");
+  const QColor active = theme->color("ok");
+  defaults->SetSelectedColor(selected.redF(), selected.greenF(), selected.blueF());
+  defaults->SetColor(unselected.redF(), unselected.greenF(), unselected.blueF());
+  defaults->SetActiveColor(active.redF(), active.greenF(), active.blueF());
 }
 
 //-----------------------------------------------------------------------------
