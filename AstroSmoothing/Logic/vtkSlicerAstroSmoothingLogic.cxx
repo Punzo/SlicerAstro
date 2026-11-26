@@ -474,6 +474,15 @@ int vtkSlicerAstroSmoothingLogic::RunSmoothingFilter(vtkMRMLAstroSmoothingParame
         snprintf(value, sizeof(value), "%.17g", newBeam[2]);
         outputVolume->SetAttribute("SlicerAstro.BPA", value);
         }
+      // spectral smoothing: the spectral resolution of the output (3D
+      // resolution element of the 3D views)
+      const double spectralFWHM = ComputeSmoothedSpectralFWHM(inputVolume, parametersCopy);
+      if (spectralFWHM > 0.)
+        {
+        char spectralValue[64];
+        snprintf(spectralValue, sizeof(spectralValue), "%.17g", spectralFWHM);
+        outputVolume->SetAttribute("SlicerAstro.SpectralFWHM", spectralValue);
+        }
       outputVolume->UpdateRangeAttributes();
       outputVolume->UpdateDisplayThresholdAttributes();
       outputVolume->EndModify(wasModifying);
@@ -691,6 +700,43 @@ int vtkSlicerAstroSmoothingLogic::GradientGPUFilter(vtkMRMLAstroSmoothingParamet
   filter->SetRenderWindow(renderWindow);
   return this->RunSmoothingFilter(pnode, filter, "Intensity driven Gradient Filter (GPU, OpenGL)", false);
 #endif
+}
+
+//----------------------------------------------------------------------------
+double vtkSlicerAstroSmoothingLogic::ComputeSmoothedSpectralFWHM(vtkMRMLAstroVolumeNode* input,
+                                                                 vtkMRMLAstroSmoothingParametersNode* pnode)
+{
+  if (!input || !pnode || !input->GetImageData() || input->GetImageData()->GetDimensions()[2] < 2)
+    {
+    return 0.;
+    }
+  double kernel = 0.;
+  if (pnode->GetFilter() == 0)
+    {
+    // box: the width of the box (channels), the FWHM of a top-hat
+    kernel = pnode->GetParameterZ();
+    }
+  else if (pnode->GetFilter() == 1)
+    {
+    // Gaussian: FWHM along the spectral axis of the rotated kernel (rows of
+    // the rotation M as in ComputeSmoothedBeam: variance_zz = sum_k M_k2^2 s_k^2)
+    const double degToRad = vtkMath::Pi() / 180.;
+    const double rx = pnode->GetRx() * degToRad, ry = pnode->GetRy() * degToRad;
+    const double column[3] = {std::sin(ry), -std::cos(ry) * std::sin(rx), std::cos(rx) * std::cos(ry)};
+    const double fwhm[3] = {pnode->GetParameterX(), pnode->GetParameterY(), pnode->GetParameterZ()};
+    double variance = 0.;
+    for (int k = 0; k < 3; k++)
+      {
+      variance += column[k] * column[k] * fwhm[k] * fwhm[k];
+      }
+    kernel = std::sqrt(variance);
+    }
+  if (!(kernel > 0.001) || !(pnode->GetParameterZ() > 0.001))
+    {
+    return 0.;
+    }
+  const double inputFWHM = input->GetSpectralFWHM();
+  return std::sqrt(inputFWHM * inputFWHM + kernel * kernel);
 }
 
 //----------------------------------------------------------------------------

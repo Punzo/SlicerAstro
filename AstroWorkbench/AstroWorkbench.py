@@ -429,6 +429,38 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         self.assertFalse(redNode.GetSliceVisible())
         self.assertEqual(len(slicer.util.findChildren(mainWindow, "ViewLink_Red")), 0)
 
+        # beam button: in the views of the sky plane, enabled when the data
+        # have a beam (WEIN069 has none: BMAJ = -1), hidden in the
+        # position-velocity views
+        beam = slicer.util.findChild(mainWindow, "ViewBeam_Red")
+        self.assertEqual(redNode.GetOrientation(), "XY")
+        self.assertFalse(beam.isHidden())
+        self.assertFalse(beam.enabled)
+        self.assertIn("BMAJ", beam.toolTip)
+        attributes = {key: volume.GetAttribute(f"SlicerAstro.{key}") for key in ("BMAJ", "BMIN", "BPA")}
+        for key, value in (("BMAJ", "0.012"), ("BMIN", "0.006"), ("BPA", "30")):
+            volume.SetAttribute(f"SlicerAstro.{key}", value)
+        redNode.Modified()
+        self.process()
+        self.assertTrue(beam.enabled)
+        self.assertTrue(beam.checked)  # the Workbench shows the beam
+        beam.click()
+        self.assertEqual(redNode.GetAttribute("SlicerAstro.Beam"), "off")
+        beam.click()
+        self.assertEqual(redNode.GetAttribute("SlicerAstro.Beam"), "on")
+        redNode.SetOrientation("XZ")
+        self.process()
+        self.assertTrue(beam.isHidden())
+        redNode.SetOrientation("ZY")
+        redNode.SetOrientation("XY")
+        self.process()
+        self.assertFalse(beam.isHidden())
+        for key, value in attributes.items():
+            volume.SetAttribute(f"SlicerAstro.{key}", value)
+        redNode.Modified()
+        self.process()
+        self.assertFalse(beam.enabled)
+
         directory = tempfile.mkdtemp(prefix="AstroScenes")
         folder = Scenes.saveScene("Test WEIN069", "a note", directory)
         self.assertTrue(os.path.isfile(os.path.join(folder, Scenes.SCENE_FILE)))

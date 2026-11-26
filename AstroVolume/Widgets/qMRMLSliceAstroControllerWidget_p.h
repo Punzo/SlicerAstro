@@ -63,12 +63,15 @@ public slots:
   /// Update widget state using the associated MRML slice node
   void updateAstroWidgetFromMRMLSliceNode();
 
-  /// Enable the beam button only if the view shows the sky plane (XY) and
-  /// an astro volume in the view has the beam information (BMAJ, BMIN > 0).
+  /// Beam button shown in the views of the sky plane (XY), enabled when the
+  /// data shown have a beam (vtkMRMLAstroVolumeNode::GetBeamUnavailableReason,
+  /// the reason in the tooltip otherwise).
   void updateBeamButton();
 
 protected slots:
   void onBeamToggled(bool toggled);
+  /// Themed icon of the beam button (follows the dark or light theme)
+  void updateBeamIcon();
 
 protected:
   void onMRMLSelectionNodeModified(vtkObject* sender);

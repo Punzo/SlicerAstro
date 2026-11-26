@@ -24,6 +24,7 @@
 #include <vtkMRMLAbstractViewNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
+#include <vtkMRMLSliceCompositeNode.h>
 #include <vtkMRMLSliceLayerLogic.h>
 #include <vtkMRMLSliceLogic.h>
 #include <vtkMRMLSliceNode.h>
@@ -36,6 +37,7 @@
 #include <vtkCamera.h>
 #include <vtkCellArray.h>
 #include <vtkGeneralTransform.h>
+#include <vtkImageData.h>
 #include <vtkMatrix4x4.h>
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
@@ -49,10 +51,15 @@
 #include <vtkPolyDataMapper2D.h>
 #include <vtkLine.h>
 #include <vtksys/SystemTools.hxx>
+#include <vtkTextActor.h>
+#include <vtkTextProperty.h>
 #include <vtkTransform.h>
 #include <vtkMath.h>
 
 // STD includes
+#include <algorithm>
+#include <cmath>
+#include <functional>
 #include <sstream>
 #include <vector>
 
@@ -64,6 +71,12 @@
 
 // Constants
 static const int RENDERER_LAYER = 1; // layer ID where the orientation marker will be displayed
+// view pixels: margins of the labels of the 2D axes (left and bottom sides,
+// vtkMRMLAstroTwoDAxesDisplayableManager: labels at 20 px from the left side
+// and 15 px above the bottom side, 12 pt font), padding of the beam
+static const double AXES_LEFT_MARGIN = 80.;
+static const double AXES_BOTTOM_MARGIN = 34.;
+static const double CORNER_PADDING = 10.;
 const double PI_2  = PI * 0.5;
 
 //---------------------------------------------------------------------------
@@ -88,24 +101,6 @@ public:
   vtkWeakPointer<vtkMRMLAstroBeamDisplayableManager> DisplayableManager;
 };
 
-namespace
-{
-//----------------------------------------------------------------------------
-template <typename T> T StringToNumber(const char* num)
-{
-  std::stringstream ss;
-  ss << num;
-  T result;
-  return ss >> result ? result : 0;
-}
-
-//----------------------------------------------------------------------------
-double StringToDouble(const char* str)
-{
-  return StringToNumber<double>(str);
-}
-
-}// end namespace
 
 //---------------------------------------------------------------------------
 vtkStandardNewMacro(vtkMRMLAstroBeamDisplayableManager);
@@ -124,6 +119,10 @@ public:
   void SetupBeam();
   void UpdateBeam();
   void ShowActors(bool show);
+  /// Points of the beam ellipse in view coordinates, in the bottom-left
+  /// corner of the visible data; false if it cannot be drawn there
+  bool ComputeBeamPoints(vtkMRMLSliceNode* sliceNode, vtkMRMLAstroVolumeNode* volumeNode,
+                         vtkMRMLSliceLayerLogic* layerLogic);
 
   vtkSmartPointer<vtkRenderer> MarkerRenderer;
   vtkSmartPointer<vtkAstroBeamRendererUpdateObserver> RendererUpdateObserver;
@@ -132,7 +131,12 @@ public:
   vtkSmartPointer<vtkPolyData> beamPolyData;
   vtkSmartPointer<vtkActor2D> beamActor;
   vtkSmartPointer<vtkPolyDataMapper2D> beamMapper;
-  vtkSmartPointer<vtkCollection> col;
+  vtkSmartPointer<vtkCellArray> beamFillCellArray;
+  vtkSmartPointer<vtkPolyData> beamFillPolyData;
+  vtkSmartPointer<vtkActor2D> beamFillActor;
+  vtkSmartPointer<vtkPolyDataMapper2D> beamFillMapper;
+  /// "beam", right of the ellipse
+  vtkSmartPointer<vtkTextActor> beamLabel;
 
   int RendererUpdateObservationId;
   vtkWeakPointer<vtkRenderer> ObservedRenderer;
@@ -169,7 +173,16 @@ vtkMRMLAstroBeamDisplayableManager::vtkInternal::vtkInternal(vtkMRMLAstroBeamDis
   this->beamPolyData = vtkSmartPointer<vtkPolyData>::New();
   this->beamActor = vtkSmartPointer<vtkActor2D>::New();
   this->beamMapper = vtkSmartPointer<vtkPolyDataMapper2D>::New();
-  this->col = vtkSmartPointer<vtkCollection>::New();
+  this->beamFillCellArray = vtkSmartPointer<vtkCellArray>::New();
+  this->beamFillPolyData = vtkSmartPointer<vtkPolyData>::New();
+  this->beamFillActor = vtkSmartPointer<vtkActor2D>::New();
+  this->beamFillMapper = vtkSmartPointer<vtkPolyDataMapper2D>::New();
+  this->beamLabel = vtkSmartPointer<vtkTextActor>::New();
+  this->beamLabel->SetInput("beam");
+  this->beamLabel->GetTextProperty()->SetFontSize(12);
+  this->beamLabel->GetTextProperty()->SetFontFamilyToArial();
+  this->beamLabel->GetTextProperty()->SetJustificationToLeft();
+  this->beamLabel->GetTextProperty()->SetVerticalJustificationToCentered();
   this->app = nullptr;
   this->Color = vtkSmartPointer<vtkDoubleArray>::New();
   this->Color->SetNumberOfValues(3);
@@ -194,11 +207,15 @@ void vtkMRMLAstroBeamDisplayableManager::vtkInternal::ShowActors(bool show)
     }
   if (show)
     {
+    this->MarkerRenderer->AddViewProp(this->beamFillActor);
     this->MarkerRenderer->AddViewProp(this->beamActor);
+    this->MarkerRenderer->AddViewProp(this->beamLabel);
     }
   else
     {
+    this->MarkerRenderer->RemoveViewProp(this->beamFillActor);
     this->MarkerRenderer->RemoveViewProp(this->beamActor);
+    this->MarkerRenderer->RemoveViewProp(this->beamLabel);
     }
   this->ActorsAddedToRenderer = show;
 }
@@ -255,6 +272,10 @@ void vtkMRMLAstroBeamDisplayableManager::vtkInternal::SetupBeam()
 {
   this->beamActor->PickableOff();
   this->beamActor->DragableOff();
+  this->beamFillActor->PickableOff();
+  this->beamFillActor->DragableOff();
+  this->beamLabel->PickableOff();
+  this->beamLabel->DragableOff();
 }
 
 //---------------------------------------------------------------------------
@@ -344,160 +365,174 @@ void vtkMRMLAstroBeamDisplayableManager::vtkInternal::UpdateBeam()
     return;
     }
 
-  // the collection may still hold the layers of a previous update that
-  // returned early
-  this->col->RemoveAllItems();
-  this->col->AddItem(sliceLogic->GetBackgroundLayer());
-  this->col->AddItem(sliceLogic->GetForegroundLayer());
-  this->col->AddItem(sliceLogic->GetLabelLayer());
-
-  bool hasVolume = false;
-
-  for (int layer = 0; layer < this->col->GetNumberOfItems(); layer++)
+  // the volume whose beam is shown: the same rule as the beam button of the
+  // slice controller and of the AstroWorkbench view bars
+  vtkMRMLAstroVolumeNode* volumeNode =
+    vtkMRMLAstroVolumeNode::GetBeamVolume(sliceLogic->GetSliceCompositeNode());
+  vtkMRMLSliceLayerLogic* layerLogic = nullptr;
+  vtkMRMLSliceLayerLogic* layers[2] = {sliceLogic->GetBackgroundLayer(), sliceLogic->GetForegroundLayer()};
+  for (vtkMRMLSliceLayerLogic* layer : layers)
     {
-    vtkMRMLSliceLayerLogic* sliceLayerLogic =
-      vtkMRMLSliceLayerLogic::SafeDownCast
-        (this->col->GetItemAsObject(layer));
-
-    if(!sliceLayerLogic)
+    if (volumeNode && layer && layer->GetVolumeNode() == volumeNode)
       {
-      return;
+      layerLogic = layer;
+      break;
       }
-
-    vtkMRMLAstroVolumeNode* volumeNode =
-      vtkMRMLAstroVolumeNode::SafeDownCast
-        (sliceLayerLogic->GetVolumeNode());
-
-    if (!volumeNode)
-      {
-      continue;
-      }
-
-    if (!strcmp(volumeNode->GetAttribute("SlicerAstro.BMAJ"), "UNDEFINED") ||
-        !strcmp(volumeNode->GetAttribute("SlicerAstro.BMIN"), "UNDEFINED") ||
-        !strcmp(volumeNode->GetAttribute("SlicerAstro.BPA"), "UNDEFINED"))
-      {
-      continue;
-      }
-
-    // e.g. BMAJ = -1: the beam is not defined
-    if (StringToDouble(volumeNode->GetAttribute("SlicerAstro.BMAJ")) <= 0. ||
-        StringToDouble(volumeNode->GetAttribute("SlicerAstro.BMIN")) <= 0.)
-      {
-      continue;
-      }
-
-    hasVolume = true;
-
-    // The beam ellipse, drawn on the sky: full axes BMAJ and BMIN (FWHM),
-    // major axis at the position angle BPA (from north through east), each
-    // point projected with the WCS of the volume (rotated axes, either
-    // direction of the right ascension and non-square pixels included).
-    // (the transforms of the slice layer are up to date: updating them here
-    // modified the slice logic, which rendered the view again)
-    vtkMRMLAstroVolumeDisplayNode* displayNode = volumeNode->GetAstroVolumeDisplayNode();
-    struct wcsprm* wcs = displayNode ? displayNode->GetWCSStruct() : nullptr;
-    vtkGeneralTransform* xyToIJK = sliceLayerLogic->GetXYToIJKTransform();
-    if (!wcs || wcs->lng != 0 || wcs->lat != 1 || wcs->naxis > 4 || !xyToIJK)
-      {
-      continue;
-      }
-
-    const double BMAJ = StringToDouble(volumeNode->GetAttribute("SlicerAstro.BMAJ"));
-    const double BMIN = StringToDouble(volumeNode->GetAttribute("SlicerAstro.BMIN"));
-    const double BPA = vtkMath::RadiansFromDegrees(StringToDouble(volumeNode->GetAttribute("SlicerAstro.BPA")));
-    const double CDELT2 = fabs(StringToDouble(volumeNode->GetAttribute("SlicerAstro.CDELT2")));
-    const double NAXIS1 = StringToDouble(volumeNode->GetAttribute("SlicerAstro.NAXIS1"));
-    if (!(CDELT2 > 0.))
-      {
-      continue;
-      }
-
-    // center: in the bottom right corner of the data (two major axes from
-    // the sides), in the channel shown
-    const double majorPixels = 2. * BMAJ / CDELT2;
-    double viewCenter[3] = {sliceNode->GetDimensions()[0] / 2., sliceNode->GetDimensions()[1] / 2., 0.};
-    double channel[3] = {0., 0., 0.};
-    xyToIJK->TransformPoint(viewCenter, channel);
-    // FITS pixel coordinates (from 1)
-    double centerPixel[4] = {NAXIS1 - majorPixels, majorPixels + 1., channel[2] + 1., 1.};
-    double centerWorld[4] = {0., 0., 0., 0.}, imgcrd[4] = {0., 0., 0., 0.}, phi = 0., theta = 0.;
-    int centerStatus = 0;
-    if (wcsp2s(wcs, 1, 4, centerPixel, imgcrd, &phi, &theta, centerWorld, &centerStatus))
-      {
-      continue;
-      }
-    const double cosDeclination = cos(vtkMath::RadiansFromDegrees(centerWorld[1]));
-    if (!(cosDeclination > 1.E-6))
-      {
-      continue;
-      }
-
-    const int numberOfPoints = 61;
-    std::vector<double> world(numberOfPoints * 4), pixel(numberOfPoints * 4, 0.), imgcrds(numberOfPoints * 4, 0.);
-    std::vector<double> phis(numberOfPoints, 0.), thetas(numberOfPoints, 0.);
-    std::vector<int> stat(numberOfPoints, 0);
-    for (int point = 0; point < numberOfPoints; point++)
-      {
-      const double t = point * (2. * vtkMath::Pi() / (numberOfPoints - 1));
-      const double alongMajor = 0.5 * BMAJ * cos(t);
-      const double alongMinor = 0.5 * BMIN * sin(t);
-      // offsets (degrees) towards the east and the north
-      const double east = alongMajor * sin(BPA) + alongMinor * cos(BPA);
-      const double north = alongMajor * cos(BPA) - alongMinor * sin(BPA);
-      std::copy(centerWorld, centerWorld + 4, world.begin() + point * 4);
-      world[point * 4] = centerWorld[0] + east / cosDeclination;
-      world[point * 4 + 1] = centerWorld[1] + north;
-      }
-    const int status = wcss2p(wcs, numberOfPoints, 4, world.data(), phis.data(), thetas.data(),
-                              imgcrds.data(), pixel.data(), stat.data());
-    if (status && status != WCSERR_BAD_WORLD)
-      {
-      continue;
-      }
-
-    vtkAbstractTransform* ijkToXY = xyToIJK->GetInverse();
-    vtkIdType previousId = -1;
-    for (int point = 0; point < numberOfPoints; point++)
-      {
-      if (stat[point])
-        {
-        previousId = -1;
-        continue;
-        }
-      // FITS pixel coordinates (from 1) to IJK (voxel centers from 0)
-      double ijk[3] = {pixel[point * 4] - 1., pixel[point * 4 + 1] - 1., channel[2]}, xy[3] = {0., 0., 0.};
-      ijkToXY->TransformPoint(ijk, xy);
-      const vtkIdType id = this->beamPoints->InsertNextPoint(xy[0], xy[1], 0.);
-      if (previousId >= 0)
-        {
-        vtkIdType ids[2] = {previousId, id};
-        this->beamCellArray->InsertNextCell(2, ids);
-        }
-      previousId = id;
-      }
-
-    // setup the mapper and actor
-    this->beamPoints->Modified();
-    this->beamCellArray->Modified();
-    this->beamPolyData->SetPoints(this->beamPoints);
-    this->beamPolyData->SetLines(this->beamCellArray);
-    this->beamPolyData->Modified();
-    this->beamMapper->SetInputData(this->beamPolyData);
-    this->beamActor->SetMapper(this->beamMapper);
-    this->beamActor->GetProperty()->SetLineWidth(2);
-    this->beamActor->GetProperty()->SetColor(this->Color->GetValue(0),
-                                             this->Color->GetValue(1),
-                                             this->Color->GetValue(2));
-
-    this->ShowActors(true);
-    break;
     }
-
-  if (!hasVolume)
+  if (!layerLogic || !this->ComputeBeamPoints(sliceNode, volumeNode, layerLogic))
     {
     this->ShowActors(false);
+    return;
     }
+
+  // outline and translucent fill of the ellipse
+  this->beamPoints->Modified();
+  this->beamCellArray->Modified();
+  this->beamPolyData->SetPoints(this->beamPoints);
+  this->beamPolyData->SetLines(this->beamCellArray);
+  this->beamPolyData->Modified();
+  this->beamMapper->SetInputData(this->beamPolyData);
+  this->beamActor->SetMapper(this->beamMapper);
+  this->beamActor->GetProperty()->SetLineWidth(2);
+  this->beamActor->GetProperty()->SetColor(this->Color->GetValue(0),
+                                           this->Color->GetValue(1),
+                                           this->Color->GetValue(2));
+  this->beamFillPolyData->SetPoints(this->beamPoints);
+  this->beamFillPolyData->SetPolys(this->beamFillCellArray);
+  this->beamFillPolyData->Modified();
+  this->beamFillMapper->SetInputData(this->beamFillPolyData);
+  this->beamFillActor->SetMapper(this->beamFillMapper);
+  this->beamFillActor->GetProperty()->SetColor(this->Color->GetValue(0),
+                                               this->Color->GetValue(1),
+                                               this->Color->GetValue(2));
+  this->beamFillActor->GetProperty()->SetOpacity(0.3);
+  // the label right of the ellipse, at its height
+  double bounds[6] = {0., 0., 0., 0., 0., 0.};
+  this->beamPoints->GetBounds(bounds);
+  this->beamLabel->SetDisplayPosition(static_cast<int>(bounds[1] + 6.), static_cast<int>((bounds[2] + bounds[3]) / 2.));
+  this->beamLabel->GetTextProperty()->SetColor(this->Color->GetValue(0),
+                                               this->Color->GetValue(1),
+                                               this->Color->GetValue(2));
+
+  this->ShowActors(true);
+}
+
+//---------------------------------------------------------------------------
+bool vtkMRMLAstroBeamDisplayableManager::vtkInternal::ComputeBeamPoints(vtkMRMLSliceNode* sliceNode,
+  vtkMRMLAstroVolumeNode* volumeNode, vtkMRMLSliceLayerLogic* layerLogic)
+{
+  // The beam ellipse on the sky (vtkMRMLAstroVolumeNode::GetBeamEllipse),
+  // placed in view coordinates in the bottom-left corner of the visible part
+  // of the data (radio astronomy convention), inside the labels of the 2D
+  // axes: visible whatever the zoom, the pan and the orientation of the axes
+  // on the screen; its size is the size on the sky.
+  // (the transforms of the slice layer are up to date: updating them here
+  // modified the slice logic, which rendered the view again)
+  vtkGeneralTransform* xyToIJK = layerLogic->GetXYToIJKTransform();
+  vtkImageData* imageData = volumeNode->GetImageData();
+  if (!xyToIJK || !imageData)
+    {
+    return false;
+    }
+  const int* viewDimensions = sliceNode->GetDimensions();
+  int dimensions[3] = {0, 0, 0};
+  imageData->GetDimensions(dimensions);
+  if (viewDimensions[0] <= 0 || viewDimensions[1] <= 0 || dimensions[0] <= 0 || dimensions[1] <= 0)
+    {
+    return false;
+    }
+  vtkAbstractTransform* ijkToXY = xyToIJK->GetInverse();
+
+  // the channel shown
+  double viewCenter[3] = {viewDimensions[0] / 2., viewDimensions[1] / 2., 0.};
+  double centerIJK[3] = {0., 0., 0.};
+  xyToIJK->TransformPoint(viewCenter, centerIJK);
+  const double channel = centerIJK[2];
+
+  // visible part of the data in the view (XY, origin at the bottom left)
+  double visible[4] = {VTK_DOUBLE_MAX, -VTK_DOUBLE_MAX, VTK_DOUBLE_MAX, -VTK_DOUBLE_MAX};
+  for (int corner = 0; corner < 4; corner++)
+    {
+    double ijk[3] = {corner % 2 ? dimensions[0] - 0.5 : -0.5, corner / 2 ? dimensions[1] - 0.5 : -0.5, channel};
+    double xy[3] = {0., 0., 0.};
+    ijkToXY->TransformPoint(ijk, xy);
+    visible[0] = std::min(visible[0], xy[0]);
+    visible[1] = std::max(visible[1], xy[0]);
+    visible[2] = std::min(visible[2], xy[1]);
+    visible[3] = std::max(visible[3], xy[1]);
+    }
+  // inside the view and, with the 2D axes, inside their labels (left and
+  // bottom sides, vtkMRMLAstroTwoDAxesDisplayableManager)
+  const bool axes = sliceNode->GetRulerType() != vtkMRMLAbstractViewNode::RulerTypeNone;
+  visible[0] = std::max(visible[0], axes ? AXES_LEFT_MARGIN : 0.);
+  visible[1] = std::min(visible[1], static_cast<double>(viewDimensions[0]));
+  visible[2] = std::max(visible[2], axes ? AXES_BOTTOM_MARGIN : 0.);
+  visible[3] = std::min(visible[3], static_cast<double>(viewDimensions[1]));
+
+  // the ellipse around a point of the view: its points in view coordinates
+  const int numberOfPoints = 61;
+  std::vector<double> points;
+  vtkNew<vtkPoints> ijkPoints;
+  std::function<bool(const double*)> ellipseAt = [&](const double* centerXY) -> bool
+    {
+    points.clear();
+    double xy[3] = {centerXY[0], centerXY[1], 0.}, ijk[3] = {0., 0., 0.};
+    xyToIJK->TransformPoint(xy, ijk);
+    ijk[2] = channel;
+    if (!volumeNode->GetBeamEllipse(ijk, numberOfPoints, ijkPoints))
+      {
+      return false;
+      }
+    for (vtkIdType point = 0; point < ijkPoints->GetNumberOfPoints(); point++)
+      {
+      double pointXY[3] = {0., 0., 0.};
+      ijkToXY->TransformPoint(ijkPoints->GetPoint(point), pointXY);
+      points.push_back(pointXY[0]);
+      points.push_back(pointXY[1]);
+      }
+    return true;
+    };
+
+  // size of the ellipse on the screen (at the centre of the visible data)
+  const double reference[2] = {(visible[0] + visible[1]) / 2., (visible[2] + visible[3]) / 2.};
+  if (visible[1] <= visible[0] || visible[3] <= visible[2] || !ellipseAt(reference))
+    {
+    return false;
+    }
+  double halfWidth = 0., halfHeight = 0.;
+  for (int point = 0; point < numberOfPoints; point++)
+    {
+    halfWidth = std::max(halfWidth, fabs(points[2 * point] - reference[0]));
+    halfHeight = std::max(halfHeight, fabs(points[2 * point + 1] - reference[1]));
+    }
+  // bottom-left corner, hidden if it does not fit in the visible data
+  const double anchor[2] = {visible[0] + CORNER_PADDING + halfWidth, visible[2] + CORNER_PADDING + halfHeight};
+  if (anchor[0] + halfWidth + CORNER_PADDING > visible[1] ||
+      anchor[1] + halfHeight + CORNER_PADDING > visible[3] ||
+      !ellipseAt(anchor))
+    {
+    return false;
+    }
+
+  this->beamPoints->Reset();
+  this->beamCellArray->Reset();
+  this->beamFillCellArray->Reset();
+  this->beamFillCellArray->InsertNextCell(numberOfPoints - 1);
+  for (int point = 0; point < numberOfPoints; point++)
+    {
+    const vtkIdType id = this->beamPoints->InsertNextPoint(points[2 * point], points[2 * point + 1], 0.);
+    if (point > 0)
+      {
+      vtkIdType ids[2] = {id - 1, id};
+      this->beamCellArray->InsertNextCell(2, ids);
+      }
+    // the last point is the first one again
+    if (point < numberOfPoints - 1)
+      {
+      this->beamFillCellArray->InsertCellPoint(id);
+      }
+    }
+  return true;
 }
 
 //---------------------------------------------------------------------------

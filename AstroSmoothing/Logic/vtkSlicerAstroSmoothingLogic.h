@@ -93,6 +93,15 @@ public:
                   const std::function<void(bool)>& done, bool synchronous = false);
 #endif
 
+  /// Spectral resolution of the output (FWHM in channels) of a smoothing
+  /// along the spectral axis: the spectral FWHM of the input
+  /// (vtkMRMLAstroVolumeNode::GetSpectralFWHM) and the one of the kernel
+  /// added in quadrature (box: its width; Gaussian: its FWHM along the
+  /// spectral axis, rotations included). 0 if the spectral resolution does
+  /// not change (2D data, no spectral smoothing, intensity-driven filter).
+  static double ComputeSmoothedSpectralFWHM(vtkMRMLAstroVolumeNode* input,
+                                            vtkMRMLAstroSmoothingParametersNode* pnode);
+
   /// Beam of the data after a Gaussian smoothing: the beam of the input
   /// convolved with the kernel projected on the sky (its 3D covariance,
   /// rotations included, marginalized over the spectral axis and mapped to

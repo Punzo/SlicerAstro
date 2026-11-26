@@ -122,6 +122,10 @@ class ViewBar(qt.QFrame):
         self.observers = []
 
 
+# tooltip of the beam button (as the one of Slicer's slice controller)
+BEAM_TOOLTIP = "Show or hide the beam of the data (FWHM ellipse) in the bottom-left corner of the data shown"
+
+
 class SliceViewBar(ViewBar):
 
     def __init__(self, workbench, sliceWidget, parent=None):
@@ -144,7 +148,7 @@ class SliceViewBar(ViewBar):
         self.layersButton, self.layersMenu = self.menuButton(
             "layers", "Data shown in the view", f"ViewLayers_{self.viewName}")
         self.layersMenu.connect("aboutToShow()", self.fillLayersMenu)
-        self.beamButton = self.button("beam", "Show the beam of the data", True, f"ViewBeam_{self.viewName}")
+        self.beamButton = self.button("beam", BEAM_TOOLTIP, True, f"ViewBeam_{self.viewName}")
         self.beamButton.connect("toggled(bool)", self.setBeamVisible)
         self.frame = None
         self.axesButton = self.button("wcsAxes", "Show the WCS axes (coordinates along the borders of the view)", True,
@@ -189,8 +193,13 @@ class SliceViewBar(ViewBar):
     def refresh(self, caller=None, event=None):
         volume = self.volume()
         orientation = self.sliceNode.GetOrientation()
-        beam = Astro.isAstroVolume(volume) and Astro.hasBeam(volume) and orientation == "XY"
-        self.beamButton.visible = bool(beam)
+        # the rule of the beam of Slicer's slice controller and of the beam
+        # drawn in the view (vtkMRMLAstroVolumeNode): shown in the views of
+        # the sky plane, enabled when the data shown have a beam
+        reason = slicer.vtkMRMLAstroVolumeNode.GetBeamUnavailableReason(self.sliceNode, self.compositeNode)
+        self.beamButton.visible = orientation == "XY"
+        self.beamButton.enabled = not reason
+        self.beamButton.toolTip = reason or BEAM_TOOLTIP
         self.beamButton.blockSignals(True)
         self.beamButton.checked = self.sliceNode.GetAttribute("SlicerAstro.Beam") == "on"
         self.beamButton.blockSignals(False)
@@ -299,6 +308,14 @@ class ThreeDViewBar(ViewBar):
         self.visibilityButton = self.button("eye", "Show or hide the volume rendering (the masks stay shown)", True,
                                             "View3DVisibility")
         self.visibilityButton.connect("toggled(bool)", self.setRenderingVisible)
+        # the 3D resolution element (beam x spectral resolution): the C++
+        # control of SlicerAstro, also in the 3D view controllers of Slicer
+        self.beam3DButton = slicer.qSlicerAstroBeam3DButton()
+        self.beam3DButton.setObjectName("View3DBeam")
+        self.beam3DButton.iconColorToken = "view-subtle"
+        self.beam3DButton.setIconSize(qt.QSize(15, 15))
+        self.beam3DButton.setMRMLViewNode(self.viewNode)
+        self.barLayout.addWidget(self.beam3DButton)
         self.axesButton, self.axesMenu = self.menuButton("viewCamera", "Look at the data from an axis (north, south, east, west, along the velocity)",
                                                          "View3DAxes")
         self.axesMenu.connect("aboutToShow()", self.fillAxesMenu)

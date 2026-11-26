@@ -480,4 +480,34 @@ class AstroSmoothingSelfTestTest(ScriptedLoadableModuleTest):
         # box filters have no Gaussian beam
         parametersNode.SetFilter(BOX)
         self.assertFalse(vtkSlicerAstroSmoothingLogic.ComputeSmoothedBeam(volumeNode, parametersNode, newBeam, kernel))
+
+        # spectral resolution (FWHM in channels, 3D resolution element of the
+        # 3D views): the one of the input (1 channel) and the one of the
+        # kernel along the spectral axis in quadrature; unchanged without
+        # spectral smoothing
+        self.assertIsNone(output.GetAttribute("SlicerAstro.SpectralFWHM"))  # smoothed with Z = 0
+        spectralFWHM = vtkSlicerAstroSmoothingLogic.ComputeSmoothedSpectralFWHM
+        parametersNode.SetFilter(GAUSSIAN)
+        parametersNode.SetParameterX(3)
+        parametersNode.SetParameterY(3)
+        parametersNode.SetParameterZ(2)
+        parametersNode.SetRx(0)
+        parametersNode.SetRy(0)
+        parametersNode.SetRz(0)
+        self.assertAlmostEqual(spectralFWHM(volumeNode, parametersNode), math.hypot(1., 2.), places=6)
+        parametersNode.SetRx(90)  # the Y axis of the kernel along the spectral axis
+        self.assertAlmostEqual(spectralFWHM(volumeNode, parametersNode), math.hypot(1., 3.), places=6)
+        parametersNode.SetRx(0)
+        parametersNode.SetFilter(BOX)
+        self.assertAlmostEqual(spectralFWHM(volumeNode, parametersNode), math.hypot(1., 2.), places=6)
+        parametersNode.SetFilter(GRADIENT)
+        self.assertEqual(spectralFWHM(volumeNode, parametersNode), 0.)
+
+        def spectralGaussian(p):
+            gaussian(p)
+            p.SetParameterZ(2)
+        self.smooth(parametersNode, spectralGaussian)
+        output = slicer.mrmlScene.GetNodeByID(parametersNode.GetOutputVolumeNodeID())
+        self.assertAlmostEqual(float(output.GetAttribute("SlicerAstro.SpectralFWHM")), math.hypot(1., 2.), places=6)
+        self.assertAlmostEqual(output.GetSpectralFWHM(), math.hypot(1., 2.), places=6)
         self.delayDisplay("Test passed")

@@ -24,6 +24,7 @@
 #include <QLabel>
 #include <QMenu>
 #include <QPushButton>
+#include <QSignalBlocker>
 #include <QSpinBox>
 #include <QString>
 #include <QWidgetAction>
@@ -61,6 +62,9 @@
 #include <vtkNew.h>
 #include <vtkSmartPointer.h>
 #include <vtksys/SystemTools.hxx>
+
+// SlicerAstro includes
+#include "qSlicerAstroTheme.h"
 
 // SlicerQt includes
 #include <qSlicerApplication.h>
@@ -129,21 +133,21 @@ void qMRMLSliceAstroControllerWidgetPrivate::init()
   this->app = 0;
   this->col = vtkSmartPointer<vtkCollection>::New();
 
-  BeamButton = new QToolButton(SliceFrame);
-  BeamButton->setObjectName(QLatin1String("BeamButton"));
-  QIcon icon;
-  icon.addFile(QLatin1String(":/Icons/Beam.png"), QSize(), QIcon::Normal, QIcon::Off);
-  BeamButton->setIcon(icon);
-  BeamButton->setAutoRaise(true);
-  BeamButton->setToolTip("Show/hide the beam in the 2D XY view.");
-  BeamButton->setVisible(false);
-  BeamButton->setChecked(false);
-  BeamButton->setCheckable(true);
-  this->horizontalLayout_2->addWidget(BeamButton,0,Qt::AlignLeft);
-  this->horizontalLayout_2->addStretch(1);
-  QObject::connect(MoreButton, SIGNAL(toggled(bool)),
-                   BeamButton, SLOT(setVisible(bool)));
-  QObject::connect(BeamButton, SIGNAL(toggled(bool)),
+  // beam button in the bar of the controller (always visible, not in the
+  // "more" options): shown in the views of the sky plane (XY), enabled when
+  // the data shown have a beam
+  this->BeamButton = new QToolButton(q);
+  this->BeamButton->setObjectName(QLatin1String("BeamButton"));
+  this->BeamButton->setAutoRaise(true);
+  this->BeamButton->setCheckable(true);
+  this->BeamButton->setChecked(false);
+  this->BeamButton->setVisible(false);
+  this->BeamButton->setFixedSize(this->MaximizeViewButton->sizeHint());
+  this->updateBeamIcon();
+  this->BarLayout->addWidget(this->BeamButton);
+  QObject::connect(qSlicerAstroTheme::instance(), SIGNAL(themeChanged()),
+                   this, SLOT(updateBeamIcon()));
+  QObject::connect(this->BeamButton, SIGNAL(toggled(bool)),
                    this, SLOT(onBeamToggled(bool)));
 
   RulerButton->setToolTip("Show/hide 2D axis in the 2D view.");
@@ -162,19 +166,10 @@ void qMRMLSliceAstroControllerWidgetPrivate::updateAstroWidgetFromMRMLSliceNode(
   q->setWCSDisplay();
   this->updateBeamButton();
 
-  if (!q->mrmlSliceNode()->GetAttribute("SlicerAstro.Beam"))
-    {
-    return;
-    }
-
-  if (!strcmp(q->mrmlSliceNode()->GetAttribute("SlicerAstro.Beam"), "on"))
-    {
-    this->BeamButton->setChecked(true);
-    }
-  else
-    {
-    this->BeamButton->setChecked(false);
-    }
+  // the state of the view (MRML -> button only: linked views are not changed)
+  const char* beam = q->mrmlSliceNode()->GetAttribute("SlicerAstro.Beam");
+  const QSignalBlocker blocker(this->BeamButton);
+  this->BeamButton->setChecked(beam && !strcmp(beam, "on"));
 }
 
 //---------------------------------------------------------------------------
@@ -190,45 +185,22 @@ void qMRMLSliceAstroControllerWidgetPrivate::updateBeamButton()
     this->BeamObservedSliceLogic = q->sliceLogic();
     }
 
-  QString reason;
-  if (!q->mrmlSliceNode() || !q->sliceLogic())
-    {
-    reason = qMRMLSliceAstroControllerWidget::tr("No data in this view.");
-    }
-  else if (q->mrmlSliceNode()->GetOrientation() != "XY")
-    {
-    reason = qMRMLSliceAstroControllerWidget::tr("The beam is shown only in the views of the sky plane (XY orientation).");
-    }
-  else
-    {
-    bool beamDefined = false;
-    vtkMRMLSliceLayerLogic* layers[2] = {q->sliceLogic()->GetBackgroundLayer(), q->sliceLogic()->GetForegroundLayer()};
-    for (vtkMRMLSliceLayerLogic* layer : layers)
-      {
-      vtkMRMLAstroVolumeNode* volumeNode =
-        vtkMRMLAstroVolumeNode::SafeDownCast(layer ? layer->GetVolumeNode() : nullptr);
-      if (!volumeNode)
-        {
-        continue;
-        }
-      const char* bmaj = volumeNode->GetAttribute("SlicerAstro.BMAJ");
-      const char* bmin = volumeNode->GetAttribute("SlicerAstro.BMIN");
-      if (bmaj && bmin && QString(bmaj).toDouble() > 0. && QString(bmin).toDouble() > 0.)
-        {
-        beamDefined = true;
-        break;
-        }
-      }
-    if (!beamDefined)
-      {
-      reason = qMRMLSliceAstroControllerWidget::tr("The beam is not defined in the FITS header of the data shown in this view "
-                                                   "(BMAJ, BMIN and BPA keywords).");
-      }
-    }
-
+  // the same rule as the beam drawn in the view and the view bars of the
+  // AstroWorkbench (vtkMRMLAstroVolumeNode)
+  vtkMRMLSliceNode* sliceNode = q->mrmlSliceNode();
+  const QString reason = QString::fromStdString(
+    vtkMRMLAstroVolumeNode::GetBeamUnavailableReason(sliceNode, q->mrmlSliceCompositeNode()));
+  this->BeamButton->setVisible(sliceNode && sliceNode->GetOrientation() == "XY");
   this->BeamButton->setEnabled(reason.isEmpty());
   this->BeamButton->setToolTip(reason.isEmpty() ?
-    qMRMLSliceAstroControllerWidget::tr("Show/hide the beam in the 2D XY view.") : reason);
+    qMRMLSliceAstroControllerWidget::tr("Show or hide the beam of the data (FWHM ellipse) in the bottom-left "
+                                        "corner of the data shown") : reason);
+}
+
+//---------------------------------------------------------------------------
+void qMRMLSliceAstroControllerWidgetPrivate::updateBeamIcon()
+{
+  this->BeamButton->setIcon(qSlicerAstroTheme::instance()->icon("beam"));
 }
 
 //---------------------------------------------------------------------------
@@ -243,19 +215,13 @@ void qMRMLSliceAstroControllerWidgetPrivate::onBeamToggled(bool toggled)
     {
     vtkMRMLSliceNode* sliceNode =
       vtkMRMLSliceNode::SafeDownCast(sliceNodes->GetItemAsObject(ii));
-    if (!sliceNode)
+    if (!sliceNode || (sliceNode != q->mrmlSliceNode() && !q->isLinked()))
       {
-      return;
+      continue;
       }
-
-    if ((sliceNode == q->mrmlSliceNode() || q->isLinked()) && toggled)
-      {
-      sliceNode->SetAttribute("SlicerAstro.Beam", "on");
-      }
-    else if ((sliceNode == q->mrmlSliceNode() || q->isLinked()) && !toggled)
-      {
-      sliceNode->SetAttribute("SlicerAstro.Beam", "off");
-      }
+    sliceNode->SetAttribute("SlicerAstro.Beam", toggled ? "on" : "off");
+    // the attribute does not modify the node: the views are rendered again
+    sliceNode->Modified();
     }
 }
 

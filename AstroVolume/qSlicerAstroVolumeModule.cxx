@@ -27,6 +27,7 @@
 #include <QDir>
 #include <QFile>
 #include <QLabel>
+#include <QLayout>
 #include <QtPlugin>
 #include <QSettings>
 #include <QStringList>
@@ -56,6 +57,8 @@
 
 // SlicerQt includes
 #include <qMRMLLayoutManager.h>
+#include <qMRMLThreeDViewControllerWidget.h>
+#include <qMRMLThreeDWidget.h>
 #include <qMRMLLayoutManager_p.h>
 #include <qMRMLVolumePropertyNodeWidget.h>
 #include <qMRMLSliceWidget.h>
@@ -93,7 +96,9 @@
 
 // AstroVolume MRMLDM includes
 #include <vtkMRMLAstroTwoDAxesDisplayableManager.h>
+#include <vtkMRMLAstroBeam3DDisplayableManager.h>
 #include <vtkMRMLAstroBeamDisplayableManager.h>
+#include "qSlicerAstroBeam3DButton.h"
 
 // Segment editor effects includes
 #include "qMRMLSegmentEditorWidget.h"
@@ -212,6 +217,29 @@ namespace
 /// Hide the Scissors effect in the Segment Editor widgets (the Cloud Lasso
 /// effect is a Scissors effect for astronomical data). The other effects are
 /// shown in their order, including the ones registered later.
+// The toggle of the 3D resolution element in the bar of the 3D view
+// controllers of Slicer (also of the 3D views created later by a change of
+// layout); the AstroWorkbench adds the same widget to its 3D view bars
+void AddBeam3DButtons(qMRMLLayoutManager* layoutManager)
+{
+  if (!layoutManager)
+    {
+    return;
+    }
+  for (int index = 0; index < layoutManager->threeDViewCount(); index++)
+    {
+    qMRMLThreeDWidget* widget = layoutManager->threeDWidget(index);
+    qMRMLThreeDViewControllerWidget* controller = widget ? widget->threeDController() : nullptr;
+    if (!controller || !controller->barLayout() || controller->findChild<qSlicerAstroBeam3DButton*>())
+      {
+      continue;
+      }
+    qSlicerAstroBeam3DButton* button = new qSlicerAstroBeam3DButton(controller->barWidget());
+    button->setMRMLViewNode(widget->mrmlViewNode());
+    controller->barLayout()->addWidget(button);
+    }
+}
+
 void HideScissorsEffect()
 {
   for (QWidget* widget : QApplication::allWidgets())
@@ -804,6 +832,17 @@ void qSlicerAstroVolumeModule::setup()
   // Register AstroTwoDAxesDisplayableManager
   vtkMRMLSliceViewDisplayableManagerFactory::GetInstance()->
     RegisterDisplayableManager("vtkMRMLAstroBeamDisplayableManager");
+
+  // Register the 3D resolution element (beam x spectral FWHM) of the 3D views
+  vtkMRMLThreeDViewDisplayableManagerFactory::GetInstance()->
+    RegisterDisplayableManager("vtkMRMLAstroBeam3DDisplayableManager");
+  if (d->app->layoutManager())
+    {
+    qMRMLLayoutManager* layoutManager = d->app->layoutManager();
+    AddBeam3DButtons(layoutManager);
+    QObject::connect(layoutManager, &qMRMLLayoutManager::layoutChanged, this,
+                     [layoutManager](int) { AddBeam3DButtons(layoutManager); });
+    }
 
   // Register Astro Editor Effects in the Segmentation Editor
   qSlicerSegmentEditorEffectFactory::instance()->registerEffect(new qSlicerSegmentEditorAstroCloudLassoEffect());

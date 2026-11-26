@@ -24,7 +24,10 @@
 #include <math.h>
 
 // VTK includes
+#include <vtkCollection.h>
 #include <vtkImageData.h>
+#include <vtkMath.h>
+#include <vtkPoints.h>
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
 #include <vtkPointData.h>
@@ -43,6 +46,10 @@
 #include <vtkMRMLAstroVolumeStorageNode.h>
 #include <vtkMRMLVolumeNode.h>
 #include <vtkMRMLTransformNode.h>
+#include <vtkMRMLAbstractViewNode.h>
+#include <vtkMRMLI18N.h>
+#include <vtkMRMLSliceCompositeNode.h>
+#include <vtkMRMLSliceNode.h>
 #include <vtkMRMLVolumePropertyNode.h>
 #include <vtkMRMLVolumeRenderingDisplayNode.h>
 #include <functional>
@@ -602,4 +609,182 @@ void vtkMRMLAstroVolumeNode::CreateDefaultDisplayNodes()
       vtkWarningMacro("Display node set and observed" << endl);
       }
     }
+}
+
+//----------------------------------------------------------------------------
+bool vtkMRMLAstroVolumeNode::HasBeam()
+{
+  const char* keys[3] = {"SlicerAstro.BMAJ", "SlicerAstro.BMIN", "SlicerAstro.BPA"};
+  double values[3] = {0., 0., 0.};
+  for (int index = 0; index < 3; index++)
+    {
+    const char* text = this->GetAttribute(keys[index]);
+    if (!text || !strcmp(text, "UNDEFINED"))
+      {
+      return false;
+      }
+    char* end = nullptr;
+    values[index] = strtod(text, &end);
+    if (end == text || !std::isfinite(values[index]))
+      {
+      return false;
+      }
+    }
+  if (!(values[0] > 0.) || !(values[1] > 0.))
+    {
+    return false;
+    }
+  vtkMRMLAstroVolumeDisplayNode* displayNode = this->GetAstroVolumeDisplayNode();
+  struct wcsprm* wcs = displayNode ? displayNode->GetWCSStruct() : nullptr;
+  return wcs && wcs->lng == 0 && wcs->lat == 1 && wcs->naxis <= 4;
+}
+
+//----------------------------------------------------------------------------
+vtkMRMLAstroVolumeNode* vtkMRMLAstroVolumeNode::GetBeamVolume(vtkMRMLSliceCompositeNode* compositeNode)
+{
+  vtkMRMLScene* scene = compositeNode ? compositeNode->GetScene() : nullptr;
+  if (!scene)
+    {
+    return nullptr;
+    }
+  const char* volumeIDs[2] = {compositeNode->GetBackgroundVolumeID(), compositeNode->GetForegroundVolumeID()};
+  for (const char* volumeID : volumeIDs)
+    {
+    vtkMRMLAstroVolumeNode* volume =
+      vtkMRMLAstroVolumeNode::SafeDownCast(volumeID ? scene->GetNodeByID(volumeID) : nullptr);
+    if (volume && volume->HasBeam())
+      {
+      return volume;
+      }
+    }
+  return nullptr;
+}
+
+//----------------------------------------------------------------------------
+std::string vtkMRMLAstroVolumeNode::GetBeamUnavailableReason(vtkMRMLSliceNode* sliceNode,
+                                                             vtkMRMLSliceCompositeNode* compositeNode)
+{
+  if (!sliceNode || !compositeNode || !compositeNode->GetScene())
+    {
+    return vtkMRMLTr("vtkMRMLAstroVolumeNode", "No data in this view.");
+    }
+  if (sliceNode->GetOrientation() != "XY")
+    {
+    return vtkMRMLTr("vtkMRMLAstroVolumeNode",
+                     "The beam is shown only in the views of the sky plane (XY orientation).");
+    }
+  if (!compositeNode->GetBackgroundVolumeID() && !compositeNode->GetForegroundVolumeID())
+    {
+    return vtkMRMLTr("vtkMRMLAstroVolumeNode", "No data in this view.");
+    }
+  if (!vtkMRMLAstroVolumeNode::GetBeamVolume(compositeNode))
+    {
+    return vtkMRMLTr("vtkMRMLAstroVolumeNode",
+                     "The beam is not defined in the FITS header of the data shown in this view "
+                     "(BMAJ, BMIN and BPA keywords).");
+    }
+  return std::string();
+}
+
+//----------------------------------------------------------------------------
+bool vtkMRMLAstroVolumeNode::GetBeamEllipse(const double centerIJK[3], int numberOfPoints, vtkPoints* ijkPoints)
+{
+  if (!ijkPoints || numberOfPoints < 3 || !this->HasBeam())
+    {
+    return false;
+    }
+  ijkPoints->Reset();
+  struct wcsprm* wcs = this->GetAstroVolumeDisplayNode()->GetWCSStruct();
+  const double BMAJ = atof(this->GetAttribute("SlicerAstro.BMAJ"));
+  const double BMIN = atof(this->GetAttribute("SlicerAstro.BMIN"));
+  const double BPA = vtkMath::RadiansFromDegrees(atof(this->GetAttribute("SlicerAstro.BPA")));
+  // FITS pixel coordinates (from 1)
+  double centerPixel[4] = {centerIJK[0] + 1., centerIJK[1] + 1., centerIJK[2] + 1., 1.};
+  double centerWorld[4] = {0., 0., 0., 0.}, imgcrd[4] = {0., 0., 0., 0.}, phi = 0., theta = 0.;
+  int centerStatus = 0;
+  if (wcsp2s(wcs, 1, 4, centerPixel, imgcrd, &phi, &theta, centerWorld, &centerStatus))
+    {
+    return false;
+    }
+  const double cosDeclination = cos(vtkMath::RadiansFromDegrees(centerWorld[1]));
+  if (!(cosDeclination > 1.E-6))
+    {
+    return false;
+    }
+  std::vector<double> world(numberOfPoints * 4), pixel(numberOfPoints * 4, 0.), imgcrds(numberOfPoints * 4, 0.);
+  std::vector<double> phis(numberOfPoints, 0.), thetas(numberOfPoints, 0.);
+  std::vector<int> stat(numberOfPoints, 0);
+  for (int point = 0; point < numberOfPoints; point++)
+    {
+    const double t = point * (2. * vtkMath::Pi() / (numberOfPoints - 1));
+    const double alongMajor = 0.5 * BMAJ * cos(t);
+    const double alongMinor = 0.5 * BMIN * sin(t);
+    // offsets (degrees) towards the east and the north
+    const double east = alongMajor * sin(BPA) + alongMinor * cos(BPA);
+    const double north = alongMajor * cos(BPA) - alongMinor * sin(BPA);
+    std::copy(centerWorld, centerWorld + 4, world.begin() + point * 4);
+    world[point * 4] = centerWorld[0] + east / cosDeclination;
+    world[point * 4 + 1] = centerWorld[1] + north;
+    }
+  if (wcss2p(wcs, numberOfPoints, 4, world.data(), phis.data(), thetas.data(),
+             imgcrds.data(), pixel.data(), stat.data()))
+    {
+    return false;
+    }
+  for (int point = 0; point < numberOfPoints; point++)
+    {
+    // FITS pixel coordinates (from 1) to IJK (voxel centers from 0)
+    ijkPoints->InsertNextPoint(pixel[point * 4] - 1., pixel[point * 4 + 1] - 1., centerIJK[2]);
+    }
+  return true;
+}
+
+//----------------------------------------------------------------------------
+double vtkMRMLAstroVolumeNode::GetSpectralFWHM()
+{
+  const char* text = this->GetAttribute("SlicerAstro.SpectralFWHM");
+  const double value = text ? atof(text) : 0.;
+  return std::isfinite(value) && value > 0. ? value : 1.;
+}
+
+//----------------------------------------------------------------------------
+vtkMRMLAstroVolumeNode* vtkMRMLAstroVolumeNode::GetBeam3DVolume(vtkMRMLAbstractViewNode* viewNode)
+{
+  vtkMRMLScene* scene = viewNode ? viewNode->GetScene() : nullptr;
+  if (!scene || !viewNode->GetID())
+    {
+    return nullptr;
+    }
+  vtkSmartPointer<vtkCollection> volumes =
+    vtkSmartPointer<vtkCollection>::Take(scene->GetNodesByClass("vtkMRMLAstroVolumeNode"));
+  for (int index = 0; index < volumes->GetNumberOfItems(); index++)
+    {
+    vtkMRMLAstroVolumeNode* volume = vtkMRMLAstroVolumeNode::SafeDownCast(volumes->GetItemAsObject(index));
+    vtkImageData* imageData = volume ? volume->GetImageData() : nullptr;
+    if (!imageData || imageData->GetDimensions()[2] < 2 || !volume->HasBeam())
+      {
+      continue;
+      }
+    for (int displayIndex = 0; displayIndex < volume->GetNumberOfDisplayNodes(); displayIndex++)
+      {
+      vtkMRMLDisplayNode* displayNode = volume->GetNthDisplayNode(displayIndex);
+      if (displayNode && displayNode->IsA("vtkMRMLVolumeRenderingDisplayNode") &&
+          displayNode->GetVisibility() && displayNode->IsDisplayableInView(viewNode->GetID()))
+        {
+        return volume;
+        }
+      }
+    }
+  return nullptr;
+}
+
+//----------------------------------------------------------------------------
+std::string vtkMRMLAstroVolumeNode::GetBeam3DUnavailableReason(vtkMRMLAbstractViewNode* viewNode)
+{
+  if (vtkMRMLAstroVolumeNode::GetBeam3DVolume(viewNode))
+    {
+    return std::string();
+    }
+  return vtkMRMLTr("vtkMRMLAstroVolumeNode",
+                   "No cube with a beam (BMAJ, BMIN and BPA keywords) is rendered in this view.");
 }

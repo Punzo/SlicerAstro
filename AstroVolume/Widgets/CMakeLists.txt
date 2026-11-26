@@ -41,6 +41,8 @@ set(${KIT}_SRCS
   qMRMLSliceAstroWidget_p.h
   qSlicerAstroAxisScrubber.cxx
   qSlicerAstroAxisScrubber.h
+  qSlicerAstroBeam3DButton.cxx
+  qSlicerAstroBeam3DButton.h
   qSlicerAstroDatasetCard.cxx
   qSlicerAstroDisplaySection.cxx
   qSlicerAstroContoursSection.cxx
@@ -113,6 +115,7 @@ set(${KIT}_MOC_SRCS
   qMRMLSliceAstroWidget.h
   qMRMLSliceAstroWidget_p.h
   qSlicerAstroAxisScrubber.h
+  qSlicerAstroBeam3DButton.h
   qSlicerAstroDatasetCard.h
   qSlicerAstroDatasetSelector.h
   qSlicerAstroDisplaySection.h

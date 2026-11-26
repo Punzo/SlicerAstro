@@ -50,6 +50,8 @@ class AstroSliceViewsTestTest(ScriptedLoadableModuleTest):
         self.test_MouseMoveCompression()
         self.setUp()
         self.test_LineMeasurements()
+        self.setUp()
+        self.test_Beam3D()
 
     def sliceWidgets(self):
         layoutManager = slicer.app.layoutManager()
@@ -102,6 +104,13 @@ class AstroSliceViewsTestTest(ScriptedLoadableModuleTest):
         slicer.app.processEvents()
         self.assertTrue(beamButton("Red").enabled)
         self.assertFalse(beamButton("Yellow").enabled)  # not the sky plane
+        # in the bar of the controller (not in its "more" options): shown in
+        # the sky plane, hidden in the position-velocity views
+        self.assertFalse(beamButton("Red").isHidden())
+        self.assertTrue(beamButton("Yellow").isHidden())
+        moreButton = slicer.util.findChild(widgets["Red"], "MoreButton")
+        self.assertFalse(moreButton.checked)
+        self.assertTrue(beamButton("Red").isVisibleTo(widgets["Red"]))
 
         # Mouse interactions: scroll (slice offset), right drag (zoom), middle drag (pan)
         for name in ("Red", "Yellow"):
@@ -535,6 +544,17 @@ class AstroSliceViewsTestTest(ScriptedLoadableModuleTest):
         sliceNode.SetXYZOrigin(20., -10., 0.)
         self.waitForRenders(view)
         self.assertBeam(view, volumeNode, "beam after pan")
+        # in the bottom-left corner of the visible data, inside the labels of
+        # the 2D axes, also when zoomed in (the corner of the data out of the
+        # view)
+        self.assertBeamInCorner(view, "beam after pan")
+        fieldOfView = sliceNode.GetFieldOfView()
+        sliceNode.SetFieldOfView(fieldOfView[0] / 4., fieldOfView[1] / 4., fieldOfView[2])
+        self.waitForRenders(view)
+        self.assertBeam(view, volumeNode, "beam zoomed in")
+        self.assertBeamInCorner(view, "beam zoomed in")
+        sliceNode.SetFieldOfView(*fieldOfView)
+        self.waitForRenders(view)
 
         # one render per pan step (updating the axes does not render the view again)
         self.waitForRenders(view)
@@ -544,21 +564,148 @@ class AstroSliceViewsTestTest(ScriptedLoadableModuleTest):
 
         self.delayDisplay("Test passed")
 
-    def assertBeam(self, view, volumeNode, message):
+    def test_Beam3D(self):
+        """3D resolution element: an ellipsoid with the beam (FWHM) on the sky
+        and the spectral FWHM along the spectral axis, in the corner of the
+        first pixel and channel of the cube rendered in the view; shown with
+        the button of the 3D view controller."""
+        volumeNode = slicer.util.loadVolume(self.writeRotatedCube())
+        dimensions = volumeNode.GetImageData().GetDimensions()
+        layoutManager = slicer.app.layoutManager()
+        layoutManager.setLayout(slicer.vtkMRMLLayoutNode.SlicerLayoutOneUp3DView)
+        slicer.app.processEvents()
+        # the 3D view of the layout (after a scene clear, widgets of former
+        # view nodes can remain, hidden)
+        widget = next(layoutManager.threeDWidget(index) for index in range(layoutManager.threeDViewCount)
+                      if layoutManager.threeDWidget(index).isVisible())
+        viewNode = widget.mrmlViewNode()
+        view = widget.threeDView()
+        self.waitForView(view)
+        logic = slicer.modules.volumerendering.logic()
+        displayNode = logic.GetFirstVolumeRenderingDisplayNode(volumeNode) or \
+            logic.CreateDefaultVolumeRenderingNodes(volumeNode)
+        displayNode.SetVisibility(True)
+        self.assertEqual(slicer.vtkMRMLAstroVolumeNode.GetBeam3DUnavailableReason(viewNode), "")
+
+        # the toggle in the bar of the 3D view controller
+        button = slicer.util.findChild(widget.threeDController(), "Beam3DButton")
+        self.assertFalse(button.checked)
+        button.click()
+        self.assertEqual(viewNode.GetAttribute("SlicerAstro.Beam3D"), "on")
+        displayableManager = view.displayableManagerByClassName("vtkMRMLAstroBeam3DDisplayableManager")
+
+        def ellipsoidIJK():
+            # rendered (the ellipsoid is updated before a render) until it is
+            # there: the first renders of a new layout can be skipped
+            import time
+            end = time.time() + 5.
+            while True:
+                view.forceRender()
+                slicer.app.processEvents()
+                if displayableManager.GetEllipsoidActor().GetVisibility() or time.time() > end:
+                    break
+                time.sleep(0.05)
+            data = displayableManager.GetEllipsoidPolyData()
+            rasToIJK = vtk.vtkMatrix4x4()
+            volumeNode.GetRASToIJKMatrix(rasToIJK)
+            return np.array([rasToIJK.MultiplyPoint(list(data.GetPoint(i)) + [1.])[:3]
+                             for i in range(data.GetNumberOfPoints())])
+
+        points = ellipsoidIJK()
+        self.assertTrue(displayableManager.GetEllipsoidActor().GetVisibility())
+        # the label "beam" next to it
+        self.assertEqual(displayableManager.GetLabelActor().GetInput(), "beam")
+        self.assertTrue(displayableManager.GetLabelActor().GetVisibility())
+        self.assertGreater(len(points), 100)
+        # one channel deep (spectral FWHM of top-hat channels), inside the cube
+        # near its first pixel and channel
+        self.assertAlmostEqual(points[:, 2].max() - points[:, 2].min(), 1., places=3)
+        self.assertTrue(np.all(points.min(axis=0) > -0.5))
+        self.assertTrue(np.all(points.max(axis=0) < np.array(dimensions) * 0.5))
+        # the equator: the beam on the sky (axes BMAJ and BMIN, position angle BPA)
+        center = points.mean(axis=0)
+        equator = points[np.abs(points[:, 2] - center[2]) < 1e-6]
+        self.assertGreater(len(equator), 30)
+        world = []
+        for ijk in equator:
+            coordinates = [0., 0., 0.]
+            self.assertTrue(volumeNode.GetAstroVolumeDisplayNode().GetReferenceSpace(list(ijk), coordinates))
+            world.append(coordinates[:2])
+        self.assertEllipseOnSky(np.array(world), volumeNode, "3D beam")
+
+        # the spectral FWHM (e.g. written by AstroSmoothing)
+        volumeNode.SetAttribute("SlicerAstro.SpectralFWHM", "2.5")
+        points = ellipsoidIJK()
+        self.assertAlmostEqual(points[:, 2].max() - points[:, 2].min(), 2.5, places=3)
+
+        # hidden: button off, or the cube not rendered in the view
+        button.click()
+        view.forceRender()
+        self.assertFalse(displayableManager.GetEllipsoidActor().GetVisibility())
+        self.assertFalse(displayableManager.GetLabelActor().GetVisibility())
+        button.click()
+        displayNode.SetVisibility(False)
+        view.forceRender()
+        self.assertFalse(displayableManager.GetEllipsoidActor().GetVisibility())
+        self.assertNotEqual(slicer.vtkMRMLAstroVolumeNode.GetBeam3DUnavailableReason(viewNode), "")
+        self.delayDisplay("Test passed")
+
+    def beamPolyData(self, view):
         displayableManager = view.displayableManagerByClassName("vtkMRMLAstroBeamDisplayableManager")
         renderer = displayableManager.vtkMarkerRenderer()
-        beam = None
         actors = renderer.GetActors2D()
         actors.InitTraversal()
         for _ in range(actors.GetNumberOfItems()):
             actor = actors.GetNextActor2D()
-            if actor.GetVisibility() and actor.GetMapper() and actor.GetMapper().GetInput():
-                beam = actor.GetMapper().GetInput()
+            data = actor.GetMapper().GetInput() if actor.GetVisibility() and actor.GetMapper() else None
+            if data is not None and data.GetNumberOfLines() > 0:
+                return data
+        return None
+
+    def assertBeamInCorner(self, view, message):
+        """The beam in the bottom-left corner of the visible part of the data
+        (view coordinates), inside the labels of the 2D axes."""
+        sliceNode = view.mrmlSliceNode()
+        sliceLogic = slicer.app.applicationLogic().GetSliceLogic(sliceNode)
+        layer = sliceLogic.GetBackgroundLayer()
+        dimensions = layer.GetVolumeNode().GetImageData().GetDimensions()
+        ijkToXY = layer.GetXYToIJKTransform().GetInverse()
+        channel = layer.GetXYToIJKTransform().TransformPoint(
+            sliceNode.GetDimensions()[0] / 2., sliceNode.GetDimensions()[1] / 2., 0.)[2]
+        corners = [ijkToXY.TransformPoint(i, j, channel) for i in (-0.5, dimensions[0] - 0.5)
+                   for j in (-0.5, dimensions[1] - 0.5)]
+        axes = sliceNode.GetRulerType() != slicer.vtkMRMLAbstractViewNode.RulerTypeNone
+        left = max(min(c[0] for c in corners), 80. if axes else 0.)
+        bottom = max(min(c[1] for c in corners), 34. if axes else 0.)
+        beam = self.beamPolyData(view)
+        self.assertIsNotNone(beam, message)
+        bounds = beam.GetBounds()
+        self.assertAlmostEqual(bounds[0], left + 10., delta=1., msg=message + ": left")
+        self.assertAlmostEqual(bounds[2], bottom + 10., delta=1., msg=message + ": bottom")
+        self.assertLessEqual(bounds[1], sliceNode.GetDimensions()[0], message)
+        self.assertLessEqual(bounds[3], sliceNode.GetDimensions()[1], message)
+        # the label "beam" right of the ellipse, at its height
+        displayableManager = view.displayableManagerByClassName("vtkMRMLAstroBeamDisplayableManager")
+        props = displayableManager.vtkMarkerRenderer().GetViewProps()
+        labels = [props.GetItemAsObject(i) for i in range(props.GetNumberOfItems())
+                  if props.GetItemAsObject(i).IsA("vtkTextActor")]
+        self.assertEqual([label.GetInput() for label in labels], ["beam"], message)
+        x, y = labels[0].GetPosition()
+        self.assertAlmostEqual(x, bounds[1] + 6., delta=1., msg=message + ": label")
+        self.assertAlmostEqual(y, (bounds[2] + bounds[3]) / 2., delta=1., msg=message + ": label")
+
+    def assertBeam(self, view, volumeNode, message):
+        beam = self.beamPolyData(view)  # the outline
         self.assertIsNotNone(beam, message)
         self.assertGreater(beam.GetNumberOfPoints(), 30, message)
         sliceNode = view.mrmlSliceNode()
         world = np.array([self.worldAt(sliceNode, volumeNode, *beam.GetPoint(i)[:2])[:2]
                           for i in range(beam.GetNumberOfPoints() - 1)])  # last point = first
+        self.assertEllipseOnSky(world, volumeNode, message)
+
+    def assertEllipseOnSky(self, world, volumeNode, message):
+        """Points (longitude, latitude in degrees) on the FWHM ellipse of the
+        beam of the volume: axes BMAJ and BMIN, position angle BPA."""
         center = world.mean(axis=0)
         east = (world[:, 0] - center[0]) * math.cos(math.radians(center[1]))
         north = world[:, 1] - center[1]

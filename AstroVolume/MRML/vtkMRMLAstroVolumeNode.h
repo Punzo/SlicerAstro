@@ -35,6 +35,10 @@
 class vtkMRMLMarkupsROINode;
 class vtkImageData;
 class vtkMRMLAstroVolumeDisplayNode;
+class vtkMRMLAbstractViewNode;
+class vtkMRMLSliceCompositeNode;
+class vtkPoints;
+class vtkMRMLSliceNode;
 class vtkMRMLTransformNode;
 class vtkMRMLVolumePropertyNode;
 class vtkMRMLVolumeRenderingDisplayNode;
@@ -192,6 +196,47 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeNode : public vtkMRMLScalarVolumeN
 
   /// Get reference to the current VolumeProperty Node
   vtkMRMLNode *GetVolumePropertyNode();
+
+  /// Whether the beam of the data is defined: BMAJ and BMIN > 0 and BPA in
+  /// the FITS header, and a celestial WCS (longitude and latitude on the first
+  /// two axes)
+  bool HasBeam();
+
+  /// The volume whose beam a slice view shows: the background volume if it
+  /// has a beam, otherwise the foreground volume; nullptr if none has one.
+  /// The one rule of the beam button of the slice views (classic controller
+  /// and AstroWorkbench view bars) and of the beam drawn in the views.
+  static vtkMRMLAstroVolumeNode* GetBeamVolume(vtkMRMLSliceCompositeNode* compositeNode);
+
+  /// Why a slice view cannot show the beam (translated text), empty if it
+  /// can: the view is not the sky plane (XY), shows no data, or the beam is
+  /// not defined in the FITS header of the data shown
+  static std::string GetBeamUnavailableReason(vtkMRMLSliceNode* sliceNode,
+                                              vtkMRMLSliceCompositeNode* compositeNode);
+
+  /// Points (numberOfPoints, the last one equal to the first) of the FWHM
+  /// ellipse of the beam on the sky around the voxel centerIJK, in IJK
+  /// coordinates (voxel centers from 0) in the channel of centerIJK: full axes
+  /// BMAJ and BMIN, major axis at BPA from north through east, each point
+  /// projected with the WCS (rotated axes, either direction of the right
+  /// ascension and non-square pixels included). False if the beam is not
+  /// defined or the projection fails. The beam of the slice views and the
+  /// resolution element of the 3D views.
+  bool GetBeamEllipse(const double centerIJK[3], int numberOfPoints, vtkPoints* ijkPoints);
+
+  /// FWHM of the spectral response, in channels: the attribute
+  /// SlicerAstro.SpectralFWHM (written by AstroSmoothing when it smooths along
+  /// the spectral axis), otherwise 1 channel (the width of a channel).
+  double GetSpectralFWHM();
+
+  /// The cube whose 3D resolution element (beam x spectral FWHM ellipsoid) a
+  /// 3D view shows: a cube with a beam rendered (volume rendering) in the
+  /// view; nullptr if none.
+  static vtkMRMLAstroVolumeNode* GetBeam3DVolume(vtkMRMLAbstractViewNode* viewNode);
+
+  /// Why a 3D view cannot show the resolution element (translated text),
+  /// empty if it can.
+  static std::string GetBeam3DUnavailableReason(vtkMRMLAbstractViewNode* viewNode);
 
 protected:
   vtkMRMLAstroVolumeNode();

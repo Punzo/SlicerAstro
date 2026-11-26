@@ -10,6 +10,7 @@ set(${KIT}_INCLUDE_DIRECTORIES
   )
 
 set(displayable_manager_SRCS
+  vtkMRMLAstroBeam3DDisplayableManager.cxx
   vtkMRMLAstroBeamDisplayableManager.cxx
   vtkMRMLAstroTwoDAxesDisplayableManager.cxx
   )
