@@ -22,16 +22,35 @@ CITATIONS = [
     "galaxies, Astronomy and Computing, 12, 86 (arXiv:1505.06976)",
 ]
 
+# keys of the shortcuts the Workbench registers while it is open
+# (Workbench.enter) and of the one that opens it (AstroWorkbench.SHORTCUT):
+# listed below from these constants, test_About checks that every registered
+# shortcut is listed
+KEY_WORKBENCH = "Ctrl+Shift+W"
+KEY_ABOUT = "F1"
+KEY_THEME = "Ctrl+Shift+T"
+KEY_PLAY = "Space"
+
+# keys of the AstroCloudLasso effect of the Segment Editor
+# (qSlicerSegmentEditorAstroCloudLassoEffect, objects AstroCloudLassoShortcut_<key>)
+CLOUD_LASSO_KEYS = ("n", "m", "k", "l", "c", "x")
+
 # (keys, action); "Ctrl" is "Cmd" on macOS
 SHORTCUTS = [
     ("Workbench", [
-        ("Ctrl+Shift+W", "open or close the Workbench (full Slicer)"),
-        ("Ctrl+Shift+T", "switch between the dark and light theme"),
-        ("Space", "play or pause the channels"),
-        ("F1", "this window"),
+        (KEY_WORKBENCH, "open or close the Workbench (full Slicer)"),
+        (KEY_THEME, "switch between the dark and light theme"),
+        (KEY_PLAY, "play or pause the channels"),
+        (KEY_ABOUT, "this window"),
         ("Ctrl+3", "Python console (developer button)"),
         ("drag a dataset", "show it in one view (the 3D view renders it)"),
         ("click in a view", "make it the active view (the scrubber moves it)"),
+    ]),
+    ("Channel scrubber (below the views)", [
+        ("click or drag on the spectrum", "go to that channel (the scrubber takes the keys below)"),
+        ("← → · ↓ ↑", "previous or next channel"),
+        ("Page Up · Page Down", "ten channels forward or back"),
+        ("Home · End", "first or last channel"),
     ]),
     ("Slice views", [
         ("mouse wheel · ← → · b f", "previous or next channel (slice)"),
@@ -57,6 +76,12 @@ SHORTCUTS = [
         ("Home · End · Page Down", "look from an axis (with Shift: the opposite one)"),
         ("Insert · Keypad 0", "reset the camera"),
         ("Ctrl+B", "tilt lock"),
+    ]),
+    ("Segment Editor: AstroCloudLasso", [
+        ("n · m", "lower or raise the minimum threshold"),
+        ("k · l", "lower or raise the maximum threshold"),
+        ("c", "automatic threshold on or off"),
+        ("x", "fill or erase"),
     ]),
 ]
 

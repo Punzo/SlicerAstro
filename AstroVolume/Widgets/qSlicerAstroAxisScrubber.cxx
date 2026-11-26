@@ -68,6 +68,13 @@ protected:
     {
     this->Scrubber->setPlaying(false);
     this->Scrubber->setCurrentIndex(this->indexAt(event->pos().x()));
+    // the keys of the slider (arrows, Page Up/Down, Home/End) work after a
+    // click on the spectrum too
+    QSlider* slider = this->Scrubber->findChild<QSlider*>("AxisSlider");
+    if (slider)
+      {
+      slider->setFocus(Qt::MouseFocusReason);
+      }
     }
 
   void mouseMoveEvent(QMouseEvent* event) override

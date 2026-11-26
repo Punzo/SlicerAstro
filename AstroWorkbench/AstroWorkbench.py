@@ -188,6 +188,14 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         for _ in range(count):
             slicer.app.processEvents()
 
+    def waitUntil(self, condition, timeout=5.0):
+        """Events processed until condition() is true or the timeout."""
+        import time
+        end = time.time() + timeout
+        while not condition() and time.time() < end:
+            slicer.app.processEvents()
+            time.sleep(0.01)
+
     def wait(self, seconds=0.5):
         """Events processed for a while (the refresh of the Workbench is
         delayed by its timer)."""
@@ -1228,7 +1236,8 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
             self.assertIsNotNone(Scenes.saveScene("Home test"))
             # back from the rail; Data gives the views and the panels back
             slicer.util.findChild(mainWindow, "Rail_home").click()
-            self.process()
+            # (on a loaded machine the page can take more than a few events)
+            self.waitUntil(lambda: home.visible)
             self.assertTrue(home.visible)
             self.assertFalse(workbench().drawer.visible)
             self.assertEqual(home.recentNames()[0], "Home test")
@@ -1318,8 +1327,16 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         workbench().enter()
         self.process()
         mainWindow = slicer.util.mainWindow()
-        for keys in ("F1", "Ctrl+Shift+T", "Space"):
+        for keys in (About.KEY_ABOUT, About.KEY_THEME, About.KEY_PLAY):
             self.assertIsNotNone(mainWindow.findChild("QShortcut", f"WorkbenchShortcut_{keys}"))
+        # every shortcut registered by SlicerAstro is listed in About › Shortcuts
+        listed = {token for _, entries in About.SHORTCUTS for keys, _ in entries for token in keys.split(" · ")}
+        registered = [shortcut.key.toString() for shortcut in mainWindow.findChildren("QShortcut")
+                      if shortcut.objectName.startswith(("WorkbenchShortcut_", "AstroWorkbenchShortcut"))]
+        self.assertGreaterEqual(len(registered), 4)
+        self.assertEqual(SHORTCUT, About.KEY_WORKBENCH)
+        for keys in registered + list(About.CLOUD_LASSO_KEYS):
+            self.assertIn(keys, listed)
         workbench().exit()
         self.process()
         self.assertIsNone(mainWindow.findChild("QShortcut", "WorkbenchShortcut_F1"))

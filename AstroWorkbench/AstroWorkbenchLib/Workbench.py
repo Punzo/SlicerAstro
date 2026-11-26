@@ -1364,9 +1364,10 @@ class Workbench:
         mainWindow.setContextMenuPolicy(qt.Qt.PreventContextMenu)
         # shortcuts of the Workbench (removed when leaving it)
         self.shortcuts = []
-        for keys, callback in (("F1", lambda: About.showAbout()),
-                               ("Ctrl+Shift+T", self.header.toggleTheme),
-                               ("Space", self.scrubberBar.scrubber.togglePlaying)):
+        # (keys listed in About › Shortcuts from the same constants)
+        for keys, callback in ((About.KEY_ABOUT, lambda: About.showAbout()),
+                               (About.KEY_THEME, self.header.toggleTheme),
+                               (About.KEY_PLAY, self.scrubberBar.scrubber.togglePlaying)):
             shortcut = qt.QShortcut(qt.QKeySequence(keys), mainWindow)
             shortcut.setObjectName(f"WorkbenchShortcut_{keys}")
             shortcut.connect("activated()", callback)
