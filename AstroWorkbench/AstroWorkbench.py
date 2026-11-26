@@ -13,6 +13,11 @@ from slicer.ScriptedLoadableModule import (
 
 SHORTCUT = "Ctrl+Shift+W"
 
+# name of the application SlicerAstroApp (3D Slicer: "Slicer"); its behaviour
+# (theme of the whole application, the Workbench at startup) is in the
+# extension, the application only adds its splash screen and branding
+APPLICATION_NAME = "SlicerAstro"
+
 
 def workbench():
     """The Workbench of the main window (one per application)."""
@@ -50,6 +55,26 @@ This module was developed by Davide Punzo. <br>
 This work was supported by ERC grant nr. 291531 and the Slicer Community.
 """
         slicer.app.connect("startupCompleted()", installShortcut)
+        slicer.app.connect("startupCompleted()", startInApplication)
+
+
+def inSlicerAstroApp():
+    """Whether SlicerAstro runs in SlicerAstroApp (not in 3D Slicer)."""
+    return slicer.app.mainApplicationName == APPLICATION_NAME
+
+
+def startInApplication(testing=None):
+    """In SlicerAstroApp: the SlicerAstro theme on the whole application
+    (menus, dialogs, all the module panels) and the Workbench open at
+    startup. Not with --testing (the tests run in the interface of 3D Slicer)
+    unless testing is False."""
+    if testing is None:
+        testing = slicer.app.testingEnabled()
+    if not inSlicerAstroApp() or slicer.util.mainWindow() is None or testing:
+        return False
+    slicer.app.property("SlicerAstroTheme").applyToApplication()
+    workbench().enter()
+    return True
 
 
 def showAbout():
@@ -204,6 +229,20 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         while time.time() < end:
             slicer.app.processEvents()
             time.sleep(0.01)
+
+    def test_StartInApplication(self):
+        """In SlicerAstroApp the theme covers the whole application and the
+        Workbench opens at startup; nothing changes in 3D Slicer, nor with
+        --testing."""
+        self.assertFalse(startInApplication())  # --testing
+        started = startInApplication(testing=False)
+        self.assertEqual(started, inSlicerAstroApp())
+        self.assertEqual(inSlicerAstroApp(), slicer.app.mainApplicationName == "SlicerAstro")
+        self.assertEqual(workbench().active, started)
+        if started:
+            theme = slicer.app.property("SlicerAstroTheme")
+            self.assertEqual(slicer.app.styleSheet, theme.styleSheet())
+            workbench().exit()
 
     def test_EnterExit(self):
         """The chrome of Slicer is hidden and restored."""
@@ -840,7 +879,12 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         self.assertTrue(header.colorFunctionButton.checked)
         self.assertEqual(interaction.GetCurrentInteractionMode(), interaction.AdjustWindowLevel)
         layoutManager = slicer.app.layoutManager()
-        view = layoutManager.threeDWidget(0).threeDView()
+        # the 3D view shown (not a hidden one of a previous layout), rendered
+        # before the drag (late under load)
+        view = [layoutManager.threeDWidget(index) for index in range(layoutManager.threeDViewCount)
+                if layoutManager.threeDWidget(index).isVisible()][0].threeDView()
+        view.forceRender()
+        self.process()
         camera = view.cameraNode()
         position = list(camera.GetPosition())
         displayNode = volume.GetAstroVolumeDisplayNode()
@@ -1272,7 +1316,14 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
             self.waitUntil(lambda: home.visible)
             self.assertTrue(home.visible)
             self.assertFalse(workbench().drawer.visible)
-            self.assertEqual(home.recentNames()[0], "Home test")
+            # newer than the sample loaded before (the load times are in the
+            # settings of the user: tests running at the same time add theirs)
+            names = home.recentNames()
+            self.assertIn("Home test", names)
+            samples = [index for index, name in enumerate(names) if name.startswith("WEIN069")
+                       and not name.endswith("_cat.txt")]
+            if samples:
+                self.assertLess(names.index("Home test"), samples[0])
             clear = slicer.util.findChild(home, "ClearRecentButton")
             self.assertEqual(clear.text, "Clear history")
             self.assertIn("scenes", clear.toolTip)

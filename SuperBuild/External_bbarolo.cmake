@@ -95,3 +95,22 @@ mark_as_superbuild(
 
 ExternalProject_Message(${proj} "BBAROLO_INCLUDE_DIR:${BBAROLO_INCLUDE_DIR}")
 ExternalProject_Message(${proj} "BBAROLO_LIBRARY_DIR:${BBAROLO_LIBRARY_DIR}")
+
+#-----------------------------------------------------------------------------
+# Launcher settings of the build tree: the library in the library paths of the
+# launcher of 3D Slicer when SlicerAstro is bundled in an application
+# (Slicer_EXTENSION_SOURCE_DIRS, e.g. SlicerAstroApp); a standalone extension
+# build lists the folder in its AdditionalLauncherSettings.ini
+if(WIN32)
+  set(${proj}_PATHS_LAUNCHER_BUILD ${CMAKE_BINARY_DIR}/${Slicer_THIRDPARTY_BIN_DIR})
+  mark_as_superbuild(
+    VARS ${proj}_PATHS_LAUNCHER_BUILD
+    LABELS "PATHS_LAUNCHER_BUILD"
+    )
+else()
+  set(${proj}_LIBRARY_PATHS_LAUNCHER_BUILD ${CMAKE_BINARY_DIR}/${Slicer_THIRDPARTY_LIB_DIR})
+  mark_as_superbuild(
+    VARS ${proj}_LIBRARY_PATHS_LAUNCHER_BUILD
+    LABELS "LIBRARY_PATHS_LAUNCHER_BUILD"
+    )
+endif()
