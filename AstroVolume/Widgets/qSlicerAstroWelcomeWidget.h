@@ -29,8 +29,8 @@ class qSlicerAstroWelcomeWidgetPrivate;
 
 /// \ingroup SlicerAstro_QtModules_AstroVolume_Widgets
 /// Welcome page of SlicerAstro: what it is, the theme, quick actions (open
-/// data, the AstroWorkbench or the workspaces, sky search, documentation),
-/// the recent files (File > Recent of Slicer) and workspaces, and the
+/// data, the AstroWorkbench or the scenes, sky search, documentation),
+/// the recent files (File > Recent of Slicer) and scenes, and the
 /// sample data (downloaded once, then cached). One UI for:
 /// - the Welcome module panel (narrow: one column);
 /// - the home page of the AstroWorkbench (wide: a dashboard over the views,
@@ -40,7 +40,7 @@ class Q_SLICERASTRO_QTMODULES_ASTROVOLUME_WIDGETS_EXPORT qSlicerAstroWelcomeWidg
   Q_OBJECT
   /// Dashboard layout (cards in one row, recent files beside the samples)
   Q_PROPERTY(bool wide READ isWide WRITE setWide)
-  /// In the AstroWorkbench: a Workspaces card instead of the Workbench card
+  /// In the AstroWorkbench: a Scenes card instead of the Workbench card
   Q_PROPERTY(bool workbenchMode READ workbenchMode WRITE setWorkbenchMode)
 
 public:
@@ -56,7 +56,7 @@ public:
   /// nullptr: not an overlay
   Q_INVOKABLE void setOverlayTarget(QWidget* target);
 
-  /// Recent files and workspaces listed (at most 8, newest first): their
+  /// Recent files and scenes listed (at most 8, newest first): their
   /// number and names; samples
   Q_INVOKABLE int recentFileCount() const;
   Q_INVOKABLE QStringList recentNames() const;
@@ -75,11 +75,11 @@ public slots:
   void editApplicationSettings();
   /// Download (once) and load a sample; returns true if it was loaded
   bool loadSample(const QString& name);
-  /// Load the recent file or open the recent workspace at index (0: the
+  /// Load the recent file or open the recent scene at index (0: the
   /// most recent)
   bool loadRecentFile(int index);
   /// Clear the history: the recent files (also File > Recent) and the recent
-  /// workspaces (not the workspaces)
+  /// scenes (not the scenes)
   void clearRecentFiles();
   /// The recently loaded files (from File > Recent) and the samples
   void updateLists();
@@ -89,8 +89,8 @@ public slots:
 signals:
   /// Data were loaded from the page (a sample, a recent file)
   void dataLoaded();
-  /// The Workspaces card (workbench mode)
-  void workspacesRequested();
+  /// The Scenes card (workbench mode)
+  void scenesRequested();
 
 protected:
   bool eventFilter(QObject* watched, QEvent* event) override;

@@ -20,7 +20,7 @@ from . import Contours
 from . import Sections
 from .Inspector import Inspector
 from .Views import ViewDecorator, ViewVisibility
-from . import Workspaces
+from . import Scenes
 
 VIEW_COLOR = (7 / 255.0, 10 / 255.0, 18 / 255.0)
 # Slicer's default gradient of the 3D views (vtkMRMLViewNode), in the light theme
@@ -313,7 +313,7 @@ class LayoutSwitch(qt.QWidget):
         self.index = -1
 
 class Rail(qt.QFrame):
-    """Activities: home, workspaces, data, sky search (VO)."""
+    """Activities: home, scenes, data, sky search (VO)."""
 
     def __init__(self, workbench, parent=None):
         qt.QFrame.__init__(self, parent)
@@ -334,13 +334,13 @@ class Rail(qt.QFrame):
         self.homeButton.setIconSize(qt.QSize(20, 20))
         self.homeButton.text = "Home"
         self.homeButton.checkable = True
-        self.homeButton.toolTip = ("Home: open data, recent files and workspaces, sample data. "
-                                   "Data or Spaces: back to the views.")
+        self.homeButton.toolTip = ("Home: open data, recent files and scenes, sample data. "
+                                   "Data or Scenes: back to the views.")
         self.group.addButton(self.homeButton)
         self.homeButton.connect("clicked()", lambda: self.workbench.setHomeVisible(True))
         layout.addWidget(self.homeButton, 0, qt.Qt.AlignHCenter)
         self.buttons["home"] = self.homeButton
-        for name, icon, text, enabled in (("workspaces", "archive", "Spaces", True),
+        for name, icon, text, enabled in (("scenes", "archive", "Scenes", True),
                                           ("data", "layers", "Data", True),
                                           ("sky", "globe", "Sky", False)):
             button = qt.QToolButton()
@@ -354,7 +354,7 @@ class Rail(qt.QFrame):
             button.enabled = enabled
             button.toolTip = {
                 "data": "Datasets: the loaded data with their previews and derived products.",
-                "workspaces": "Workspaces: save the scene with a screenshot of the views; open a saved one.",
+                "scenes": "Scenes: save the scene with a screenshot of the views; open a saved one.",
             }.get(name, f"{text}: coming with the next steps of SlicerAstro 2.0")
             self.group.addButton(button)
             layout.addWidget(button, 0, qt.Qt.AlignHCenter)
@@ -451,14 +451,14 @@ class DatasetDrawer(qt.QFrame):
         pageLayout.addWidget(scroll, 1)
         self.stack.addWidget(page)
 
-        # workspaces
-        self.workspacesPage = Workspaces.WorkspacesPage(workbench)
-        self.workspacesPage.setObjectName("WorkspacesPage")
-        self.stack.addWidget(self.workspacesPage)
+        # scenes
+        self.scenesPage = Scenes.ScenesPage(workbench)
+        self.scenesPage.setObjectName("ScenesPage")
+        self.stack.addWidget(self.scenesPage)
 
     def showPage(self, name):
-        if name == "workspaces":
-            self.workspacesPage.refresh()
+        if name == "scenes":
+            self.scenesPage.refresh()
             self.stack.setCurrentIndex(1)
         else:
             self.stack.setCurrentIndex(0)
@@ -1326,7 +1326,7 @@ class Workbench:
         self.home.workbenchMode = True
         self.home.setOverlayTarget(mainWindow.centralWidget())
         self.home.connect("dataLoaded()", lambda: self.setHomeVisible(False))
-        self.home.connect("workspacesRequested()", self.openWorkspaces)
+        self.home.connect("scenesRequested()", self.openScenes)
         self.datasetCount = len(slicer.util.getNodesByClass("vtkMRMLAstroVolumeNode"))
         self.setHomeVisible(self.datasetCount == 0)
 
@@ -1405,10 +1405,10 @@ class Workbench:
         if visible or self.rail.homeButton.checked:
             button.checked = True
         if not visible:
-            self.drawer.showPage("workspaces" if self.rail.buttons["workspaces"].checked else "data")
+            self.drawer.showPage("scenes" if self.rail.buttons["scenes"].checked else "data")
 
     def showDrawerPage(self, name):
-        """A page of the Datasets drawer (Data, Spaces), with the views."""
+        """A page of the Datasets drawer (Data, Scenes), with the views."""
         self.setHomeVisible(False)
         self.rail.buttons[name].checked = True
         self.drawer.showPage(name)
@@ -1416,8 +1416,8 @@ class Workbench:
     def isHomeVisible(self):
         return self.home is not None and bool(self.homeShown)
 
-    def openWorkspaces(self):
-        self.showDrawerPage("workspaces")
+    def openScenes(self):
+        self.showDrawerPage("scenes")
 
     def styleMainWindow(self):
         """Separators between the views and the panels (dock separators of

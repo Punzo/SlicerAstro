@@ -117,7 +117,7 @@ QLineEdit, QAbstractSpinBox {
 }
 QLineEdit:focus, QAbstractSpinBox:focus { border-color: @data@; }
 QLineEdit:disabled, QAbstractSpinBox:disabled { color: @subtle@; background: @panel@; }
-/* text edited in place (e.g. the name and notes of a workspace card): plain
+/* text edited in place (e.g. the name and notes of a scene card): plain
    text until hovered or focused */
 QLineEdit[astroRole="inlineEdit"], QPlainTextEdit[astroRole="inlineEdit"] {
   background: transparent;
@@ -461,6 +461,6 @@ QGroupBox {
 }
 QGroupBox::title { subcontrol-origin: margin; left: 8px; padding: 0 4px; color: @muted@; }
 
-/* Workspaces (Workbench): logbook entries */
-QFrame[astroRole="workspaceEntry"] { background: @raised@; border: 1px solid @line@; border-radius: 10px; }
-QFrame[astroRole="workspaceEntry"]:hover { border-color: @line-strong@; }
+/* Scenes (Workbench): logbook entries */
+QFrame[astroRole="sceneEntry"] { background: @raised@; border: 1px solid @line@; border-radius: 10px; }
+QFrame[astroRole="sceneEntry"]:hover { border-color: @line-strong@; }

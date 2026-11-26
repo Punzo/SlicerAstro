@@ -12,7 +12,7 @@ set(MODULE_PYTHON_SCRIPTS
   ${MODULE_NAME}Lib/Sections.py
   ${MODULE_NAME}Lib/Views.py
   ${MODULE_NAME}Lib/Workbench.py
-  ${MODULE_NAME}Lib/Workspaces.py
+  ${MODULE_NAME}Lib/Scenes.py
   )
 
 set(MODULE_PYTHON_RESOURCES

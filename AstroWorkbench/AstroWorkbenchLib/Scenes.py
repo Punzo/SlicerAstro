@@ -1,11 +1,11 @@
-"""Workspaces of the Workbench: saved scenes with a screenshot of the views,
+"""Scenes of the Workbench: saved scenes with a screenshot of the views,
 listed as a logbook (newest first, grouped by date).
 
-A workspace is a folder in the workspaces directory (setting
-"SlicerAstro/WorkspacesDirectory", default <home>/SlicerAstro/Workspaces)
+A saved scene is a folder in the scenes directory (setting
+"SlicerAstro/ScenesDirectory", default <home>/SlicerAstro/Scenes)
 with the scene (scene.mrb), a screenshot of the views (preview.png) and a
-description (workspace.json: name, created, modified, datasets, layout,
-notes). The functions of this file are the logic (tested); WorkspacesPage is
+description (scene.json: name, created, modified, datasets, layout,
+notes). The functions of this file are the logic (tested); ScenesPage is
 the page of the Workbench drawer."""
 
 import datetime
@@ -19,10 +19,10 @@ import slicer
 
 from . import Sections
 
-SETTINGS_KEY = "SlicerAstro/WorkspacesDirectory"
+SETTINGS_KEY = "SlicerAstro/ScenesDirectory"
 SCENE_FILE = "scene.mrb"
 PREVIEW_FILE = "preview.png"
-DESCRIPTION_FILE = "workspace.json"
+DESCRIPTION_FILE = "scene.json"
 PREVIEW_WIDTH = 640
 
 
@@ -33,24 +33,24 @@ def theme():
 # ----------------------------------------------------------------------
 # Logic
 
-# the folder of this process only (setWorkspacesDirectory(..., persistent=False),
+# the folder of this process only (setScenesDirectory(..., persistent=False),
 # e.g. tests: the testing settings are shared by the processes of a test run)
 _directoryOverride = None
 
 
-def workspacesDirectory():
+def scenesDirectory():
     if _directoryOverride:
         return _directoryOverride
     if slicer.app.testingEnabled():
         # tests never write in the folder of the user
-        return os.path.join(slicer.app.temporaryPath, "SlicerAstroWorkspaces")
-    default = os.path.join(os.path.expanduser("~"), "SlicerAstro", "Workspaces")
+        return os.path.join(slicer.app.temporaryPath, "SlicerAstroScenes")
+    default = os.path.join(os.path.expanduser("~"), "SlicerAstro", "Scenes")
     directory = qt.QSettings().value(SETTINGS_KEY, default) or default
     return str(directory)
 
 
-def setWorkspacesDirectory(directory, persistent=True):
-    """The workspaces folder: saved in the application settings, or with
+def setScenesDirectory(directory, persistent=True):
+    """The scenes folder: saved in the application settings, or with
     persistent=False only for this process (None: back to the setting)."""
     global _directoryOverride
     if persistent:
@@ -61,8 +61,8 @@ def setWorkspacesDirectory(directory, persistent=True):
 
 
 def folderName(name):
-    """File-system safe folder name of a workspace name."""
-    safe = re.sub(r"[^A-Za-z0-9._ -]+", "_", name).strip(" .") or "workspace"
+    """File-system safe folder name of a scene name."""
+    safe = re.sub(r"[^A-Za-z0-9._ -]+", "_", name).strip(" .") or "scene"
     return safe[:80]
 
 
@@ -100,14 +100,15 @@ def saveScreenshot(path):
     return image.save(path)
 
 
-def saveWorkspace(name, notes="", directory=None, overwrite=False):
-    """Save the scene as a workspace; returns its folder (None on failure).
-    An existing workspace of the same name is replaced only if overwrite."""
-    directory = directory or workspacesDirectory()
+def saveScene(name, notes="", directory=None, overwrite=False):
+    """Save the current scene in the scenes folder; returns its folder (None
+    on failure). A saved scene of the same name is replaced only if
+    overwrite."""
+    directory = directory or scenesDirectory()
     folder = os.path.join(directory, folderName(name))
     description = readDescription(folder) if os.path.isdir(folder) else None
     if description is not None and not overwrite:
-        raise FileExistsError(f'A workspace named "{name}" exists')
+        raise FileExistsError(f'A scene named "{name}" exists')
     os.makedirs(folder, exist_ok=True)
     saveScreenshot(os.path.join(folder, PREVIEW_FILE))
     if not slicer.util.saveScene(os.path.join(folder, SCENE_FILE)):
@@ -125,8 +126,7 @@ def saveWorkspace(name, notes="", directory=None, overwrite=False):
         "notes": notes,
         "application": "SlicerAstro " + _version(),
     }
-    with open(os.path.join(folder, DESCRIPTION_FILE), "w", encoding="utf-8") as file:
-        json.dump(data, file, indent=2, ensure_ascii=False)
+    _writeDescription(folder, data)
     return folder
 
 
@@ -150,24 +150,24 @@ def readDescription(folder):
     return data
 
 
-def listWorkspaces(directory=None):
-    """Workspaces with a scene, newest first."""
-    directory = directory or workspacesDirectory()
+def listScenes(directory=None):
+    """Saved scenes with their scene file, newest first."""
+    directory = directory or scenesDirectory()
     if not os.path.isdir(directory):
         return []
-    workspaces = []
+    scenes = []
     for entry in os.listdir(directory):
         description = readDescription(os.path.join(directory, entry))
         if description is not None and os.path.exists(description["scene"]):
-            workspaces.append(description)
-    return sorted(workspaces, key=lambda data: data.get("modified", ""), reverse=True)
+            scenes.append(description)
+    return sorted(scenes, key=lambda data: data.get("modified", ""), reverse=True)
 
 
 def recentJSON(limit=8):
-    """The most recently saved or opened workspaces as JSON (for the home
+    """The most recently saved or opened scenes as JSON (for the home
     page): a list of {"name", "folder", "preview", "time", "datasets"}."""
     entries = []
-    for description in listWorkspaces():
+    for description in listScenes():
         time = max(description.get("modified", ""), description.get("opened", ""))
         entries.append({"name": description.get("name", os.path.basename(description["folder"])),
                         "folder": description["folder"], "preview": description["preview"], "time": time,
@@ -176,16 +176,16 @@ def recentJSON(limit=8):
     return json.dumps(entries[:limit])
 
 
-def loadWorkspace(folder):
-    """Replace the scene with the one of the workspace."""
+def loadScene(folder):
+    """Replace the current scene with the saved scene of folder."""
     description = readDescription(folder)
     if description is None:
         return False
     # the current scene is closed first (as File > Close Scene), then the
-    # workspace replaces it
+    # saved scene replaces it
     slicer.mrmlScene.Clear(0)
     slicer.util.loadScene(description["scene"], {"clear": True})
-    # when it was last opened (recent workspaces of the home page)
+    # when it was last opened (recent scenes of the home page)
     data = {key: value for key, value in description.items() if key not in ("folder", "preview", "scene")}
     data["opened"] = _now()
     _writeDescription(folder, data)
@@ -195,15 +195,15 @@ def loadWorkspace(folder):
     return True
 
 
-def renameWorkspace(folder, name):
-    """New name (and folder) of a workspace; returns the new folder."""
+def renameScene(folder, name):
+    """New name (and folder) of a saved scene; returns the new folder."""
     description = readDescription(folder)
     if description is None:
         return None
     target = os.path.join(os.path.dirname(folder), folderName(name))
     if os.path.abspath(target) != os.path.abspath(folder):
         if os.path.exists(target):
-            raise FileExistsError(f'A workspace named "{name}" exists')
+            raise FileExistsError(f'A scene named "{name}" exists')
         shutil.move(folder, target)
     description["name"] = name
     _writeDescription(target, description)
@@ -216,8 +216,8 @@ def _writeDescription(folder, description):
         json.dump(data, file, indent=2, ensure_ascii=False)
 
 
-def setWorkspaceNotes(folder, notes):
-    """New notes of a workspace; returns False if it is not a workspace."""
+def setSceneNotes(folder, notes):
+    """New notes of a saved scene; returns False if it is not a saved scene."""
     description = readDescription(folder)
     if description is None:
         return False
@@ -226,10 +226,10 @@ def setWorkspaceNotes(folder, notes):
     return True
 
 
-def exportWorkspace(folder, path):
-    """The workspace folder (scene, preview, description) as a zip file at
-    path, with the folder at the top of the archive; returns path (None if
-    it is not a workspace)."""
+def exportScene(folder, path):
+    """The folder of a saved scene (scene, preview, description) as a zip
+    file at path, with the folder at the top of the archive; returns path
+    (None if it is not a saved scene)."""
     import zipfile
     if readDescription(folder) is None:
         return None
@@ -245,9 +245,9 @@ def exportWorkspace(folder, path):
     return path
 
 
-def deleteWorkspace(folder):
+def deleteScene(folder):
     if readDescription(folder) is None:
-        # only folders of workspaces are removed
+        # only folders of saved scenes are removed
         return False
     shutil.rmtree(folder)
     return True
@@ -359,7 +359,7 @@ class NotesEdit(qt.QPlainTextEdit):
             self.onFinished(self.toPlainText())
 
 
-class WorkspaceEntry(qt.QFrame):
+class SceneEntry(qt.QFrame):
     """One entry of the logbook: wide preview, name, date, datasets and the
     actions."""
 
@@ -367,13 +367,13 @@ class WorkspaceEntry(qt.QFrame):
         qt.QFrame.__init__(self, parent)
         self.page = page
         self.description = description
-        self.setProperty("astroRole", "workspaceEntry")
-        self.setObjectName(f"Workspace_{os.path.basename(description['folder'])}")
+        self.setProperty("astroRole", "sceneEntry")
+        self.setObjectName(f"Scene_{os.path.basename(description['folder'])}")
         layout = qt.QVBoxLayout(self)
         layout.setContentsMargins(8, 8, 8, 8)
         layout.setSpacing(6)
         preview = qt.QLabel()
-        preview.setObjectName("WorkspacePreview")
+        preview.setObjectName("ScenePreview")
         preview.setAlignment(qt.Qt.AlignCenter)
         preview.setMinimumHeight(60)
         pixmap = qt.QPixmap(description["preview"])
@@ -387,14 +387,14 @@ class WorkspaceEntry(qt.QFrame):
         else:
             preview.text = "no preview"
             preview.setProperty("astroRole", "label")
-        preview.toolTip = "Double-click: open this workspace."
+        preview.toolTip = "Double-click: open this scene."
         layout.addWidget(preview)
         # name and notes edited in place (saved when the editing finishes)
         self.titleEdit = TitleEdit(description.get("name", ""), self.onTitleEdited)
-        self.titleEdit.setObjectName("WorkspaceTitle")
+        self.titleEdit.setObjectName("SceneTitle")
         self.titleEdit.setProperty("astroRole", "inlineEdit")
         self.titleEdit.setProperty("inlineTitle", True)
-        self.titleEdit.toolTip = (description.get("name", "") + "\nClick to rename the workspace (Enter: done, "
+        self.titleEdit.toolTip = (description.get("name", "") + "\nClick to rename the scene (Enter: done, "
                                   "Escape: cancel).\n" + description["folder"])
         self.titleEdit.setAlignment(qt.Qt.AlignHCenter)
         layout.addWidget(self.titleEdit)
@@ -407,16 +407,16 @@ class WorkspaceEntry(qt.QFrame):
         meta.toolTip = f"Saved {modified}. Datasets: {datasets or '-'}" + (f". Objects: {objects}" if objects else "")
         layout.addWidget(meta)
         self.notesEdit = NotesEdit(description.get("notes", ""), lambda text: self.onNotesEdited())
-        self.notesEdit.setObjectName("WorkspaceNotesEdit")
+        self.notesEdit.setObjectName("SceneNotesEdit")
         self.notesEdit.placeholderText = "Add notes…"
-        self.notesEdit.toolTip = "Notes of the workspace: click to write or edit them (several lines); saved when you leave the field."
+        self.notesEdit.toolTip = "Notes of the scene: click to write or edit them (several lines); saved when you leave the field."
         layout.addWidget(self.notesEdit)
         actions = qt.QHBoxLayout()
         actions.setSpacing(2)
         for text, icon, tip, slot, objectName in (
-                ("Open", "folder", "Replace the current scene with this workspace.", self.open, "WorkspaceOpen"),
-                ("Update", "download", "Save the current scene into this workspace (replaces it, new preview).",
-                 self.saveOver, "WorkspaceSaveOver")):
+                ("Open", "folder", "Open this saved scene (replaces the current scene).", self.open, "SceneOpen"),
+                ("Update", "download", "Save the current scene over this saved scene (replaces it, new preview).",
+                 self.saveOver, "SceneSaveOver")):
             button = qt.QPushButton(text)
             button.setObjectName(objectName)
             button.setIcon(theme().icon(icon, "text"))
@@ -424,10 +424,10 @@ class WorkspaceEntry(qt.QFrame):
             button.connect("clicked()", slot)
             actions.addWidget(button)
         actions.addStretch(1)
-        for icon, tip, slot, objectName in (("archive", "Export this workspace as a zip file (scene, preview "
-                                             "and description), e.g. to share it.", self.export, "WorkspaceExport"),
-                                            ("trash", "Delete this workspace (its folder).", self.delete,
-                                             "WorkspaceDelete")):
+        for icon, tip, slot, objectName in (("archive", "Export this saved scene as a zip file (scene, preview "
+                                             "and description), e.g. to share it.", self.export, "SceneExport"),
+                                            ("trash", "Delete this saved scene (its folder).", self.delete,
+                                             "SceneDelete")):
             button = qt.QToolButton()
             button.setObjectName(objectName)
             button.setProperty("astroRole", "toolbar")
@@ -443,35 +443,35 @@ class WorkspaceEntry(qt.QFrame):
 
     def open(self):
         if slicer.mrmlScene.GetNumberOfNodesByClass("vtkMRMLAstroVolumeNode") > 0:
-            answer = qt.QMessageBox.question(slicer.util.mainWindow(), "Open workspace",
+            answer = qt.QMessageBox.question(slicer.util.mainWindow(), "Open scene",
                                              f"Open {self.description.get('name')}? The current scene is closed "
                                              "(unsaved changes are lost).",
                                              qt.QMessageBox.Open | qt.QMessageBox.Cancel, qt.QMessageBox.Cancel)
             if answer != qt.QMessageBox.Open:
                 return
-        with slicer.util.tryWithErrorDisplay("The workspace could not be opened.", waitCursor=True):
-            loadWorkspace(self.description["folder"])
+        with slicer.util.tryWithErrorDisplay("The scene could not be opened.", waitCursor=True):
+            loadScene(self.description["folder"])
         self.page.workbench.rail.buttons["data"].click()
 
     def saveOver(self):
-        with slicer.util.tryWithErrorDisplay("The workspace could not be saved.", waitCursor=True):
-            saveWorkspace(self.description.get("name", ""), self.description.get("notes", ""),
+        with slicer.util.tryWithErrorDisplay("The scene could not be saved.", waitCursor=True):
+            saveScene(self.description.get("name", ""), self.description.get("notes", ""),
                           os.path.dirname(self.description["folder"]), overwrite=True)
         self.page.refresh()
 
     def onTitleEdited(self, name):
-        """The name edited in the card: the workspace renamed."""
+        """The name edited in the card: the saved scene renamed."""
         name = (name or "").strip()
         if not name or name == self.description.get("name", ""):
             self.titleEdit.setFullText(self.description.get("name", ""))
             return
         try:
-            self.description["folder"] = renameWorkspace(self.description["folder"], name)
+            self.description["folder"] = renameScene(self.description["folder"], name)
             self.description["name"] = name
             self.titleEdit.setFullText(name)
         except Exception as error:
             self.titleEdit.setFullText(self.description.get("name", ""))
-            self.page.workbench.statusBar.showMessage(f"The workspace could not be renamed: {error}")
+            self.page.workbench.statusBar.showMessage(f"The scene could not be renamed: {error}")
             return
         # the logbook is rebuilt after this signal (it deletes this entry)
         qt.QTimer.singleShot(0, self.page.refresh)
@@ -480,33 +480,33 @@ class WorkspaceEntry(qt.QFrame):
         notes = self.notesEdit.toPlainText().strip()
         if notes == self.description.get("notes", ""):
             return
-        if setWorkspaceNotes(self.description["folder"], notes):
+        if setSceneNotes(self.description["folder"], notes):
             self.description["notes"] = notes
 
     def export(self):
-        name = folderName(self.description.get("name", "workspace"))
+        name = folderName(self.description.get("name", "scene"))
         defaultPath = os.path.join(os.path.expanduser("~"), name + ".zip")
-        path = qt.QFileDialog.getSaveFileName(slicer.util.mainWindow(), "Export workspace", defaultPath,
+        path = qt.QFileDialog.getSaveFileName(slicer.util.mainWindow(), "Export scene", defaultPath,
                                               "Zip files (*.zip)")
         if not path:
             return
         if not path.lower().endswith(".zip"):
             path += ".zip"
-        with slicer.util.tryWithErrorDisplay("The workspace could not be exported.", waitCursor=True):
-            exportWorkspace(self.description["folder"], path)
-            self.page.workbench.statusBar.showMessage(f"Workspace exported: {path}")
+        with slicer.util.tryWithErrorDisplay("The scene could not be exported.", waitCursor=True):
+            exportScene(self.description["folder"], path)
+            self.page.workbench.statusBar.showMessage(f"Scene exported: {path}")
 
     def delete(self):
-        answer = qt.QMessageBox.question(slicer.util.mainWindow(), "Delete workspace",
-                                         f"Delete the workspace {self.description.get('name')} and its folder?",
+        answer = qt.QMessageBox.question(slicer.util.mainWindow(), "Delete scene",
+                                         f"Delete the saved scene {self.description.get('name')} and its folder?",
                                          qt.QMessageBox.Yes | qt.QMessageBox.No, qt.QMessageBox.No)
         if answer == qt.QMessageBox.Yes:
-            deleteWorkspace(self.description["folder"])
+            deleteScene(self.description["folder"])
             self.page.refresh()
 
 
-class WorkspacesPage(qt.QWidget):
-    """Save the scene as a workspace; the saved workspaces as a logbook."""
+class ScenesPage(qt.QWidget):
+    """Save the current scene; the saved scenes as a logbook."""
 
     def __init__(self, workbench, parent=None):
         qt.QWidget.__init__(self, parent)
@@ -514,20 +514,20 @@ class WorkspacesPage(qt.QWidget):
         layout = qt.QVBoxLayout(self)
         layout.setContentsMargins(14, 14, 14, 10)
         layout.setSpacing(8)
-        title = qt.QLabel("Workspaces")
+        title = qt.QLabel("Scenes")
         title.setProperty("astroRole", "title")
         layout.addWidget(title)
         saveRow = qt.QHBoxLayout()
         self.nameEdit = qt.QLineEdit()
-        self.nameEdit.setObjectName("WorkspaceName")
-        self.nameEdit.placeholderText = "Name of the workspace"
-        self.nameEdit.toolTip = "Name of the new workspace (the scene, a screenshot of the views and the datasets)."
+        self.nameEdit.setObjectName("SceneName")
+        self.nameEdit.placeholderText = "Name of the scene"
+        self.nameEdit.toolTip = "Name of the saved scene (the scene, a screenshot of the views and the datasets)."
         saveRow.addWidget(self.nameEdit, 1)
         self.saveButton = qt.QPushButton("Save")
-        self.saveButton.setObjectName("WorkspaceSave")
+        self.saveButton.setObjectName("SceneSave")
         self.saveButton.setProperty("astroRole", "primary")
         self.saveButton.setIcon(theme().icon("download", "on-accent"))
-        self.saveButton.toolTip = "Save the current scene as a new workspace."
+        self.saveButton.toolTip = "Save the current scene, with a screenshot of the views."
         self.saveButton.connect("clicked()", self.save)
         self.nameEdit.connect("returnPressed()", self.save)
         saveRow.addWidget(self.saveButton)
@@ -535,14 +535,14 @@ class WorkspacesPage(qt.QWidget):
         # as high as the other fields for one line
         self.notesEdit = NotesEdit("", None, lines=2)
         self.notesEdit.setProperty("astroRole", "")
-        self.notesEdit.setObjectName("WorkspaceNotes")
+        self.notesEdit.setObjectName("SceneNotes")
         self.notesEdit.placeholderText = "Notes (optional)"
-        self.notesEdit.toolTip = "Notes about the workspace (several lines), shown in the logbook."
+        self.notesEdit.toolTip = "Notes about the saved scene (several lines), shown in the logbook."
         layout.addWidget(self.notesEdit)
         self.filterEdit = qt.QLineEdit()
-        self.filterEdit.setObjectName("WorkspaceFilter")
+        self.filterEdit.setObjectName("SceneFilter")
         self.filterEdit.placeholderText = "Filter by name, dataset, notes"
-        self.filterEdit.toolTip = "Show only the workspaces whose name, datasets or notes contain this text."
+        self.filterEdit.toolTip = "Show only the saved scenes whose name, datasets or notes contain this text."
         self.filterEdit.addAction(theme().icon("search", "subtle"), qt.QLineEdit.LeadingPosition)
         self.filterEdit.connect("textChanged(QString)", lambda text: self.refresh())
         layout.addWidget(self.filterEdit)
@@ -557,23 +557,23 @@ class WorkspacesPage(qt.QWidget):
         self.entriesLayout.setSpacing(8)
         scroll.setWidget(self.entriesWidget)
         layout.addWidget(scroll, 1)
-        # the folder of the workspaces is shown in About (Folders) and in the
+        # the folder of the scenes is shown in About (Folders) and in the
         # documentation, not here
 
     def save(self):
-        name = self.nameEdit.text.strip() or datetime.datetime.now().strftime("Workspace %Y-%m-%d %H.%M")
-        folder = os.path.join(workspacesDirectory(), folderName(name))
+        name = self.nameEdit.text.strip() or datetime.datetime.now().strftime("Scene %Y-%m-%d %H.%M")
+        folder = os.path.join(scenesDirectory(), folderName(name))
         overwrite = False
         if readDescription(folder) is not None:
-            answer = qt.QMessageBox.question(slicer.util.mainWindow(), "Save workspace",
-                                             f'Replace the workspace "{name}"?',
+            answer = qt.QMessageBox.question(slicer.util.mainWindow(), "Save scene",
+                                             f'Replace the saved scene "{name}"?',
                                              qt.QMessageBox.Yes | qt.QMessageBox.No, qt.QMessageBox.No)
             if answer != qt.QMessageBox.Yes:
                 return
             overwrite = True
-        with slicer.util.tryWithErrorDisplay("The workspace could not be saved.", waitCursor=True):
-            saveWorkspace(name, self.notesEdit.toPlainText().strip(), overwrite=overwrite)
-            self.workbench.statusBar.showMessage(f"Workspace saved: {name}")
+        with slicer.util.tryWithErrorDisplay("The scene could not be saved.", waitCursor=True):
+            saveScene(name, self.notesEdit.toPlainText().strip(), overwrite=overwrite)
+            self.workbench.statusBar.showMessage(f"Scene saved: {name}")
         self.nameEdit.text = ""
         self.notesEdit.setPlainText("")
         self.refresh()
@@ -586,7 +586,7 @@ class WorkspacesPage(qt.QWidget):
         text = self.filterEdit.text.strip().lower()
         group = None
         count = 0
-        for description in listWorkspaces():
+        for description in listScenes():
             haystack = " ".join([description.get("name", ""), " ".join(description.get("datasets", [])),
                                  " ".join(description.get("objects", [])), description.get("notes", "")]).lower()
             if text and text not in haystack:
@@ -597,11 +597,11 @@ class WorkspacesPage(qt.QWidget):
                 label = qt.QLabel(group.upper())
                 label.setProperty("astroRole", "overline")
                 self.entriesLayout.addWidget(label)
-            self.entriesLayout.addWidget(WorkspaceEntry(self, description))
+            self.entriesLayout.addWidget(SceneEntry(self, description))
             count += 1
         if count == 0:
-            empty = qt.QLabel("No workspace yet: name the current scene and save it." if not text
-                              else "No workspace matches the filter.")
+            empty = qt.QLabel("No saved scene yet: name the current scene and save it." if not text
+                              else "No saved scene matches the filter.")
             empty.setProperty("astroRole", "label")
             empty.wordWrap = True
             self.entriesLayout.addWidget(empty)

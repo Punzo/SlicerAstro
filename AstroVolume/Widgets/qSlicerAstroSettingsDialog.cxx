@@ -56,7 +56,7 @@ const char* SaveCompressedKey = "SlicerAstro/SaveCompressed";
 const char* QualityKey = "SlicerAstro/VolumeRenderingQuality";
 const char* AutoShow3DKey = "SlicerAstro/AutoShow3DMaximumMegabytes";
 const char* LargeDataKey = "SlicerAstro/LargeDataFraction";
-const char* WorkspacesKey = "SlicerAstro/WorkspacesDirectory";
+const char* ScenesKey = "SlicerAstro/ScenesDirectory";
 
 //-----------------------------------------------------------------------------
 QString Tr(const char* text)
@@ -97,7 +97,7 @@ class qSlicerAstroSettingsDialogPrivate
 public:
   qSlicerAstroSegmentedButton* ThemeButton{nullptr};
   QCheckBox* CompressedCheckBox{nullptr};
-  QLineEdit* WorkspacesEdit{nullptr};
+  QLineEdit* ScenesEdit{nullptr};
   qSlicerAstroSegmentedButton* QualityButton{nullptr};
   qSlicerAstroValueField* AutoShowField{nullptr};
   qSlicerAstroValueField* LargeDataField{nullptr};
@@ -165,15 +165,15 @@ qSlicerAstroSettingsDialog::qSlicerAstroSettingsDialog(QWidget* parent)
   QHBoxLayout* folderLayout = new QHBoxLayout(folder);
   folderLayout->setContentsMargins(0, 0, 0, 0);
   folderLayout->setSpacing(6);
-  d->WorkspacesEdit = new QLineEdit(folder);
-  d->WorkspacesEdit->setObjectName("SettingsWorkspacesEdit");
+  d->ScenesEdit = new QLineEdit(folder);
+  d->ScenesEdit->setObjectName("SettingsScenesEdit");
   QPushButton* browse = new QPushButton(theme->icon("folder", "text"), Tr("Choose..."), folder);
-  browse->setObjectName("SettingsWorkspacesBrowse");
-  browse->setToolTip(Tr("Choose the folder of the workspaces."));
-  folderLayout->addWidget(d->WorkspacesEdit, 1);
+  browse->setObjectName("SettingsScenesBrowse");
+  browse->setToolTip(Tr("Choose the folder of the saved scenes."));
+  folderLayout->addWidget(d->ScenesEdit, 1);
   folderLayout->addWidget(browse);
-  addRow(Tr("Workspaces folder"), folder, Tr(
-    "Folder of the workspaces of the AstroWorkbench (Spaces): one folder per workspace with the scene, a "
+  addRow(Tr("Scenes folder"), folder, Tr(
+    "Folder of the saved scenes of the AstroWorkbench (Scenes): one folder per saved scene with the scene, a "
     "picture of the views and its description."));
 
   // 3D views
@@ -240,17 +240,17 @@ qSlicerAstroSettingsDialog::qSlicerAstroSettingsDialog(QWidget* parent)
                    &qSlicerAstroSettingsDialog::setAutoShow3DMaximumMegabytes);
   QObject::connect(d->LargeDataField, &qSlicerAstroValueField::valueChanged, this,
                    &qSlicerAstroSettingsDialog::setLargeDataPercent);
-  QObject::connect(d->WorkspacesEdit, &QLineEdit::editingFinished, this, [this, d]()
+  QObject::connect(d->ScenesEdit, &QLineEdit::editingFinished, this, [this, d]()
     {
-    this->setWorkspacesDirectory(d->WorkspacesEdit->text());
+    this->setScenesDirectory(d->ScenesEdit->text());
     });
   QObject::connect(browse, &QPushButton::clicked, this, [this, d]()
     {
-    const QString directory = QFileDialog::getExistingDirectory(this, Tr("Folder of the workspaces"),
-                                                                d->WorkspacesEdit->text());
+    const QString directory = QFileDialog::getExistingDirectory(this, Tr("Folder of the saved scenes"),
+                                                                d->ScenesEdit->text());
     if (!directory.isEmpty())
       {
-      this->setWorkspacesDirectory(directory);
+      this->setScenesDirectory(directory);
       }
     });
   QObject::connect(close, SIGNAL(clicked()), this, SLOT(accept()));
@@ -285,10 +285,10 @@ double qSlicerAstroSettingsDialog::largeDataPercent()
 }
 
 //-----------------------------------------------------------------------------
-QString qSlicerAstroSettingsDialog::workspacesDirectory()
+QString qSlicerAstroSettingsDialog::scenesDirectory()
 {
-  const QString defaultDirectory = QDir(QDir::homePath()).filePath("SlicerAstro/Workspaces");
-  const QString directory = QSettings().value(WorkspacesKey, defaultDirectory).toString();
+  const QString defaultDirectory = QDir(QDir::homePath()).filePath("SlicerAstro/Scenes");
+  const QString directory = QSettings().value(ScenesKey, defaultDirectory).toString();
   return directory.isEmpty() ? defaultDirectory : directory;
 }
 
@@ -332,8 +332,8 @@ void qSlicerAstroSettingsDialog::updateFromSettings()
   d->AutoShowField->setValue(autoShow3DMaximumMegabytes());
   const QSignalBlocker largeBlocker(d->LargeDataField);
   d->LargeDataField->setValue(largeDataPercent());
-  const QSignalBlocker workspacesBlocker(d->WorkspacesEdit);
-  d->WorkspacesEdit->setText(QDir::toNativeSeparators(workspacesDirectory()));
+  const QSignalBlocker scenesBlocker(d->ScenesEdit);
+  d->ScenesEdit->setText(QDir::toNativeSeparators(scenesDirectory()));
 }
 
 //-----------------------------------------------------------------------------
@@ -366,11 +366,11 @@ void qSlicerAstroSettingsDialog::setLargeDataPercent(double percent)
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroSettingsDialog::setWorkspacesDirectory(const QString& directory)
+void qSlicerAstroSettingsDialog::setScenesDirectory(const QString& directory)
 {
   if (!directory.trimmed().isEmpty())
     {
-    QSettings().setValue(WorkspacesKey, QDir::fromNativeSeparators(directory.trimmed()));
+    QSettings().setValue(ScenesKey, QDir::fromNativeSeparators(directory.trimmed()));
     }
   this->updateFromSettings();
 }

@@ -142,20 +142,20 @@ void ClearLayout(QLayout* layout)
 
 //-----------------------------------------------------------------------------
 /// A recently loaded file (File > Recent) or a recently saved or opened
-/// workspace
+/// scene
 struct RecentEntry
 {
-  bool Workspace{false};
+  bool Scene{false};
   QString Name;
-  QString Path;     ///< file, or folder of the workspace
-  QString Preview;  ///< picture of the views of a workspace
+  QString Path;     ///< file, or folder of the scene
+  QString Preview;  ///< picture of the views of a scene
   QString Detail;
   QString Time;     ///< ISO date and time (empty: unknown)
 };
 
 //-----------------------------------------------------------------------------
 const char* LoadTimesKey = "SlicerAstro/Welcome/LoadTimes";
-/// workspaces saved or opened before are not in the history any more
+/// scenes saved or opened before are not in the history any more
 const char* HistoryClearedKey = "SlicerAstro/Welcome/HistoryCleared";
 
 //-----------------------------------------------------------------------------
@@ -198,7 +198,7 @@ public:
   QGridLayout* CardsLayout{nullptr};
   QFrame* OpenDataCard{nullptr};
   QFrame* WorkbenchCard{nullptr};
-  QFrame* WorkspacesCard{nullptr};
+  QFrame* ScenesCard{nullptr};
   QFrame* SkyCard{nullptr};
   QFrame* LearnCard{nullptr};
   QWidget* Columns{nullptr};
@@ -347,10 +347,10 @@ void qSlicerAstroWelcomeWidgetPrivate::init()
     Tr("Datasets, views and the processing pipeline in one window."),
     Tr("The AstroWorkbench: a focused viewer for data cubes (Ctrl+Shift+W)."),
     [q]() { q->openWorkbench(); });
-  this->WorkspacesCard = this->addCard("WorkspacesCard", "archive", Tr("Workspaces"),
+  this->ScenesCard = this->addCard("ScenesCard", "archive", Tr("Scenes"),
     Tr("Continue where you left off: saved scenes with a picture of the views."),
-    Tr("The saved workspaces (Spaces in the rail): open one, or save the current one."),
-    [q]() { emit q->workspacesRequested(); });
+    Tr("The saved scenes (Scenes in the rail): open one, or save the current one."),
+    [q]() { emit q->scenesRequested(); });
   this->SkyCard = this->addCard("SkySearchCard", "globe", Tr("Search the sky"),
     Tr("Virtual Observatory archives: coming in a next version."),
     Tr("Find cubes and images in Virtual Observatory archives by object or position (not available yet)."),
@@ -374,8 +374,8 @@ void qSlicerAstroWelcomeWidgetPrivate::init()
                                             this->Recent);
   this->ClearRecentButton->setObjectName("ClearRecentButton");
   this->ClearRecentButton->setProperty("astroRole", "ghost");
-  this->ClearRecentButton->setToolTip(Tr("Clear the history of the recent files and workspaces: the list below and "
-                                         "File > Recent are emptied. No file is deleted; the workspaces stay in Spaces."));
+  this->ClearRecentButton->setToolTip(Tr("Clear the history of the recent files and saved scenes: the list below and "
+                                         "File > Recent are emptied. No file is deleted; the saved scenes are kept."));
   QObject::connect(this->ClearRecentButton, SIGNAL(clicked()), q, SLOT(clearRecentFiles()));
   recentTitle->addWidget(this->ClearRecentButton);
   this->RecentLayout->addLayout(recentTitle);
@@ -458,7 +458,7 @@ void qSlicerAstroWelcomeWidgetPrivate::init()
     QObject::connect(app->ioManager(), &qSlicerIOManager::newFileLoaded, q,
       [this, q](const qSlicerIO::IOProperties& properties)
       {
-      // when each file was loaded (the order of the recent files and workspaces)
+      // when each file was loaded (the order of the recent files and scenes)
       const QString fileName = properties.value("fileName").toString();
       if (!fileName.isEmpty())
         {
@@ -530,10 +530,10 @@ void qSlicerAstroWelcomeWidgetPrivate::arrange()
   // cards: one row (wide) or two columns
   ClearLayout(this->CardsLayout);
   QList<QFrame*> cards;
-  cards << this->OpenDataCard << (this->WorkbenchMode ? this->WorkspacesCard : this->WorkbenchCard)
+  cards << this->OpenDataCard << (this->WorkbenchMode ? this->ScenesCard : this->WorkbenchCard)
         << this->SkyCard << this->LearnCard;
   this->WorkbenchCard->setVisible(!this->WorkbenchMode);
-  this->WorkspacesCard->setVisible(this->WorkbenchMode);
+  this->ScenesCard->setVisible(this->WorkbenchMode);
   const int cardColumns = this->Wide ? 4 : 2;
   for (int index = 0; index < cards.size(); index++)
     {
@@ -728,7 +728,7 @@ void qSlicerAstroWelcomeWidgetPrivate::updateRecent()
     }
 
   // the recent files (File > Recent, with the time they were loaded) and
-  // the recent workspaces, newest first
+  // the recent scenes, newest first
   QList<RecentEntry> entries;
   const QVariantMap times = QSettings().value(LoadTimesKey).toMap();
   const QString cleared = QSettings().value(HistoryClearedKey).toString();
@@ -737,8 +737,8 @@ void qSlicerAstroWelcomeWidgetPrivate::updateRecent()
     RecentEntry entry;
     entry.Path = action->property("fileParameters").toMap().value("fileName").toString();
     const QFileInfo info(entry.Path);
-    // the scene of a workspace: listed as the workspace
-    if (QFileInfo::exists(info.absoluteDir().filePath("workspace.json")))
+    // the scene file of a saved scene: listed as the saved scene
+    if (QFileInfo::exists(info.absoluteDir().filePath("scene.json")))
       {
       continue;
       }
@@ -747,27 +747,27 @@ void qSlicerAstroWelcomeWidgetPrivate::updateRecent()
     entry.Time = times.value(entry.Path).toString();
     entries << entry;
     }
-  const QVariant workspaces = RunPython(
-    "__import__('AstroWorkbenchLib.Workspaces', fromlist=['recentJSON']).recentJSON()", true);
-  for (const QJsonValue& value : QJsonDocument::fromJson(workspaces.toString().toUtf8()).array())
+  const QVariant scenes = RunPython(
+    "__import__('AstroWorkbenchLib.Scenes', fromlist=['recentJSON']).recentJSON()", true);
+  for (const QJsonValue& value : QJsonDocument::fromJson(scenes.toString().toUtf8()).array())
     {
-    const QJsonObject workspace = value.toObject();
-    if (workspace.value("time").toString() <= cleared)
+    const QJsonObject scene = value.toObject();
+    if (scene.value("time").toString() <= cleared)
       {
       continue;
       }
     RecentEntry entry;
-    entry.Workspace = true;
-    entry.Name = workspace.value("name").toString();
-    entry.Path = workspace.value("folder").toString();
-    entry.Preview = workspace.value("preview").toString();
-    entry.Time = workspace.value("time").toString();
+    entry.Scene = true;
+    entry.Name = scene.value("name").toString();
+    entry.Path = scene.value("folder").toString();
+    entry.Preview = scene.value("preview").toString();
+    entry.Time = scene.value("time").toString();
     QStringList datasets;
-    for (const QJsonValue& dataset : workspace.value("datasets").toArray())
+    for (const QJsonValue& dataset : scene.value("datasets").toArray())
       {
       datasets << dataset.toString();
       }
-    entry.Detail = Tr("Workspace") + (datasets.isEmpty() ? QString() : QString::fromUtf8(" · ") + datasets.join(", "));
+    entry.Detail = Tr("Scene") + (datasets.isEmpty() ? QString() : QString::fromUtf8(" · ") + datasets.join(", "));
     entries << entry;
     }
   // known times first (newest first), then the files of unknown time in
@@ -790,10 +790,10 @@ void qSlicerAstroWelcomeWidgetPrivate::updateRecent()
     const RecentEntry& entry = entries[index];
     QToolButton* row = new QToolButton(this->Recent);
     row->setObjectName(QString("RecentEntry%1").arg(index));
-    row->setProperty("recentKind", entry.Workspace ? "workspace" : "file");
+    row->setProperty("recentKind", entry.Scene ? "scene" : "file");
     row->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
     row->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    if (entry.Workspace)
+    if (entry.Scene)
       {
       const QPixmap preview = RoundedThumbnail(entry.Preview, 64, 36, 4., q->devicePixelRatioF());
       row->setIcon(preview.isNull() ? qSlicerAstroTheme::instance()->icon("archive", "muted") : QIcon(preview));
@@ -812,14 +812,14 @@ void qSlicerAstroWelcomeWidgetPrivate::updateRecent()
       }
     const QString detail = row->fontMetrics().elidedText(entry.Detail + when, Qt::ElideMiddle, this->Wide ? 360 : 300);
     row->setText(entry.Name + "\n" + detail);
-    row->setToolTip(entry.Workspace ? Tr("Open the workspace %1 (replaces the current scene)").arg(entry.Name) :
+    row->setToolTip(entry.Scene ? Tr("Open the saved scene %1 (replaces the current scene)").arg(entry.Name) :
                                       Tr("Load %1").arg(QDir::toNativeSeparators(entry.Path)));
     row->setCursor(Qt::PointingHandCursor);
     QObject::connect(row, &QToolButton::clicked, q, [q, index]() { q->loadRecentFile(index); });
     this->RecentLayout->addWidget(row);
     }
   this->RecentEntries = entries;
-  this->RecentEmpty->setText(Tr("Files and workspaces you open are listed here."));
+  this->RecentEmpty->setText(Tr("Files and saved scenes you open are listed here."));
   this->RecentEmpty->setVisible(entries.isEmpty());
   this->ClearRecentButton->setVisible(!entries.isEmpty());
   qSlicerAstroTheme::instance()->applyTo(this->Recent);
@@ -988,12 +988,12 @@ bool qSlicerAstroWelcomeWidget::loadRecentFile(int index)
     }
   const RecentEntry entry = d->RecentEntries[index];
   bool loaded = false;
-  if (entry.Workspace)
+  if (entry.Scene)
     {
     QString folder = entry.Path;
     folder.replace('\\', "\\\\").replace('\'', "\\'");
-    loaded = RunPython(QString("__import__('AstroWorkbenchLib.Workspaces', fromlist=['loadWorkspace'])"
-                               ".loadWorkspace('%1')").arg(folder), true).toBool();
+    loaded = RunPython(QString("__import__('AstroWorkbenchLib.Scenes', fromlist=['loadScene'])"
+                               ".loadScene('%1')").arg(folder), true).toBool();
     }
   else
     {
@@ -1044,7 +1044,7 @@ void qSlicerAstroWelcomeWidget::clearRecentFiles()
         }
       }
     }
-  // the recent workspaces too (the workspaces themselves stay in Spaces)
+  // the recent saved scenes too (the saved scenes themselves are kept)
   QSettings settings;
   settings.setValue(HistoryClearedKey, QDateTime::currentDateTime().toString(Qt::ISODate));
   settings.remove(LoadTimesKey);

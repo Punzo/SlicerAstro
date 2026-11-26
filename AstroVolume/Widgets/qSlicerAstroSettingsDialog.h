@@ -31,7 +31,7 @@ class vtkSlicerAstroVolumeLogic;
 /// \ingroup SlicerAstro_QtModules_AstroVolume_Widgets
 /// Settings of SlicerAstro (a few, for the work with astronomical data):
 /// theme, saving of new data as
-/// compressed FITS, workspaces folder, quality of the 3D rendering, size
+/// compressed FITS, scenes folder, quality of the 3D rendering, size
 /// of the cubes shown in 3D automatically, size of the files for which a
 /// part is offered at loading. The changes apply at once and are kept in
 /// the application settings (keys SlicerAstro/...).
@@ -55,7 +55,7 @@ public:
   static int volumeRenderingQuality();
   static double autoShow3DMaximumMegabytes();
   static double largeDataPercent();
-  static QString workspacesDirectory();
+  static QString scenesDirectory();
 
 public slots:
   void setSaveCompressed(bool compressed);
@@ -63,7 +63,7 @@ public slots:
   void setVolumeRenderingQuality(int quality);
   void setAutoShow3DMaximumMegabytes(double megabytes);
   void setLargeDataPercent(double percent);
-  void setWorkspacesDirectory(const QString& directory);
+  void setScenesDirectory(const QString& directory);
   /// The fields from the settings
   void updateFromSettings();
 

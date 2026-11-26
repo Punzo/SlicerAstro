@@ -35,7 +35,7 @@ class AstroWorkbench(ScriptedLoadableModule):
         self.parent.dependencies = ["AstroVolume", "AstroMomentMaps"]
         self.parent.contributors = ["Davide Punzo (Kapteyn Astronomical Institute)"]
         self.parent.helpText = f"""
-A workspace for spectral cubes around the views: the datasets with previews
+A workbench for spectral cubes around the views: the datasets with previews
 computed from the data (moment-0 map and integrated spectrum) and their
 products, a scrubber of the spectral axis over the integrated spectrum, an
 inspector with the processing pipeline (smoothing, masks, moment maps,
@@ -100,7 +100,7 @@ class AstroWorkbenchWidget(ScriptedLoadableModuleWidget):
         bodyLayout.setContentsMargins(12, 12, 12, 14)
         bodyLayout.setSpacing(12)
         text = qt.QLabel(
-            "A workspace for spectral cubes: your datasets with previews and their products, the views "
+            "A workbench for spectral cubes: your datasets with previews and their products, the views "
             "with a scrubber of the spectral axis, the processing pipeline and the sky coordinates under "
             "the cursor. Slicer's menus and panels are hidden while it is open.")
         text.wordWrap = True
@@ -149,7 +149,7 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         self.setUp()
         self.test_DatasetsAndScrubber()
         self.setUp()
-        self.test_ViewBarsAndWorkspaces()
+        self.test_ViewBarsAndScenes()
         self.setUp()
         self.test_ScrollAreasFit()
         self.setUp()
@@ -399,11 +399,11 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         for mapID in mapIDs:
             self.assertIsNone(slicer.mrmlScene.GetNodeByID(mapID))
 
-    def test_ViewBarsAndWorkspaces(self):
-        """View bars: WCS axes and slice in 3D. Workspaces: saved with a
+    def test_ViewBarsAndScenes(self):
+        """View bars: WCS axes and slice in 3D. Scenes: saved with a
         preview, listed, renamed, opened and deleted."""
         import tempfile
-        from AstroWorkbenchLib import Workspaces
+        from AstroWorkbenchLib import Scenes
         volume = self.cube()
         workbench().enter()
         self.process(30)
@@ -421,70 +421,70 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         self.assertFalse(redNode.GetSliceVisible())
         self.assertEqual(len(slicer.util.findChildren(mainWindow, "ViewLink_Red")), 0)
 
-        directory = tempfile.mkdtemp(prefix="AstroWorkspaces")
-        folder = Workspaces.saveWorkspace("Test WEIN069", "a note", directory)
-        self.assertTrue(os.path.isfile(os.path.join(folder, Workspaces.SCENE_FILE)))
-        self.assertTrue(os.path.isfile(os.path.join(folder, Workspaces.PREVIEW_FILE)))
-        listed = Workspaces.listWorkspaces(directory)
+        directory = tempfile.mkdtemp(prefix="AstroScenes")
+        folder = Scenes.saveScene("Test WEIN069", "a note", directory)
+        self.assertTrue(os.path.isfile(os.path.join(folder, Scenes.SCENE_FILE)))
+        self.assertTrue(os.path.isfile(os.path.join(folder, Scenes.PREVIEW_FILE)))
+        listed = Scenes.listScenes(directory)
         self.assertEqual([entry["name"] for entry in listed], ["Test WEIN069"])
         # datasets by name; their objects (FITS OBJECT, e.g. PP08AB for
         # WEIN069) only for the filter
         self.assertEqual(listed[0]["datasets"], ["WEIN069"])
         self.assertEqual(listed[0]["objects"], [volume.GetAttribute("SlicerAstro.OBJECT").strip()])
-        self.assertEqual(Workspaces.dateGroup(listed[0]["modified"]), "Today")
+        self.assertEqual(Scenes.dateGroup(listed[0]["modified"]), "Today")
         with self.assertRaises(FileExistsError):
-            Workspaces.saveWorkspace("Test WEIN069", "", directory)
-        folder = Workspaces.renameWorkspace(folder, "Renamed")
-        self.assertEqual(Workspaces.listWorkspaces(directory)[0]["name"], "Renamed")
-        self.assertTrue(Workspaces.setWorkspaceNotes(folder, "other notes"))
-        self.assertEqual(Workspaces.listWorkspaces(directory)[0]["notes"], "other notes")
+            Scenes.saveScene("Test WEIN069", "", directory)
+        folder = Scenes.renameScene(folder, "Renamed")
+        self.assertEqual(Scenes.listScenes(directory)[0]["name"], "Renamed")
+        self.assertTrue(Scenes.setSceneNotes(folder, "other notes"))
+        self.assertEqual(Scenes.listScenes(directory)[0]["notes"], "other notes")
         # exported as a zip: the folder with the scene, preview and description
         import zipfile
-        archivePath = os.path.join(tempfile.mkdtemp(prefix="AstroWorkspaceZip"), "renamed.zip")
-        self.assertEqual(Workspaces.exportWorkspace(folder, archivePath), archivePath)
+        archivePath = os.path.join(tempfile.mkdtemp(prefix="AstroSceneZip"), "renamed.zip")
+        self.assertEqual(Scenes.exportScene(folder, archivePath), archivePath)
         with zipfile.ZipFile(archivePath) as archive:
             self.assertEqual(sorted(archive.namelist()),
-                             sorted(f"Renamed/{name}" for name in (Workspaces.SCENE_FILE, Workspaces.PREVIEW_FILE,
-                                                                   Workspaces.DESCRIPTION_FILE)))
+                             sorted(f"Renamed/{name}" for name in (Scenes.SCENE_FILE, Scenes.PREVIEW_FILE,
+                                                                   Scenes.DESCRIPTION_FILE)))
         os.remove(archivePath)
         os.rmdir(os.path.dirname(archivePath))
         # the card of the page: name and notes edited in place
-        page = Workspaces.WorkspacesPage(workbench())
-        entry = Workspaces.WorkspaceEntry(page, Workspaces.readDescription(folder))
-        self.assertEqual(len(slicer.util.findChildren(entry, "WorkspaceRename")), 0)
-        self.assertEqual(len(slicer.util.findChildren(entry, "WorkspaceExport")), 1)
+        page = Scenes.ScenesPage(workbench())
+        entry = Scenes.SceneEntry(page, Scenes.readDescription(folder))
+        self.assertEqual(len(slicer.util.findChildren(entry, "SceneRename")), 0)
+        self.assertEqual(len(slicer.util.findChildren(entry, "SceneExport")), 1)
         # notes: a fixed height (the card does not move while typing)
         height = entry.notesEdit.maximumHeight
         entry.notesEdit.setPlainText("edited in the card\nsecond line")
         self.process()
         self.assertEqual(entry.notesEdit.maximumHeight, height)
         entry.onNotesEdited()
-        self.assertEqual(Workspaces.readDescription(folder)["notes"], "edited in the card\nsecond line")
+        self.assertEqual(Scenes.readDescription(folder)["notes"], "edited in the card\nsecond line")
         # a long name: elided in the card, the full name in the tooltip
         entry.titleEdit.resize(120, 24)
-        entry.titleEdit.setFullText("A very long workspace name that does not fit in the card")
+        entry.titleEdit.setFullText("A very long scene name that does not fit in the card")
         self.assertTrue(entry.titleEdit.text.endswith("…"))
         entry.onTitleEdited("Renamed in the card")
         folder = entry.description["folder"]
-        self.assertEqual(Workspaces.readDescription(folder)["name"], "Renamed in the card")
+        self.assertEqual(Scenes.readDescription(folder)["name"], "Renamed in the card")
         # the logbook refresh scheduled by the rename runs; the widgets are
         # released by Python (a deleteLater would run only at the exit of
         # the application, after Python)
         self.process()
         entry = None
         page = None
-        # opening a workspace replaces the scene: other data loaded meanwhile
-        # are removed, the data of the workspace are there once
+        # opening a scene replaces the scene: other data loaded meanwhile
+        # are removed, the data of the scene are there once
         import SampleData
         other = SampleData.downloadSample("NGC2403")
         self.assertIsNotNone(other)
-        self.assertTrue(Workspaces.loadWorkspace(folder))
+        self.assertTrue(Scenes.loadScene(folder))
         self.process()
         names = [node.GetName() for node in slicer.util.getNodesByClass("vtkMRMLAstroVolumeNode")]
         self.assertEqual(names.count("WEIN069"), 1, names)
         self.assertNotIn("NGC2403", names)
-        self.assertTrue(Workspaces.deleteWorkspace(folder))
-        self.assertEqual(Workspaces.listWorkspaces(directory), [])
+        self.assertTrue(Scenes.deleteScene(folder))
+        self.assertEqual(Scenes.listScenes(directory), [])
         os.rmdir(directory)
 
     def assertScrollAreasFit(self, root, where):
@@ -517,7 +517,7 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
                 self.assertScrollAreasFit(panel, module)
             workbench().enter()
             self.process(30)
-            for page in ("data", "workspaces"):
+            for page in ("data", "scenes"):
                 workbench().rail.buttons[page].click()
                 self.process(10)
                 self.assertScrollAreasFit(mainWindow, f"drawer {page}")
@@ -1165,8 +1165,8 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         self.assertEqual(home.geometry.size(), mainWindow.centralWidget().size)
         self.assertGreater(home.sampleCount(), 5)
         self.assertIn("NGC2403", home.sampleNames())
-        # the Workbench card is replaced by Workspaces
-        self.assertTrue(slicer.util.findChild(home, "WorkspacesCard").visible)
+        # the Workbench card is replaced by Scenes
+        self.assertTrue(slicer.util.findChild(home, "ScenesCard").visible)
         # only the rail with the home page: no drawer, inspector or scrubber;
         # no Samples entry (the samples are on the home page)
         self.assertFalse(workbench().drawer.visible)
@@ -1183,17 +1183,17 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         self.assertIsNotNone(workbench().activeVolume())
         self.assertTrue(workbench().drawer.visible)
         self.assertTrue(mainWindow.findChild("QDockWidget", "WorkbenchInspector").visible)
-        # a workspace: listed in Recent with the files, newest first
-        from AstroWorkbenchLib import Workspaces
+        # a scene: listed in Recent with the files, newest first
+        from AstroWorkbenchLib import Scenes
         directory = os.path.join(slicer.app.temporaryPath, "AstroWorkbenchHomeTest")
         if os.path.isdir(directory):
             shutil.rmtree(directory)
-        Workspaces.setWorkspacesDirectory(directory, persistent=False)
+        Scenes.setScenesDirectory(directory, persistent=False)
         try:
             # (times are in seconds: saved after the file was loaded)
             import time
             time.sleep(1.1)
-            self.assertIsNotNone(Workspaces.saveWorkspace("Home test"))
+            self.assertIsNotNone(Scenes.saveScene("Home test"))
             # back from the rail; Data gives the views and the panels back
             slicer.util.findChild(mainWindow, "Rail_home").click()
             self.process()
@@ -1202,30 +1202,30 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
             self.assertEqual(home.recentNames()[0], "Home test")
             clear = slicer.util.findChild(home, "ClearRecentButton")
             self.assertEqual(clear.text, "Clear history")
-            self.assertIn("workspaces", clear.toolTip)
+            self.assertIn("scenes", clear.toolTip)
             slicer.util.findChild(mainWindow, "Rail_data").click()
             self.process()
             self.assertFalse(home.visible)
             self.assertTrue(workbench().drawer.visible)
             self.assertTrue(mainWindow.findChild("QDockWidget", "WorkbenchScrubber").visible)
-            # opening the workspace from Recent
+            # opening the scene from Recent
             slicer.util.findChild(mainWindow, "Rail_home").click()
             self.process()
             self.assertTrue(home.loadRecentFile(0))
             self.process()
             self.assertFalse(home.visible)
             self.assertEqual(len(slicer.util.getNodesByClass("vtkMRMLAstroVolumeNode")), 1)
-            # clearing the history: no recent files or workspaces (the
-            # workspace stays)
+            # clearing the history: no recent files or scenes (the
+            # scene stays)
             slicer.util.findChild(mainWindow, "Rail_home").click()
             self.process()
             time.sleep(1.1)
             home.clearRecentFiles()
             self.process()
             self.assertEqual(home.recentFileCount(), 0)
-            self.assertEqual(len(Workspaces.listWorkspaces()), 1)
+            self.assertEqual(len(Scenes.listScenes()), 1)
         finally:
-            Workspaces.setWorkspacesDirectory(None, persistent=False)
+            Scenes.setScenesDirectory(None, persistent=False)
         # the settings button of the header opens the SlicerAstro settings
         settingsButton = slicer.util.findChild(workbench().header, "SettingsButton")
         qt.QTimer.singleShot(300, lambda: [widget.close() for widget in slicer.app.topLevelWidgets()
@@ -1237,13 +1237,13 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         qt.QTimer.singleShot(150, onShown)
         settingsButton.click()
         self.assertEqual(len(opened), 1)
-        # the Workspaces card opens the workspaces
+        # the Scenes card opens the scenes
         slicer.util.findChild(mainWindow, "Rail_home").click()
         self.process()
-        workbench().openWorkspaces()
+        workbench().openScenes()
         self.process()
         self.assertFalse(home.visible)
-        self.assertTrue(slicer.util.findChild(mainWindow, "Rail_workspaces").checked)
+        self.assertTrue(slicer.util.findChild(mainWindow, "Rail_scenes").checked)
         # theme from the page
         theme = slicer.app.property("SlicerAstroTheme")
         home.setThemeMode("light")

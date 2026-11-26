@@ -89,10 +89,10 @@ def paragraph(text, role="label"):
 
 def folderPaths():
     """Folders of SlicerAstro: (name, path, tool tip)."""
-    from . import Workspaces
-    paths = [("Workspaces", Workspaces.workspacesDirectory(),
-              "Saved workspaces: one folder each, with the scene (scene.mrb), a preview and a description. "
-              f"Setting {Workspaces.SETTINGS_KEY}.")]
+    from . import Scenes
+    paths = [("Scenes", Scenes.scenesDirectory(),
+              "Saved scenes: one folder each, with the scene (scene.mrb), a preview and a description. "
+              f"Setting {Scenes.SETTINGS_KEY}.")]
     cacheManager = slicer.mrmlScene.GetCacheManager()
     cache = cacheManager.GetRemoteCacheDirectory() if cacheManager is not None else ""
     if cache:

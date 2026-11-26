@@ -9,40 +9,41 @@ and where the Workbench keeps its files.
 
 ## Home
 
-The rail on the left has **Home**, **Spaces** and **Data** (and **Sky**, the
+The rail on the left has **Home**, **Scenes** and **Data** (and **Sky**, the
 Virtual Observatory search of a later version). **Home** is the welcome page
-of SlicerAstro in place of the views and panels: open data, the workspaces,
-the documentation, the recent files and workspaces (newest first) and the
+of SlicerAstro in place of the views and panels: open data, the scenes,
+the documentation, the recent files and scenes (newest first) and the
 sample data (downloaded once, then cached). It opens when the Workbench starts
-without data; loading data, or **Spaces** or **Data**, brings the views and
+without data; loading data, or **Scenes** or **Data**, brings the views and
 the panels back. The same page, in one column, is the **Welcome** module of
 classic Slicer.
 
-## Workspaces
+## Scenes
 
-A workspace is a saved state of the Workbench: the scene (data, masks,
-contours, products, views), a preview of the views and a description (name,
-date, datasets, notes). Workspaces are listed in the **Spaces** entry of the
-left rail, where they are saved, opened, updated, exported as a zip file,
-renamed and deleted.
+A saved scene keeps the state of the Workbench: the Slicer scene (data,
+masks, contours, products, views), a preview of the views and a description
+(name, date, datasets, notes). Saved scenes are listed in the **Scenes**
+entry of the left rail, where they are saved, opened, updated, exported as a
+zip file, renamed and deleted.
 
-Each workspace is a folder in the workspaces folder:
+Each saved scene is a folder in the scenes folder:
 
 ```
-<workspaces folder>/<workspace name>/
+<scenes folder>/<scene name>/
     scene.mrb          the scene
-    preview.png        the views when the workspace was saved
-    workspace.json     name, dates, datasets, notes
+    preview.png        the views when the scene was saved
+    scene.json         name, dates, datasets, notes
 ```
 
-The workspaces folder is by default `~/SlicerAstro/Workspaces` (in the home
+The scenes folder is by default `~/SlicerAstro/Scenes` (in the home
 folder of the user). It is shown in **About › Folders** (`F1`), and it is
-kept in the application setting `SlicerAstro/WorkspacesDirectory`. To use
-another folder, set it from the Python console:
+kept in the application setting `SlicerAstro/ScenesDirectory`. To use
+another folder, choose it in the SlicerAstro settings, or set it from the
+Python console:
 
 ```python
-from AstroWorkbenchLib import Workspaces
-Workspaces.setWorkspacesDirectory("/data/my-workspaces")
+from AstroWorkbenchLib import Scenes
+Scenes.setScenesDirectory("/data/my-scenes")
 ```
 
 The downloaded sample data are kept in the cache of Slicer, also shown in
