@@ -230,6 +230,24 @@ else()
       COMPONENT RuntimeLibraries
       )
   endforeach()
+  if(NOT APPLE AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    # The OpenMP runtime of 3DBarolo (GCC): not installed on all the Linux
+    # systems (AstroModeling did not load without it). On Windows 3D Slicer
+    # installs the one of MSVC (CMAKE_INSTALL_OPENMP_LIBRARIES).
+    execute_process(
+      COMMAND ${CMAKE_CXX_COMPILER} -print-file-name=libgomp.so.1
+      OUTPUT_VARIABLE _gomp
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+      )
+    if(IS_ABSOLUTE "${_gomp}" AND EXISTS "${_gomp}")
+      get_filename_component(_gomp_file "${_gomp}" REALPATH)
+      install(FILES ${_gomp_file}
+        DESTINATION ${Slicer_INSTALL_THIRDPARTY_LIB_DIR}
+        COMPONENT RuntimeLibraries
+        RENAME libgomp.so.1
+        )
+    endif()
+  endif()
 endif()
 
 #-----------------------------------------------------------------------------
