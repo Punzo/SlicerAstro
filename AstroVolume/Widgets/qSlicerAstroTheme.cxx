@@ -55,6 +55,10 @@
 #include "qSlicerAstroScrollAreaFitter.h"
 #include "qSlicerAstroTheme.h"
 
+// Segmentations includes
+#include <vtkSegment.h>
+#include <vtkSegmentation.h>
+
 namespace
 {
 //----------------------------------------------------------------------------
@@ -464,6 +468,48 @@ bool qSlicerAstroTheme::isDark() const
 }
 
 //-----------------------------------------------------------------------------
+QList<QColor> qSlicerAstroTheme::segmentColors() const
+{
+  static const char* const Codes[] = {"#F2B24C", "#FF6B6B", "#9B8CFF", "#5BD08A",
+                                      "#F07BC8", "#56B4E9", "#FF9F43", "#4FD1E0"};
+  QList<QColor> colors;
+  for (const char* code : Codes)
+    {
+    colors << QColor(code);
+    }
+  return colors;
+}
+
+//----------------------------------------------------------------------------
+QColor qSlicerAstroTheme::nextSegmentColor(vtkSegmentation* segmentation)
+{
+  const QList<QColor> colors = qSlicerAstroTheme::instance()->segmentColors();
+  const int count = segmentation ? segmentation->GetNumberOfSegments() : 0;
+  QList<QColor> used;
+  for (int index = 0; index < count; index++)
+    {
+    double rgb[3] = {0., 0., 0.};
+    segmentation->GetNthSegment(index)->GetColor(rgb);
+    used << QColor::fromRgbF(rgb[0], rgb[1], rgb[2]);
+    }
+  for (const QColor& color : colors)
+    {
+    bool taken = false;
+    for (const QColor& other : used)
+      {
+      // the colours of the segments are stored as doubles: close is equal
+      taken = taken || (qAbs(color.red() - other.red()) <= 1 && qAbs(color.green() - other.green()) <= 1 &&
+                        qAbs(color.blue() - other.blue()) <= 1);
+      }
+    if (!taken)
+      {
+      return color;
+      }
+    }
+  return colors.at(count % colors.size());
+}
+
+//----------------------------------------------------------------------------
 QColor qSlicerAstroTheme::tokenColor(const QString& token, bool dark) const
 {
   for (const Token& entry : Tokens)

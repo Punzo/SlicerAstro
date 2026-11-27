@@ -165,7 +165,43 @@ class SliceViewBar(ViewBar):
 
         self.observe(self.sliceNode, "ModifiedEvent", self.refresh)
         self.observe(self.compositeNode, "ModifiedEvent", self.refresh)
+        # the volumes shown: their beam keywords (e.g. a beam entered in the
+        # Info section of data without one)
+        self.beamVolumeObservers = []
         self.refresh()
+
+    def cleanup(self):
+        self.observeBeamVolumes([])
+        ViewBar.cleanup(self)
+
+    def shownVolumes(self):
+        volumes = []
+        for volumeID in (self.compositeNode.GetBackgroundVolumeID(), self.compositeNode.GetForegroundVolumeID()):
+            volume = slicer.mrmlScene.GetNodeByID(volumeID) if volumeID else None
+            if volume is not None and volume not in volumes:
+                volumes.append(volume)
+        return volumes
+
+    def observeBeamVolumes(self, volumes):
+        if [node for node, _ in self.beamVolumeObservers] == volumes:
+            return
+        for node, tag in self.beamVolumeObservers:
+            node.RemoveObserver(tag)
+        self.beamVolumeObservers = [(volume, volume.AddObserver(vtk.vtkCommand.ModifiedEvent, self.refreshBeam))
+                                    for volume in volumes]
+
+    def refreshBeam(self, caller=None, event=None):
+        # the rule of the beam of Slicer's slice controller and of the beam
+        # drawn in the view (vtkMRMLAstroVolumeNode): shown in the views of
+        # the sky plane, enabled when the data shown have a beam
+        self.observeBeamVolumes(self.shownVolumes())
+        reason = slicer.vtkMRMLAstroVolumeNode.GetBeamUnavailableReason(self.sliceNode, self.compositeNode)
+        self.beamButton.visible = self.sliceNode.GetOrientation() == "XY"
+        self.beamButton.enabled = not reason
+        self.beamButton.toolTip = reason or BEAM_TOOLTIP
+        self.beamButton.blockSignals(True)
+        self.beamButton.checked = self.sliceNode.GetAttribute("SlicerAstro.Beam") == "on"
+        self.beamButton.blockSignals(False)
 
     def volume(self):
         volumeID = self.compositeNode.GetBackgroundVolumeID()
@@ -193,16 +229,7 @@ class SliceViewBar(ViewBar):
     def refresh(self, caller=None, event=None):
         volume = self.volume()
         orientation = self.sliceNode.GetOrientation()
-        # the rule of the beam of Slicer's slice controller and of the beam
-        # drawn in the view (vtkMRMLAstroVolumeNode): shown in the views of
-        # the sky plane, enabled when the data shown have a beam
-        reason = slicer.vtkMRMLAstroVolumeNode.GetBeamUnavailableReason(self.sliceNode, self.compositeNode)
-        self.beamButton.visible = orientation == "XY"
-        self.beamButton.enabled = not reason
-        self.beamButton.toolTip = reason or BEAM_TOOLTIP
-        self.beamButton.blockSignals(True)
-        self.beamButton.checked = self.sliceNode.GetAttribute("SlicerAstro.Beam") == "on"
-        self.beamButton.blockSignals(False)
+        self.refreshBeam()
         self.updateOverlays(volume)
         for button, checked in ((self.axesButton,
                                  self.sliceNode.GetRulerType() != slicer.vtkMRMLAbstractViewNode.RulerTypeNone),

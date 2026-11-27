@@ -48,6 +48,8 @@ class qSlicerAstroThemePrivate;
 ///
 /// Icons are SVG files drawn in the text colour ("currentColor"), tinted
 /// with a token when painted: they follow a change of theme.
+class vtkSegmentation;
+
 class Q_SLICERASTRO_QTMODULES_ASTROVOLUME_WIDGETS_EXPORT qSlicerAstroTheme
   : public QObject
 {
@@ -72,6 +74,15 @@ public:
   Q_INVOKABLE QColor color(const QString& token) const;
   /// Colour of a token in the dark or light theme
   Q_INVOKABLE QColor tokenColor(const QString& token, bool dark) const;
+
+  /// Colours of new segments (masks), in order: the theme hues (amber, coral,
+  /// violet, green, pink, sky, orange, cyan), clear of the colour maps of the
+  /// data and the same in the dark and light themes (they are saved with the
+  /// segments)
+  Q_INVOKABLE QList<QColor> segmentColors() const;
+  /// The colour of a new segment of a segmentation: the first colour of
+  /// segmentColors() that no segment has, after the last one the cycle again
+  static QColor nextSegmentColor(vtkSegmentation* segmentation);
 
   /// Style sheet of the current theme
   Q_INVOKABLE QString styleSheet() const;

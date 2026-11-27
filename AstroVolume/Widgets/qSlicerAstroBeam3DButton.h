@@ -26,10 +26,15 @@
 // VTK includes
 #include <vtkWeakPointer.h>
 
+// STD includes
+#include <vector>
+
 #include "qSlicerAstroVolumeModuleWidgetsExport.h"
 
 class vtkMRMLAbstractViewNode;
+class vtkMRMLAstroVolumeNode;
 class vtkMRMLNode;
+class vtkMRMLScene;
 
 /// \brief Toggle of the 3D resolution element of a 3D view: the ellipsoid of
 /// the beam (FWHM) times the spectral resolution (FWHM) of the cube rendered
@@ -38,8 +43,9 @@ class vtkMRMLNode;
 /// The one implementation of this control: SlicerAstro adds it to the bar of
 /// the 3D view controllers of Slicer, and the AstroWorkbench to its 3D view
 /// bars. It sets the attribute SlicerAstro.Beam3D ("on"/"off") of the view
-/// node; the tooltip says why nothing is shown when no cube with a beam is
-/// rendered in the view.
+/// node. It is disabled, the tooltip saying why, when no cube with a beam is
+/// rendered in the view; it follows the scene (cubes added or removed, volume
+/// rendering shown or hidden, a beam entered in the Info section).
 class Q_SLICERASTRO_QTMODULES_ASTROVOLUME_WIDGETS_EXPORT qSlicerAstroBeam3DButton
   : public QToolButton
 {
@@ -62,10 +68,13 @@ public slots:
   /// The 3D view node whose resolution element the button shows or hides
   void setMRMLViewNode(vtkMRMLNode* viewNode);
 
-  /// Checked state and tooltip from the view node
+  /// Checked and enabled states and tooltip from the view node and the cubes
+  /// rendered in the view
   void updateFromMRML();
 
 protected slots:
+  /// The cubes of the scene observed again (a node added or removed)
+  void onSceneChanged();
   void onToggled(bool checked);
   void updateIcon();
 
@@ -75,7 +84,15 @@ protected:
   bool event(QEvent* event) override;
 
 private:
+  /// Observe the scene of the view node and its cubes
+  void updateObservations();
+
   vtkWeakPointer<vtkMRMLAbstractViewNode> ViewNode;
+  vtkWeakPointer<vtkMRMLScene> ObservedScene;
+  std::vector<vtkWeakPointer<vtkMRMLAstroVolumeNode>> ObservedVolumes;
+  /// Availability of the last update: the view is rendered again when it
+  /// changes with the button checked
+  bool Available{false};
   QString IconColorToken{"muted"};
 };
 

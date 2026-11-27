@@ -189,9 +189,20 @@ def loadScene(folder):
     data = {key: value for key, value in description.items() if key not in ("folder", "preview", "scene")}
     data["opened"] = _now()
     _writeDescription(folder, data)
-    layout = description.get("layout")
-    if layout is not None and slicer.app.layoutManager() is not None:
-        slicer.app.layoutManager().setLayout(int(layout))
+    layoutManager = slicer.app.layoutManager()
+    if layoutManager is not None:
+        layout = description.get("layout")
+        if layout is not None:
+            layoutManager.setLayout(int(layout))
+        # the views without a layout after loading a scene with the layout
+        # shown (3D Slicer 5.13: the layout of the same description is not
+        # set up again; fixed in the Slicer of SlicerAstroApp): another
+        # layout and back, the views laid out in the window again
+        if layoutManager.viewport() is not None and layoutManager.viewport().layout() is None:
+            arrangement = layoutManager.layout
+            other = slicer.vtkMRMLLayoutNode.SlicerLayoutOneUpRedSliceView
+            layoutManager.setLayout(other if arrangement != other else slicer.vtkMRMLLayoutNode.SlicerLayoutFourUpView)
+            layoutManager.setLayout(arrangement)
     return True
 
 

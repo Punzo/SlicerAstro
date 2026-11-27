@@ -50,6 +50,7 @@
 #include <vtkWeakPointer.h>
 
 class qSlicerApplication;
+class vtkMRMLVolumeNode;
 
 //-----------------------------------------------------------------------------
 class qMRMLSliceAstroControllerWidgetPrivate
@@ -65,7 +66,9 @@ public slots:
 
   /// Beam button shown in the views of the sky plane (XY), enabled when the
   /// data shown have a beam (vtkMRMLAstroVolumeNode::GetBeamUnavailableReason,
-  /// the reason in the tooltip otherwise).
+  /// the reason in the tooltip otherwise). Updated when the layers of the
+  /// view change and when a volume shown changes (e.g. a beam entered in the
+  /// Info section).
   void updateBeamButton();
 
 protected slots:
@@ -86,6 +89,8 @@ public:
   QLabel*      WCSDisplay;
   QToolButton* BeamButton;
   vtkWeakPointer<vtkMRMLSliceLogic> BeamObservedSliceLogic;
+  /// Background and foreground volumes of the view (their beam keywords)
+  vtkWeakPointer<vtkMRMLVolumeNode> BeamObservedVolumes[2];
 
   qSlicerApplication* app;
   vtkSmartPointer<vtkCollection> col;

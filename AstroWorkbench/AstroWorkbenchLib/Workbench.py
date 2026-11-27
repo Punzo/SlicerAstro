@@ -146,6 +146,12 @@ class HeaderBar(qt.QFrame):
         layout.addWidget(self.contextLabel)
         layout.addSpacing(18)
 
+        # layout of the views: toolbar buttons like the tools, one checked
+        # (first: the views, then what is done in them)
+        self.layoutButton = LayoutSwitch(self.workbench.setViewLayout)
+        layout.addWidget(self.layoutButton)
+        layout.addWidget(self.separator())
+
         # interaction tools
         self.toolGroup = qt.QButtonGroup(self)
         self.toolGroup.setExclusive(True)
@@ -192,12 +198,6 @@ class HeaderBar(qt.QFrame):
         self.angleButton.connect("clicked()", lambda: self.workbench.setInteraction("angle"))
         self.roiButton.connect("clicked()", lambda: self.workbench.setInteraction("roi"))
         layout.addStretch(1)
-
-        # layout of the views: toolbar buttons like the tools, one checked
-        layout.addWidget(self.separator())
-        self.layoutButton = LayoutSwitch(self.workbench.setViewLayout)
-        layout.addWidget(self.layoutButton)
-        layout.addWidget(self.separator())
         self.themeButton = iconButton("sun", "Light or dark theme")
         self.themeButton.setObjectName("WorkbenchThemeButton")
         self.themeButton.connect("clicked()", self.toggleTheme)
@@ -221,6 +221,14 @@ class HeaderBar(qt.QFrame):
         layout.addWidget(self.fullSlicerButton)
         theme().connect("themeChanged()", self.updateThemeIcon)
         self.updateThemeIcon()
+
+    def setViewToolsEnabled(self, enabled):
+        """The layouts, tools and markups act on the views: disabled on the
+        home page (no views); theme, help, settings, console and the way back
+        to Slicer stay."""
+        self.layoutButton.enabled = enabled
+        for button in self.toolGroup.buttons():
+            button.enabled = enabled
 
     def separator(self):
         line = qt.QFrame()
@@ -1402,6 +1410,11 @@ class Workbench:
             mainWindow.resizeDocks([left], [60 if visible else 360], qt.Qt.Horizontal)
         # shown over the views (raised by the widget)
         self.home.visible = visible
+        if visible and (getattr(self, "tool", None) in self.PLACE_CLASSES or
+                        getattr(self, "tool", None) == "colorFunction"):
+            # no placement or colour-function drag left active on the views
+            self.setInteraction("navigate")
+        self.header.setViewToolsEnabled(not visible)
         button = self.rail.buttons["home" if visible else "data"]
         if visible or self.rail.homeButton.checked:
             button.checked = True

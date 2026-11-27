@@ -25,9 +25,12 @@
 // MRML includes
 #include <vtkMRMLAbstractViewNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
+#include <vtkMRMLScene.h>
 
 // VTK includes
+#include <vtkCollection.h>
 #include <vtkCommand.h>
+#include <vtkSmartPointer.h>
 
 // STD includes
 #include <cstring>
@@ -78,6 +81,62 @@ void qSlicerAstroBeam3DButton::setMRMLViewNode(vtkMRMLNode* viewNode)
   vtkMRMLAbstractViewNode* node = vtkMRMLAbstractViewNode::SafeDownCast(viewNode);
   this->qvtkReconnect(this->ViewNode, node, vtkCommand::ModifiedEvent, this, SLOT(updateFromMRML()));
   this->ViewNode = node;
+  this->updateObservations();
+  this->updateFromMRML();
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroBeam3DButton::updateObservations()
+{
+  vtkMRMLScene* scene = this->ViewNode ? this->ViewNode->GetScene() : nullptr;
+  if (this->ObservedScene != scene)
+    {
+    for (unsigned long event : {vtkMRMLScene::NodeAddedEvent, vtkMRMLScene::NodeRemovedEvent,
+                                vtkMRMLScene::EndBatchProcessEvent})
+      {
+      this->qvtkReconnect(this->ObservedScene, scene, event, this, SLOT(onSceneChanged()));
+      }
+    this->ObservedScene = scene;
+    }
+
+  // the cubes: their beam keywords (node modified) and their volume
+  // renderings (display nodes added, removed or modified)
+  for (vtkMRMLAstroVolumeNode* volume : this->ObservedVolumes)
+    {
+    if (volume)
+      {
+      this->qvtkDisconnect(volume, vtkCommand::ModifiedEvent, this, SLOT(updateFromMRML()));
+      this->qvtkDisconnect(volume, vtkMRMLDisplayableNode::DisplayModifiedEvent, this, SLOT(updateFromMRML()));
+      }
+    }
+  this->ObservedVolumes.clear();
+  if (!scene)
+    {
+    return;
+    }
+  vtkSmartPointer<vtkCollection> volumes =
+    vtkSmartPointer<vtkCollection>::Take(scene->GetNodesByClass("vtkMRMLAstroVolumeNode"));
+  for (int index = 0; index < volumes->GetNumberOfItems(); index++)
+    {
+    vtkMRMLAstroVolumeNode* volume = vtkMRMLAstroVolumeNode::SafeDownCast(volumes->GetItemAsObject(index));
+    if (volume)
+      {
+      this->qvtkConnect(volume, vtkCommand::ModifiedEvent, this, SLOT(updateFromMRML()));
+      this->qvtkConnect(volume, vtkMRMLDisplayableNode::DisplayModifiedEvent, this, SLOT(updateFromMRML()));
+      this->ObservedVolumes.emplace_back(volume);
+      }
+    }
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroBeam3DButton::onSceneChanged()
+{
+  // a scene loaded or closed: once at the end
+  if (this->ObservedScene && this->ObservedScene->IsBatchProcessing())
+    {
+    return;
+    }
+  this->updateObservations();
   this->updateFromMRML();
 }
 
@@ -86,12 +145,24 @@ void qSlicerAstroBeam3DButton::updateFromMRML()
 {
   const char* shown = this->ViewNode ? this->ViewNode->GetAttribute(VisibilityAttribute) : nullptr;
   const QSignalBlocker blocker(this);
-  this->setChecked(shown && !strcmp(shown, "on"));
-  this->setEnabled(this->ViewNode != nullptr);
+  const bool checked = shown && !strcmp(shown, "on");
+  this->setChecked(checked);
+  const QString reason = QString::fromStdString(vtkMRMLAstroVolumeNode::GetBeam3DUnavailableReason(this->ViewNode));
+  const bool available = this->ViewNode && reason.isEmpty();
+  this->setEnabled(available);
+  if (available != this->Available)
+    {
+    this->Available = available;
+    if (checked)
+      {
+      // the resolution element shown or hidden (e.g. a beam entered in the
+      // Info section of the cube rendered)
+      this->ViewNode->Modified();
+      }
+    }
   const QString help = tr("Show or hide the 3D resolution element: an ellipsoid with the beam (FWHM) on the "
                           "sky and the spectral resolution (FWHM) along the spectral axis, in the corner "
                           "of the first pixel and channel of the cube");
-  const QString reason = QString::fromStdString(vtkMRMLAstroVolumeNode::GetBeam3DUnavailableReason(this->ViewNode));
   this->setToolTip(reason.isEmpty() ? help : help + "\n\n" + reason);
 }
 

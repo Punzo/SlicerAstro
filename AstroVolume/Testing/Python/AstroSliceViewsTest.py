@@ -97,10 +97,9 @@ class AstroSliceViewsTestTest(ScriptedLoadableModuleTest):
             return slicer.util.findChild(widgets[name], "BeamButton")
 
         self.assertFalse(beamButton("Red").enabled)  # WEIN069 has no beam (BMAJ = -1)
-        volumeNode.SetAttribute("SlicerAstro.BMAJ", "0.012")
-        volumeNode.SetAttribute("SlicerAstro.BMIN", "0.006")
-        volumeNode.SetAttribute("SlicerAstro.BPA", "30")
-        volumeNode.Modified()
+        # a beam entered by the user (Info section): the button enabled (the
+        # volume observed, the view not changed)
+        self.assertTrue(slicer.vtkSlicerAstroVolumeLogic.SetBeam(volumeNode, [0.012, 0.006, 30.]))
         slicer.app.processEvents()
         self.assertTrue(beamButton("Red").enabled)
         self.assertFalse(beamButton("Yellow").enabled)  # not the sky plane
@@ -587,9 +586,20 @@ class AstroSliceViewsTestTest(ScriptedLoadableModuleTest):
         displayNode.SetVisibility(True)
         self.assertEqual(slicer.vtkMRMLAstroVolumeNode.GetBeam3DUnavailableReason(viewNode), "")
 
-        # the toggle in the bar of the 3D view controller
+        # the toggle in the bar of the 3D view controller: enabled while a
+        # cube with a beam is rendered in the view
         button = slicer.util.findChild(widget.threeDController(), "Beam3DButton")
+        self.assertTrue(button.enabled)
         self.assertFalse(button.checked)
+        beam = [float(volumeNode.GetAttribute(f"SlicerAstro.{key}")) for key in ("BMAJ", "BMIN", "BPA")]
+        volumeNode.SetAttribute("SlicerAstro.BMAJ", "UNDEFINED")
+        slicer.app.processEvents()
+        self.assertFalse(button.enabled)
+        self.assertIn("BMAJ", button.toolTip)
+        # a beam entered by the user (Info section)
+        self.assertTrue(slicer.vtkSlicerAstroVolumeLogic.SetBeam(volumeNode, beam))
+        slicer.app.processEvents()
+        self.assertTrue(button.enabled)
         button.click()
         self.assertEqual(viewNode.GetAttribute("SlicerAstro.Beam3D"), "on")
         displayableManager = view.displayableManagerByClassName("vtkMRMLAstroBeam3DDisplayableManager")
@@ -645,9 +655,19 @@ class AstroSliceViewsTestTest(ScriptedLoadableModuleTest):
         self.assertFalse(displayableManager.GetLabelActor().GetVisibility())
         button.click()
         displayNode.SetVisibility(False)
+        slicer.app.processEvents()
         view.forceRender()
         self.assertFalse(displayableManager.GetEllipsoidActor().GetVisibility())
         self.assertNotEqual(slicer.vtkMRMLAstroVolumeNode.GetBeam3DUnavailableReason(viewNode), "")
+        self.assertFalse(button.enabled)
+        self.assertTrue(button.checked)  # the choice kept for when a cube is rendered again
+        displayNode.SetVisibility(True)
+        slicer.app.processEvents()
+        self.assertTrue(button.enabled)
+        # a cube removed from the scene
+        slicer.mrmlScene.RemoveNode(volumeNode)
+        slicer.app.processEvents()
+        self.assertFalse(button.enabled)
         self.delayDisplay("Test passed")
 
     def beamPolyData(self, view):

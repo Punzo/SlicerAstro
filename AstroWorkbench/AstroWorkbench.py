@@ -477,9 +477,14 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         self.assertFalse(beam.enabled)
         self.assertIn("BMAJ", beam.toolTip)
         attributes = {key: volume.GetAttribute(f"SlicerAstro.{key}") for key in ("BMAJ", "BMIN", "BPA")}
-        for key, value in (("BMAJ", "0.012"), ("BMIN", "0.006"), ("BPA", "30")):
-            volume.SetAttribute(f"SlicerAstro.{key}", value)
-        redNode.Modified()
+        # a beam entered in the Info section: the button enabled (the volume
+        # observed, the view not changed)
+        info = workbench().inspector.infoWidget
+        info.setVolumeNode(volume)
+        for key, value in (("BMAJ", 43.2), ("BMIN", 21.6), ("BPA", 30.)):
+            slicer.util.findChild(info, f"InfoBeam_{key}").value = value
+        slicer.util.findChild(info, "InfoApplyBeam").click()
+        self.assertAlmostEqual(float(volume.GetAttribute("SlicerAstro.BMAJ")), 0.012)
         self.process()
         self.assertTrue(beam.enabled)
         self.assertTrue(beam.checked)  # the Workbench shows the beam
@@ -494,9 +499,10 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         redNode.SetOrientation("XY")
         self.process()
         self.assertFalse(beam.isHidden())
+        volume.StartModify()
         for key, value in attributes.items():
             volume.SetAttribute(f"SlicerAstro.{key}", value)
-        redNode.Modified()
+        volume.EndModify(False)
         self.process()
         self.assertFalse(beam.enabled)
 
@@ -791,6 +797,26 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         segmentID = masks.addSegment()
         self.process(10)
         self.assertEqual(editor.currentSegmentID(), segmentID)
+        # new segments: the colours of the theme palette, the first one not
+        # used yet; a colour chosen by the user is kept
+        segmentation = editor.segmentationNode().GetSegmentation()
+        palette = [(c.red(), c.green(), c.blue()) for c in slicer.app.property("SlicerAstroTheme").segmentColors()]
+
+        def rgb(segmentID):
+            return tuple(round(255 * v) for v in segmentation.GetSegment(segmentID).GetColor())
+
+        self.assertIn(rgb(segmentID), palette)
+        segmentation.GetSegment(segmentID).SetColor(51 / 255., 102 / 255., 153 / 255.)
+        second = masks.addSegment()
+        third = masks.addSegment()
+        self.process(10)
+        self.assertEqual(rgb(segmentID), (51, 102, 153))
+        self.assertIn(rgb(second), palette)
+        self.assertIn(rgb(third), palette)
+        self.assertNotEqual(rgb(second), rgb(third))
+        for added in (second, third):
+            segmentation.RemoveSegment(added)
+        editor.setCurrentSegmentID(segmentID)
         # an effect with options wider than the panel widens it (Paint fits
         # the minimum width of the panel: at least not narrower)
         editor.setActiveEffectByName("Paint")
@@ -1291,10 +1317,22 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         self.assertIsNone(mainWindow.findChild("QToolButton", "Rail_samples"))
         self.assertFalse(slicer.util.findChild(home, "WorkbenchCard").visible)
         self.assertFalse(slicer.util.findChild(home, "SkySearchCard").enabled)
+        # the header: layouts first, then the tools and the markups; they act
+        # on the views, disabled on the home page (theme, help... enabled)
+        header = workbench().header
+        headerLayout = header.layout()
+        self.assertLess(headerLayout.indexOf(header.layoutButton), headerLayout.indexOf(header.navigateButton))
+        self.assertLess(headerLayout.indexOf(header.navigateButton), headerLayout.indexOf(header.pointsButton))
+        self.assertFalse(header.layoutButton.enabled)
+        self.assertFalse(header.pointsButton.enabled)
+        self.assertFalse(header.navigateButton.enabled)
+        self.assertTrue(header.themeButton.enabled)
         # a sample from the home page: the views
         self.assertTrue(home.loadSample("WEIN069"))
         self.process()
         self.assertFalse(home.visible)
+        self.assertTrue(header.layoutButton.enabled)
+        self.assertTrue(header.pointsButton.enabled)
         self.assertFalse(slicer.util.findChild(mainWindow, "Rail_home").checked)
         self.assertIsNotNone(workbench().activeVolume())
         self.assertTrue(workbench().drawer.visible)
@@ -1335,10 +1373,20 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
             # opening the scene from Recent
             slicer.util.findChild(mainWindow, "Rail_home").click()
             self.process()
-            self.assertTrue(home.loadRecentFile(0))
+            # (its entry: tests running at the same time add theirs to Recent)
+            self.assertTrue(home.loadRecentFile(home.recentNames().index("Home test")))
             self.process()
             self.assertFalse(home.visible)
             self.assertEqual(len(slicer.util.getNodesByClass("vtkMRMLAstroVolumeNode")), 1)
+            # the views laid out in the window (the scene has the layout
+            # shown: it was not set up again with 3D Slicer 5.13)
+            layoutManager = slicer.app.layoutManager()
+            viewport = layoutManager.viewport()
+            self.assertIsNotNone(viewport.layout())
+            for name in layoutManager.sliceViewNames():
+                widget = layoutManager.sliceWidget(name)
+                if widget.isVisible():
+                    self.assertLessEqual(widget.geometry.right(), viewport.width, name)
             # clearing the history: no recent files or scenes (the
             # scene stays)
             slicer.util.findChild(mainWindow, "Rail_home").click()

@@ -184,12 +184,44 @@ void qMRMLSliceAstroControllerWidgetPrivate::updateBeamButton()
                         this, SLOT(updateBeamButton()));
     this->BeamObservedSliceLogic = q->sliceLogic();
     }
+  // the beam keywords of the volumes shown (e.g. a beam entered in the Info
+  // section of a volume without one)
+  vtkMRMLSliceCompositeNode* compositeNode = q->mrmlSliceCompositeNode();
+  vtkMRMLScene* scene = compositeNode ? compositeNode->GetScene() : nullptr;
+  const char* volumeIDs[2] = {compositeNode ? compositeNode->GetBackgroundVolumeID() : nullptr,
+                              compositeNode ? compositeNode->GetForegroundVolumeID() : nullptr};
+  vtkMRMLVolumeNode* volumes[2] = {nullptr, nullptr};
+  for (int layer = 0; layer < 2; layer++)
+    {
+    volumes[layer] =
+      vtkMRMLVolumeNode::SafeDownCast(scene && volumeIDs[layer] ? scene->GetNodeByID(volumeIDs[layer]) : nullptr);
+    }
+  if (volumes[1] == volumes[0])
+    {
+    volumes[1] = nullptr; // the same volume in both layers: observed once
+    }
+  for (vtkMRMLVolumeNode* observed : this->BeamObservedVolumes)
+    {
+    if (observed && observed != volumes[0] && observed != volumes[1])
+      {
+      this->qvtkDisconnect(observed, vtkCommand::ModifiedEvent, this, SLOT(updateBeamButton()));
+      }
+    }
+  for (vtkMRMLVolumeNode* volume : volumes)
+    {
+    if (volume && volume != this->BeamObservedVolumes[0] && volume != this->BeamObservedVolumes[1])
+      {
+      this->qvtkConnect(volume, vtkCommand::ModifiedEvent, this, SLOT(updateBeamButton()));
+      }
+    }
+  this->BeamObservedVolumes[0] = volumes[0];
+  this->BeamObservedVolumes[1] = volumes[1];
 
   // the same rule as the beam drawn in the view and the view bars of the
   // AstroWorkbench (vtkMRMLAstroVolumeNode)
   vtkMRMLSliceNode* sliceNode = q->mrmlSliceNode();
   const QString reason = QString::fromStdString(
-    vtkMRMLAstroVolumeNode::GetBeamUnavailableReason(sliceNode, q->mrmlSliceCompositeNode()));
+    vtkMRMLAstroVolumeNode::GetBeamUnavailableReason(sliceNode, compositeNode));
   this->BeamButton->setVisible(sliceNode && sliceNode->GetOrientation() == "XY");
   this->BeamButton->setEnabled(reason.isEmpty());
   this->BeamButton->setToolTip(reason.isEmpty() ?
