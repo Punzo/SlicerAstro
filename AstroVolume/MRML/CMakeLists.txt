@@ -16,6 +16,7 @@ set(${KIT}_INCLUDE_DIRECTORIES
   ${CFITSIO_INCLUDE_DIR}
   ${vtkFits_INCLUDE_DIRS}
   ${Slicer_Base_INCLUDE_DIRS}
+  ${vtkSlicerVolumeRenderingModuleMRML_INCLUDE_DIRS}
   )
 
 # --------------------------------------------------------------------------
@@ -56,6 +57,7 @@ set(${KIT}_TARGET_LIBRARIES
   ${Slicer_GUI_LIBRARY}
   MRMLCore
   vtkFits
+  vtkSlicerVolumeRenderingModuleMRML
   )
 
 # --------------------------------------------------------------------------

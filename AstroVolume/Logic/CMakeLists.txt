@@ -14,6 +14,7 @@ set(${KIT}_INCLUDE_DIRECTORIES
    ${Slicer_AstroLibs_INCLUDE_DIRS}
    ${vtkSlicerVolumeRenderingModuleLogic_INCLUDE_DIRS}
    ${vtkSlicerVolumeRenderingModuleMRML_INCLUDE_DIRS}
+   ${vtkSlicerSegmentationsModuleMRML_INCLUDE_DIRS}
   )
 
 set(${KIT}_SRCS
@@ -28,6 +29,7 @@ set(${KIT}_TARGET_LIBRARIES
   vtkSlicerVolumeRenderingModuleMRML
   vtkSlicerVolumeRenderingModuleLogic
   vtkSlicerTerminologiesModuleLogic
+  vtkSlicerSegmentationsModuleMRML
   )
 
 #-----------------------------------------------------------------------------
