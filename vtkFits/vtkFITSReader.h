@@ -33,7 +33,7 @@ class vtkMatrix4x4;
 class vtkStringArray;
 
 // FITS includes
-#include "fitsio.h"
+#include "vtkAstroFitsio.h"
 
 // WCS includes
 #include "wcslib.h"

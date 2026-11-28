@@ -18,6 +18,7 @@ configure_file(
 set(vtkFits_SRCS
   vtkFITSReader.cxx
   vtkFITSReader.h
+  vtkAstroFitsio.h
   vtkFITSWriter.cxx
   vtkFITSWriter.h
   )

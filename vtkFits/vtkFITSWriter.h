@@ -21,7 +21,7 @@
 #define __vtkFITSWriter_h
 
 // FITS includes
-#include "fitsio.h"
+#include "vtkAstroFitsio.h"
 
 // VTK includes
 #include "vtkWriter.h"

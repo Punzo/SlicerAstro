@@ -18,7 +18,7 @@
 // stack) for vtkErrorMacro, so that it is shown in the Slicer error log.
 
 // CFITSIO includes
-#include <fitsio.h>
+#include "vtkAstroFitsio.h"
 
 // STD includes
 #include <sstream>

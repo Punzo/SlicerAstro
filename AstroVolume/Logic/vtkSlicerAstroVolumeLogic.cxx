@@ -100,7 +100,7 @@
 #include <vtkStringArray.h>
 #include <vtksys/SystemTools.hxx>
 #include <vtkFITSReader.h>
-#include <fitsio.h>
+#include <vtkAstroFitsio.h>
 #include <vtkSMPTools.h>
 #include <vtkSegmentation.h>
 #include <vtkIntArray.h>
